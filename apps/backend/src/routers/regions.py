@@ -213,10 +213,7 @@ def get_regions(
                 "region_reset_data": region.region_reset_data or "",
                 "region_reset_time": reset_time,
                 "region_type_name": get_region_type_name(region.region_type),
-                "sector_type_name": get_sector_type_name(region.region_props) if region.region_type == REGION_SECTOR and region.region_props is not None else None,
-                # Add debug info temporarily
-                "debug_has_polygon": region.region_polygon is not None,
-                "debug_polygon_type": str(type(region.region_polygon)) if region.region_polygon else "None"
+                "sector_type_name": get_sector_type_name(region.region_props) if region.region_type == REGION_SECTOR and region.region_props is not None else None
             }
             response_regions.append(RegionResponse(**region_dict))
         
@@ -290,7 +287,7 @@ def get_region(vnum: int, db: Session = Depends(get_db)):
     if region.region_polygon:
         try:
             result = db.execute(
-                text("SELECT ST_AsText(region_polygon) FROM regions WHERE vnum = :vnum"),
+                text("SELECT ST_AsText(region_polygon) FROM region_data WHERE vnum = :vnum"),
                 {"vnum": region.vnum}
             ).fetchone()
             if result and result[0]:
