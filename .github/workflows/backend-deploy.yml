@@ -299,6 +299,7 @@ jobs:
           \$DOCKER_CMD run -d \\
             --name \$CONTAINER_NAME \\
             --restart unless-stopped \\
+            --add-host=host.docker.internal:host-gateway \\
             -p 8000:8000 \\
             -e MYSQL_DATABASE_URL="\$DATABASE_URL" \\
             -e ENVIRONMENT="production" \\
@@ -320,7 +321,30 @@ jobs:
             fi
             if [ \$i -eq 30 ]; then
               echo "❌ Container failed to become healthy"
-              \$DOCKER_CMD logs \$CONTAINER_NAME
+              echo "🔍 Container logs:"
+              \$DOCKER_CMD logs --tail 20 \$CONTAINER_NAME
+              echo "🔍 Testing database connectivity from container:"
+              \$DOCKER_CMD exec \$CONTAINER_NAME python -c "
+              import os
+              import pymysql
+              from urllib.parse import urlparse
+              
+              db_url = os.getenv('MYSQL_DATABASE_URL', '')
+              if db_url:
+                  parsed = urlparse(db_url.replace('mysql+pymysql://', 'mysql://'))
+                  host = parsed.hostname
+                  port = parsed.port or 3306
+                  user = parsed.username
+                  print(f'🔗 Attempting to connect to MySQL at {host}:{port} as user {user}')
+                  try:
+                      conn = pymysql.connect(host=host, port=port, user=user, password=parsed.password, database=parsed.path[1:])
+                      print('✅ Database connection successful!')
+                      conn.close()
+                  except Exception as e:
+                      print(f'❌ Database connection failed: {e}')
+              else:
+                  print('❌ No MYSQL_DATABASE_URL environment variable found')
+              " || echo "Failed to test database connection"
               exit 1
             fi
             echo "Waiting... (\$i/30)"
