@@ -129,7 +129,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}-backend
+          images: ${{ env.REGISTRY }}/luminarimud/wildeditor-backend
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -225,7 +225,7 @@ jobs:
           
           # Configuration
           APP_DIR="/opt/wildeditor-backend"
-          DOCKER_IMAGE="${{ env.REGISTRY }}/${{ github.repository }}-backend:latest"
+          DOCKER_IMAGE="${{ env.REGISTRY }}/luminarimud/wildeditor-backend:latest"
           CONTAINER_NAME="wildeditor-backend"
           
           # Check if user is in docker group or has passwordless sudo
