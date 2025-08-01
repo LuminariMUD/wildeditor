@@ -55,7 +55,7 @@ def polygon_wkt_to_coordinates(wkt: str) -> List[dict]:
         # Remove POLYGON(( and ))
         coords_str = wkt.replace("POLYGON((", "").replace("))", "")
         print(f"DEBUG: Cleaned coords string: {coords_str}")
-        point_pairs = coords_str.split(", ")
+        point_pairs = coords_str.split(",")  # Split by comma, not comma+space
         print(f"DEBUG: Point pairs: {point_pairs}")
         
         coordinates = []
@@ -213,7 +213,10 @@ def get_regions(
                 "region_reset_data": region.region_reset_data or "",
                 "region_reset_time": reset_time,
                 "region_type_name": get_region_type_name(region.region_type),
-                "sector_type_name": get_sector_type_name(region.region_props) if region.region_type == REGION_SECTOR and region.region_props is not None else None
+                "sector_type_name": get_sector_type_name(region.region_props) if region.region_type == REGION_SECTOR and region.region_props is not None else None,
+                # Add debug info temporarily
+                "debug_has_polygon": region.region_polygon is not None,
+                "debug_polygon_type": str(type(region.region_polygon)) if region.region_polygon else "None"
             }
             response_regions.append(RegionResponse(**region_dict))
         
