@@ -45,14 +45,18 @@ def coordinates_to_polygon_wkt(coordinates: List[dict]) -> str:
 
 def polygon_wkt_to_coordinates(wkt: str) -> List[dict]:
     """Convert MySQL POLYGON WKT format to coordinate list"""
+    print(f"DEBUG: polygon_wkt_to_coordinates called with: {wkt}")
     if not wkt:
+        print("DEBUG: Empty WKT string")
         return []
     
     # Parse WKT format: POLYGON((x1 y1, x2 y2, ...))
     try:
         # Remove POLYGON(( and ))
         coords_str = wkt.replace("POLYGON((", "").replace("))", "")
+        print(f"DEBUG: Cleaned coords string: {coords_str}")
         point_pairs = coords_str.split(", ")
+        print(f"DEBUG: Point pairs: {point_pairs}")
         
         coordinates = []
         for pair in point_pairs:
@@ -62,9 +66,12 @@ def polygon_wkt_to_coordinates(wkt: str) -> List[dict]:
                     x, y = float(parts[0]), float(parts[1])
                     coordinates.append({"x": x, "y": y})
         
+        print(f"DEBUG: Initial coordinates: {coordinates}")
+        
         # Remove duplicate closing point if present
         if len(coordinates) > 1 and coordinates[0] == coordinates[-1]:
             coordinates = coordinates[:-1]
+            print(f"DEBUG: Removed closing duplicate, coordinates: {coordinates}")
         
         # Handle point regions (landmarks) - check if all points are the same
         if len(coordinates) >= 3:
@@ -92,6 +99,7 @@ def polygon_wkt_to_coordinates(wkt: str) -> List[dict]:
                 
             coordinates = unique_points
             
+        print(f"DEBUG: Final coordinates returned: {coordinates}")
         return coordinates
     except Exception as e:
         print(f"Error parsing WKT: {e}, WKT: {wkt}")
@@ -132,14 +140,21 @@ def get_regions(
             # Convert MySQL POLYGON to coordinates
             coordinates = []
             if region.region_polygon:
+                print(f"DEBUG: Processing region {region.vnum} with polygon data")
                 try:
                     # Method 1: Use geoalchemy2's ST_AsText function properly
                     result = db.execute(
                         text("SELECT ST_AsText(region_polygon) FROM region_data WHERE vnum = :vnum"),
                         {"vnum": region.vnum}
                     ).fetchone()
+                    print(f"DEBUG: Raw result from ST_AsText query: {result}")
                     if result and result[0]:
-                        coordinates = polygon_wkt_to_coordinates(result[0])
+                        wkt_text = result[0]
+                        print(f"DEBUG: WKT text for region {region.vnum}: {wkt_text}")
+                        coordinates = polygon_wkt_to_coordinates(wkt_text)
+                        print(f"DEBUG: Converted coordinates for region {region.vnum}: {coordinates}")
+                    else:
+                        print(f"DEBUG: No result from ST_AsText query for region {region.vnum}")
                 except Exception as e:
                     print(f"Error converting polygon for region {region.vnum}: {e}")
                     try:
@@ -157,6 +172,8 @@ def get_regions(
                         print(f"All polygon conversion methods failed for region {region.vnum}: {e2}")
                         # Set empty coordinates as fallback
                         coordinates = []
+            else:
+                print(f"DEBUG: Region {region.vnum} has no polygon data")
             
             # Handle MySQL zero datetime and string dates
             reset_time = region.region_reset_time
