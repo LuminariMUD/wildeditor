@@ -61,6 +61,7 @@ def linestring_wkt_to_coordinates(wkt: str) -> List[dict]:
         print(f"Error parsing LINESTRING WKT: {e}, WKT: {wkt}")
         return []
 
+@router.get("", response_model=List[PathResponse])
 @router.get("/", response_model=List[PathResponse])
 def get_paths(
     path_type: Optional[int] = Query(None, description="Filter by path type (1=Road, 2=Dirt Road, 3=Geographic, 5=River, 6=Stream)"),

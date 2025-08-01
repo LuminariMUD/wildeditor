@@ -9,6 +9,7 @@ from ..config.config_database import get_db
 
 router = APIRouter()
 
+@router.get("", response_model=dict)
 @router.get("/", response_model=dict)
 def get_point_info(
     x: float = Query(..., description="X coordinate"), 

@@ -95,6 +95,7 @@ def polygon_wkt_to_coordinates(wkt: str) -> List[dict]:
         print(f"Error parsing WKT: {e}, WKT: {wkt}")
         return []
 
+@router.get("", response_model=List[RegionResponse])
 @router.get("/", response_model=List[RegionResponse])
 def get_regions(
     region_type: Optional[int] = Query(None, description="Filter by region type (1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override)"),
