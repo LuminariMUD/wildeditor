@@ -212,6 +212,26 @@ jobs:
           echo "✅ Server environment verified"
           echo "✅ Docker is installed and accessible"
           echo "✅ User has proper Docker permissions"
+          
+          # Check firewall configuration
+          echo "🔥 Checking firewall configuration..."
+          if command -v ufw &> /dev/null; then
+            echo "UFW status:"
+            sudo ufw status || true
+            echo "Ensuring port 8000 is allowed..."
+            sudo ufw allow 8000/tcp || true
+          else
+            echo "UFW not available, checking iptables..."
+            sudo iptables -L INPUT -n | grep :8000 || echo "No specific iptables rules for port 8000 found"
+          fi
+          
+          echo "🌐 Checking if port 8000 is available..."
+          if ss -tlnp | grep :8000; then
+            echo "⚠️  Port 8000 is already in use:"
+            ss -tlnp | grep :8000
+          else
+            echo "✅ Port 8000 is available"
+          fi
           SETUP_EOF
           
       - name: Deploy to production server
@@ -336,9 +356,57 @@ jobs:
           # Wait a moment for the service to be fully ready
           sleep 10
           
-          # Test the deployed API using the server IP address
-          echo "Testing deployment at http://${{ secrets.PRODUCTION_HOST }}:8000/api/health"
-          curl -f "http://${{ secrets.PRODUCTION_HOST }}:8000/api/health" || exit 1
+          echo "🔍 Testing deployment connectivity..."
+          
+          # First, test if the port is open
+          echo "Testing if port 8000 is reachable..."
+          if timeout 10 bash -c "echo >/dev/tcp/${{ secrets.PRODUCTION_HOST }}/8000"; then
+            echo "✅ Port 8000 is reachable"
+          else
+            echo "❌ Port 8000 is not reachable - checking server status via SSH..."
+            
+            # Check container status on the server
+            ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
+              echo '📋 Container status:'
+              docker ps -a --filter name=wildeditor-backend
+              echo ''
+              echo '📋 Container logs (last 20 lines):'
+              docker logs --tail 20 wildeditor-backend || true
+              echo ''
+              echo '📋 Port binding check:'
+              ss -tlnp | grep :8000 || echo 'Port 8000 not bound'
+              echo ''
+              echo '📋 Firewall status (if ufw is available):'
+              sudo ufw status || echo 'ufw not available'
+            "
+            
+            echo "❌ Cannot reach the API endpoint. Check the logs above for details."
+            exit 1
+          fi
+          
+          # Test the actual health endpoint
+          echo "Testing API health endpoint..."
+          HEALTH_URL="http://${{ secrets.PRODUCTION_HOST }}:8000/api/health"
+          echo "Attempting to reach: $HEALTH_URL"
+          
+          # Try with more verbose curl output
+          if curl -v -f --connect-timeout 10 --max-time 30 "$HEALTH_URL"; then
+            echo "✅ API health check passed!"
+          else
+            echo "❌ API health check failed. Checking server-side health..."
+            
+            # Test health endpoint from within the server
+            ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
+              echo '🏥 Testing health endpoint from server:'
+              curl -v --connect-timeout 5 --max-time 10 http://localhost:8000/api/health || true
+              echo ''
+              echo '📋 Testing with docker exec:'
+              docker exec wildeditor-backend curl -s http://localhost:8000/api/health || true
+            "
+            
+            exit 1
+          fi
+          
           echo "✅ Development deployment verified!"
           
       - name: Create deployment notification
