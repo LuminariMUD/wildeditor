@@ -159,7 +159,7 @@ jobs:
     
     environment:
       name: development
-      url: http://api.wildeditor.luminari.com
+      # URL will be determined by PRODUCTION_HOST:8000
       
     steps:
       - name: Checkout code
@@ -291,7 +291,7 @@ jobs:
             -e ENVIRONMENT="production" \\
             -e DEBUG="false" \\
             -e PORT="8000" \\
-            -e FRONTEND_URL="https://wildeditor.luminari.com" \\
+            -e FRONTEND_URL="*" \\
             -e LOG_LEVEL="INFO" \\
             -e WORKERS="4" \\
             -e ENABLE_DOCS="false" \\
@@ -336,8 +336,9 @@ jobs:
           # Wait a moment for the service to be fully ready
           sleep 10
           
-          # Test the deployed API
-          curl -f http://api.wildeditor.luminari.com/api/health || exit 1
+          # Test the deployed API using the server IP address
+          echo "Testing deployment at http://${{ secrets.PRODUCTION_HOST }}:8000/api/health"
+          curl -f "http://${{ secrets.PRODUCTION_HOST }}:8000/api/health" || exit 1
           echo "✅ Development deployment verified!"
           
       - name: Create deployment notification
@@ -347,7 +348,7 @@ jobs:
             const output = `#### 🚀 Backend Deployment Successful!\n
             - **Environment**: Development
             - **Version**: \`${{ github.sha }}\`
-            - **API URL**: http://api.wildeditor.luminari.com
+            - **API URL**: http://${{ secrets.PRODUCTION_HOST }}:8000
             - **Health Check**: ✅ Passing
             - **Deployed by**: @${{ github.actor }}
             
