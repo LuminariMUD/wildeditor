@@ -11,6 +11,7 @@ from ..schemas.path import (
     PATH_SECTOR_MAPPING
 )
 from ..config.config_database import get_db
+from ..middleware.auth import RequireAuth
 
 router = APIRouter()
 
@@ -248,7 +249,7 @@ def get_path(vnum: int, db: Session = Depends(get_db)):
     return PathResponse(**path_dict)
 
 @router.post("/", response_model=PathResponse, status_code=status.HTTP_201_CREATED)
-def create_path(path: PathCreate, db: Session = Depends(get_db)):
+def create_path(path: PathCreate, db: Session = Depends(get_db), authenticated: bool = RequireAuth):
     """
     Create a new path.
     
@@ -318,7 +319,7 @@ def create_path(path: PathCreate, db: Session = Depends(get_db)):
         )
 
 @router.put("/{vnum}", response_model=PathResponse)
-def update_path(vnum: int, path_update: PathUpdate, db: Session = Depends(get_db)):
+def update_path(vnum: int, path_update: PathUpdate, db: Session = Depends(get_db), authenticated: bool = RequireAuth):
     """
     Update an existing path.
     
@@ -379,7 +380,7 @@ def update_path(vnum: int, path_update: PathUpdate, db: Session = Depends(get_db
         )
 
 @router.delete("/{vnum}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_path(vnum: int, db: Session = Depends(get_db)):
+def delete_path(vnum: int, db: Session = Depends(get_db), authenticated: bool = RequireAuth):
     """
     Delete a path.
     

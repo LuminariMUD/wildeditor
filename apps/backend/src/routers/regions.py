@@ -13,6 +13,7 @@ from ..schemas.region import (
     REGION_SECTOR_TRANSFORM, REGION_SECTOR, SECTOR_TYPES
 )
 from ..config.config_database import get_db
+from ..middleware.auth import RequireAuth
 
 router = APIRouter()
 
@@ -340,7 +341,7 @@ def get_region(vnum: int, db: Session = Depends(get_db)):
     return RegionResponse(**region_dict)
 
 @router.post("/", response_model=RegionResponse, status_code=status.HTTP_201_CREATED)
-def create_region(region: RegionCreate, db: Session = Depends(get_db)):
+def create_region(region: RegionCreate, db: Session = Depends(get_db), authenticated: bool = RequireAuth):
     """
     Create a new region.
     
@@ -419,7 +420,8 @@ def create_landmark(
     vnum: int = Query(..., description="Unique vnum for the landmark"),
     zone_vnum: int = Query(..., description="Zone vnum for the landmark"),
     radius: Optional[float] = Query(0.2, description="Radius around the point (default 0.2)"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    authenticated: bool = RequireAuth
 ):
     """
     Create a landmark/point as a small geographic region.
@@ -456,7 +458,7 @@ def create_landmark(
         )
 
 @router.put("/{vnum}", response_model=RegionResponse)
-def update_region(vnum: int, region_update: RegionUpdate, db: Session = Depends(get_db)):
+def update_region(vnum: int, region_update: RegionUpdate, db: Session = Depends(get_db), authenticated: bool = RequireAuth):
     """Update an existing region"""
     try:
         # Check if region exists
@@ -512,7 +514,7 @@ def update_region(vnum: int, region_update: RegionUpdate, db: Session = Depends(
         )
 
 @router.delete("/{vnum}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_region(vnum: int, db: Session = Depends(get_db)):
+def delete_region(vnum: int, db: Session = Depends(get_db), authenticated: bool = RequireAuth):
     """Delete a region"""
     try:
         result = db.execute(text("DELETE FROM region_data WHERE vnum = :vnum"), {"vnum": vnum})

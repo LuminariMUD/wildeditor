@@ -1,8 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from .routers.regions import router as regions_router
 from .routers.paths import router as paths_router
 from .routers.points import router as points_router
+from .middleware.auth import verify_api_key
 
 app = FastAPI(
     title="Wildeditor Backend API",
@@ -33,6 +34,14 @@ def health_check():
         "status": "healthy", 
         "service": "wildeditor-backend",
         "version": "1.0.0"
+    }
+
+@app.get("/api/auth/status")
+def auth_status(authenticated: bool = Depends(verify_api_key)):
+    """Check authentication status"""
+    return {
+        "authenticated": authenticated,
+        "message": "Authentication successful" if authenticated else "No authentication required"
     }
 
 @app.get("/")

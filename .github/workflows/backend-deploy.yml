@@ -230,6 +230,7 @@ jobs:
       - name: Deploy to production server
         env:
           MYSQL_DATABASE_URL: ${{ secrets.MYSQL_DATABASE_URL }}
+          WILDEDITOR_API_KEY: ${{ secrets.WILDEDITOR_API_KEY }}
         run: |
           # Check if database URL is provided
           if [ -z "$MYSQL_DATABASE_URL" ]; then
@@ -239,7 +240,16 @@ jobs:
             exit 1
           fi
           
+          # Check if API key is provided
+          if [ -z "$WILDEDITOR_API_KEY" ]; then
+            echo "❌ WILDEDITOR_API_KEY secret is not set in GitHub repository"
+            echo "Please add it in Settings → Secrets and variables → Actions"
+            echo "Generate a secure API key using: [System.Convert]::ToBase64String((1..32 | ForEach-Object {Get-Random -Maximum 256}))"
+            exit 1
+          fi
+          
           echo "✅ Database URL is configured"
+          echo "✅ API key is configured"
           
           # Create deployment script
           cat > deploy.sh << EOF
@@ -253,6 +263,7 @@ jobs:
           DOCKER_IMAGE="${{ env.REGISTRY }}/luminarimud/wildeditor-backend:latest"
           CONTAINER_NAME="wildeditor-backend"
           DATABASE_URL="$MYSQL_DATABASE_URL"
+          API_KEY="$WILDEDITOR_API_KEY"
           
           # Validate database URL is not empty
           if [ -z "\$DATABASE_URL" ]; then
@@ -260,7 +271,14 @@ jobs:
             exit 1
           fi
           
+          # Validate API key is not empty
+          if [ -z "\$API_KEY" ]; then
+            echo "❌ API key not provided to deployment script"
+            exit 1
+          fi
+          
           echo "✅ Database URL received: \${DATABASE_URL:0:20}..." # Show first 20 chars for debugging
+          echo "✅ API key received: \${API_KEY:0:8}..." # Show first 8 chars for debugging
           
           # Test MySQL connectivity from host before starting container
           echo "🔍 Testing MySQL connectivity from host..."
@@ -337,6 +355,8 @@ jobs:
             --restart unless-stopped \\
             --network host \\
             -e MYSQL_DATABASE_URL="\$DATABASE_URL" \\
+            -e WILDEDITOR_API_KEY="\$API_KEY" \\
+            -e REQUIRE_AUTH="true" \\
             -e ENVIRONMENT="production" \\
             -e DEBUG="false" \\
             -e PORT="8000" \\
@@ -354,6 +374,8 @@ jobs:
               --restart unless-stopped \\
               -p 8000:8000 \\
               -e MYSQL_DATABASE_URL="\$UPDATED_DATABASE_URL" \\
+              -e WILDEDITOR_API_KEY="\$API_KEY" \\
+              -e REQUIRE_AUTH="true" \\
               -e ENVIRONMENT="production" \\
               -e DEBUG="false" \\
               -e PORT="8000" \\
@@ -436,6 +458,15 @@ jobs:
             if curl -s --connect-timeout 5 --max-time 10 http://localhost:8000/api/health; then
               echo ''
               echo '✅ Server-side health check PASSED'
+              
+              echo ''
+              echo '🔐 Testing authentication endpoint:'
+              if curl -s --connect-timeout 5 --max-time 10 -H 'Authorization: Bearer $WILDEDITOR_API_KEY' http://localhost:8000/api/auth/status | grep -q 'authenticated.*true'; then
+                echo '✅ Authentication endpoint PASSED'
+              else
+                echo '⚠️  Authentication endpoint test failed (but health check passed)'
+              fi
+              
               exit 0
             else
               echo ''
@@ -485,9 +516,15 @@ jobs:
             - **Version**: \`${{ github.sha }}\`
             - **API URL**: http://${{ secrets.PRODUCTION_HOST }}:8000
             - **Health Check**: ✅ Passing
+            - **Authentication**: 🔐 API Key Required
             - **Deployed by**: @${{ github.actor }}
             
-            The backend is now live and ready to serve requests!`;
+            The backend is now live with API key authentication enabled!
+            
+            **For Administrators:**
+            - Use the configured API key to access write operations
+            - Read operations are publicly accessible
+            - Test authentication: \`curl -H "Authorization: Bearer YOUR_API_KEY" http://${{ secrets.PRODUCTION_HOST }}:8000/api/auth/status\``;
             
             github.rest.repos.createCommitComment({
               owner: context.repo.owner,
