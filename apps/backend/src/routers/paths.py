@@ -46,7 +46,7 @@ def linestring_wkt_to_coordinates(wkt: str) -> List[dict]:
     try:
         # Remove LINESTRING( and )
         coords_str = wkt.replace("LINESTRING(", "").replace(")", "")
-        point_pairs = coords_str.split(", ")
+        point_pairs = coords_str.split(",")  # Split by comma, not comma+space
         
         coordinates = []
         for pair in point_pairs:
