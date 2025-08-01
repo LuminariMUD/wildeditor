@@ -24,7 +24,7 @@ class RegionBase(BaseModel):
     zone_vnum: int
     name: str  # Required in API even though nullable in DB
     region_type: int
-    coordinates: List[Dict[str, float]]  # Will be converted to/from MySQL POLYGON
+    coordinates: Optional[List[Dict[str, float]]] = []  # Optional since region_polygon is nullable in DB
     region_props: Optional[int] = None
     region_reset_data: str = ""  # Allow empty string (common in existing data)
     region_reset_time: datetime = datetime(2000, 1, 1)  # Default to valid datetime
@@ -68,8 +68,9 @@ class RegionBase(BaseModel):
     
     @validator('coordinates')
     def validate_coordinates(cls, v):
+        # Allow empty or None coordinates (regions without polygon data)
         if not v:
-            raise ValueError('Coordinates are required')
+            return []  # Return empty list for consistency
         
         # Allow single points (will be treated as point regions/landmarks)
         if len(v) == 1:
@@ -116,30 +117,6 @@ class RegionResponse(RegionBase):
     # Add human-readable type and sector descriptions
     region_type_name: Optional[str] = None
     sector_type_name: Optional[str] = None
-    
-    @validator('coordinates')
-    def validate_coordinates_response(cls, v):
-        # For responses, allow empty coordinates (regions without polygon data)
-        if not v:
-            return []  # Return empty list instead of failing validation
-        
-        # Allow single points (will be treated as point regions/landmarks)
-        if len(v) == 1:
-            coord = v[0]
-            if 'x' not in coord or 'y' not in coord:
-                raise ValueError('Coordinate must have x and y values')
-            return v
-        
-        # For polygons, need at least 3 points
-        if len(v) < 3:
-            raise ValueError('Polygons must have at least 3 points, or use 1 point for landmarks')
-        
-        # Ensure each coordinate has x and y
-        for coord in v:
-            if 'x' not in coord or 'y' not in coord:
-                raise ValueError('Each coordinate must have x and y values')
-        
-        return v
     
     class Config:
         from_attributes = True
