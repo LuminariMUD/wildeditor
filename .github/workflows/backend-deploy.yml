@@ -214,16 +214,9 @@ jobs:
           echo "✅ User has proper Docker permissions"
           
           # Check firewall configuration
-          echo "🔥 Checking firewall configuration..."
-          if command -v ufw &> /dev/null; then
-            echo "UFW status:"
-            sudo ufw status || true
-            echo "Ensuring port 8000 is allowed..."
-            sudo ufw allow 8000/tcp || true
-          else
-            echo "UFW not available, checking iptables..."
-            sudo iptables -L INPUT -n | grep :8000 || echo "No specific iptables rules for port 8000 found"
-          fi
+          echo "🔥 Checking network configuration..."
+          echo "Current network connections:"
+          ss -tlnp | head -10 || netstat -tlnp | head -10 || echo "Cannot check network connections"
           
           echo "🌐 Checking if port 8000 is available..."
           if ss -tlnp | grep :8000; then
@@ -376,8 +369,8 @@ jobs:
               echo '📋 Port binding check:'
               ss -tlnp | grep :8000 || echo 'Port 8000 not bound'
               echo ''
-              echo '📋 Firewall status (if ufw is available):'
-              sudo ufw status || echo 'ufw not available'
+              echo '📋 Process check:'
+              ps aux | grep wildeditor || echo 'No wildeditor processes found'
             "
             
             echo "❌ Cannot reach the API endpoint. Check the logs above for details."
