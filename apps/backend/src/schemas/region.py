@@ -72,21 +72,18 @@ class RegionBase(BaseModel):
         if not v:
             return []  # Return empty list for consistency
         
-        # Allow single points (will be treated as point regions/landmarks)
-        if len(v) == 1:
-            coord = v[0]
+        # Allow any number of coordinates - database contains valid spatial data
+        # Single points = landmarks, 2+ points = polygons/areas, duplicates are valid for small areas
+        for i, coord in enumerate(v):
             if 'x' not in coord or 'y' not in coord:
-                raise ValueError('Coordinate must have x and y values')
-            return v
-        
-        # For polygons, need at least 3 points
-        if len(v) < 3:
-            raise ValueError('Polygons must have at least 3 points, or use 1 point for landmarks')
-        
-        # Ensure each coordinate has x and y
-        for coord in v:
-            if 'x' not in coord or 'y' not in coord:
-                raise ValueError('Each coordinate must have x and y values')
+                raise ValueError(f'Coordinate {i} must have x and y values')
+            
+            # Ensure coordinates are numeric
+            try:
+                float(coord['x'])
+                float(coord['y'])
+            except (ValueError, TypeError):
+                raise ValueError(f'Coordinate {i} x and y values must be numeric')
         
         return v
 
