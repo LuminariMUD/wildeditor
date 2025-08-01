@@ -135,7 +135,7 @@ def get_regions(
                 try:
                     # Method 1: Use geoalchemy2's ST_AsText function properly
                     result = db.execute(
-                        text("SELECT ST_AsText(region_polygon) FROM regions WHERE vnum = :vnum"),
+                        text("SELECT ST_AsText(region_polygon) FROM region_data WHERE vnum = :vnum"),
                         {"vnum": region.vnum}
                     ).fetchone()
                     if result and result[0]:

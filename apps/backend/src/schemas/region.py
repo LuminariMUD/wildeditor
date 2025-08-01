@@ -27,7 +27,7 @@ class RegionBase(BaseModel):
     coordinates: Optional[List[Dict[str, float]]] = []  # Optional since region_polygon is nullable in DB
     region_props: Optional[int] = None
     region_reset_data: str = ""  # Allow empty string (common in existing data)
-    region_reset_time: datetime = datetime(2000, 1, 1)  # Default to valid datetime
+    region_reset_time: Optional[datetime] = None  # Optional to handle MySQL zero dates gracefully
     
     @validator('name')
     def validate_name_required(cls, v):
