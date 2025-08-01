@@ -218,8 +218,18 @@ jobs:
         env:
           MYSQL_DATABASE_URL: ${{ secrets.MYSQL_DATABASE_URL }}
         run: |
+          # Check if database URL is provided
+          if [ -z "$MYSQL_DATABASE_URL" ]; then
+            echo "❌ MYSQL_DATABASE_URL secret is not set in GitHub repository"
+            echo "Please add it in Settings → Secrets and variables → Actions"
+            echo "Format: mysql+pymysql://username:password@hostname:port/database_name"
+            exit 1
+          fi
+          
+          echo "✅ Database URL is configured"
+          
           # Create deployment script
-          cat > deploy.sh << 'EOF'
+          cat > deploy.sh << EOF
           #!/bin/bash
           set -e
           
@@ -229,7 +239,15 @@ jobs:
           APP_DIR="/opt/wildeditor-backend"
           DOCKER_IMAGE="${{ env.REGISTRY }}/luminarimud/wildeditor-backend:latest"
           CONTAINER_NAME="wildeditor-backend"
-          DATABASE_URL="MYSQL_DATABASE_URL_PLACEHOLDER"
+          DATABASE_URL="$MYSQL_DATABASE_URL"
+          
+          # Validate database URL is not empty
+          if [ -z "\$DATABASE_URL" ]; then
+            echo "❌ Database URL not provided to deployment script"
+            exit 1
+          fi
+          
+          echo "✅ Database URL received: \${DATABASE_URL:0:20}..." # Show first 20 chars for debugging
           
           # Check if user is in docker group or has passwordless sudo
           if groups | grep -q docker; then
@@ -242,69 +260,66 @@ jobs:
             echo "✅ Passwordless sudo available"
           else
             echo "❌ Error: User needs to be in docker group or have passwordless sudo access"
-            echo "Please run: sudo usermod -aG docker \$USER && newgrp docker"
+            echo "Please run: sudo usermod -aG docker \\\$USER && newgrp docker"
             echo "Or configure passwordless sudo for docker commands"
             exit 1
           fi
           
           # Create app directory if it doesn't exist
-          $MKDIR_CMD $APP_DIR
-          cd $APP_DIR
+          \$MKDIR_CMD \$APP_DIR
+          cd \$APP_DIR
           
           # Login to GitHub Container Registry
-          echo "${{ secrets.GITHUB_TOKEN }}" | $DOCKER_CMD login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | \$DOCKER_CMD login ghcr.io -u ${{ github.actor }} --password-stdin
           
           # Pull latest image
           echo "📦 Pulling latest Docker image..."
-          $DOCKER_CMD pull $DOCKER_IMAGE
+          \$DOCKER_CMD pull \$DOCKER_IMAGE
           
           # Stop existing container
           echo "🛑 Stopping existing container..."
-          $DOCKER_CMD stop $CONTAINER_NAME || true
-          $DOCKER_CMD rm $CONTAINER_NAME || true
+          \$DOCKER_CMD stop \$CONTAINER_NAME || true
+          \$DOCKER_CMD rm \$CONTAINER_NAME || true
           
           # Start new container
           echo "🏃 Starting new container..."
-          $DOCKER_CMD run -d \
-            --name $CONTAINER_NAME \
-            --restart unless-stopped \
-            -p 8000:8000 \
-            -e MYSQL_DATABASE_URL="$DATABASE_URL" \
-            -e ENVIRONMENT="production" \
-            -e DEBUG="false" \
-            -e PORT="8000" \
-            -e FRONTEND_URL="https://wildeditor.luminari.com" \
-            -e LOG_LEVEL="INFO" \
-            -e WORKERS="4" \
-            -e ENABLE_DOCS="false" \
-            -v /var/log/wildeditor:/var/log/wildeditor \
-            $DOCKER_IMAGE
+          \$DOCKER_CMD run -d \\
+            --name \$CONTAINER_NAME \\
+            --restart unless-stopped \\
+            -p 8000:8000 \\
+            -e MYSQL_DATABASE_URL="\$DATABASE_URL" \\
+            -e ENVIRONMENT="production" \\
+            -e DEBUG="false" \\
+            -e PORT="8000" \\
+            -e FRONTEND_URL="https://wildeditor.luminari.com" \\
+            -e LOG_LEVEL="INFO" \\
+            -e WORKERS="4" \\
+            -e ENABLE_DOCS="false" \\
+            -v /var/log/wildeditor:/var/log/wildeditor \\
+            \$DOCKER_IMAGE
           
           # Wait for container to be healthy
           echo "🏥 Waiting for health check..."
           for i in {1..30}; do
-            if $DOCKER_CMD exec $CONTAINER_NAME python -c "import requests; requests.get('http://localhost:8000/api/health')" 2>/dev/null; then
+            if \$DOCKER_CMD exec \$CONTAINER_NAME python -c "import requests; requests.get('http://localhost:8000/api/health')" 2>/dev/null; then
               echo "✅ Container is healthy!"
               break
             fi
-            if [ $i -eq 30 ]; then
+            if [ \$i -eq 30 ]; then
               echo "❌ Container failed to become healthy"
-              $DOCKER_CMD logs $CONTAINER_NAME
+              \$DOCKER_CMD logs \$CONTAINER_NAME
               exit 1
             fi
-            echo "Waiting... ($i/30)"
+            echo "Waiting... (\$i/30)"
             sleep 2
           done
           
           # Cleanup old images
           echo "🧹 Cleaning up old images..."
-          $DOCKER_CMD image prune -f
+          \$DOCKER_CMD image prune -f
           
           echo "🎉 Deployment completed successfully!"
           EOF
-          
-          # Replace the placeholder with the actual database URL
-          sed -i "s|MYSQL_DATABASE_URL_PLACEHOLDER|${MYSQL_DATABASE_URL}|g" deploy.sh
           
           # Copy and execute deployment script
           echo "Copying deployment script to server..."
