@@ -2,9 +2,14 @@
 
 ## Overview
 
-The Wildeditor API now uses simple API key authentication to protect write operations (create, update, delete). This guide explains how to set up and use authentication.
+The Wildeditor API now uses simple API key authentication to protect write operations (create, update, delete). 
 
-## Backend Setup
+**Current Status:**
+- ✅ **Backend**: API key authentication implemented and ready
+- ⏳ **Frontend**: Authentication integration not yet implemented
+- 🔧 **Manual Testing**: API can be tested directly with curl/Postman
+
+## Backend Setup (✅ Complete)
 
 ### 1. Environment Variables
 
@@ -65,15 +70,32 @@ cp apps/backend/.env.example apps/backend/.env
 nano apps/backend/.env
 ```
 
-## Frontend Setup
+## Frontend Setup (⏳ Pending Implementation)
 
-The frontend will automatically prompt for the API key when authentication is required.
+**Current Status**: The frontend has not yet been updated to use API key authentication.
 
-### API Key Storage
+### What Still Needs to Be Done
 
-- API keys are stored locally in browser localStorage
-- Keys are automatically verified on app startup
-- Invalid keys are automatically cleared
+The frontend currently still has the original Supabase authentication components, but they need to be updated to:
+
+1. **Replace Supabase Authentication**: Remove Supabase auth hooks and components
+2. **Add API Key Input**: Create a simple form for entering the API key
+3. **Store API Key**: Save the key locally (localStorage/sessionStorage)
+4. **Include in Requests**: Add the API key to all authenticated API requests
+5. **Handle Auth Errors**: Show appropriate messages when authentication fails
+
+### Current Behavior
+
+- **Frontend**: Still shows Supabase authentication (non-functional)
+- **API Access**: Read operations work, write operations will fail without API key
+- **Testing**: Can only test API authentication manually with curl/tools
+
+### Temporary Workaround
+
+For now, you can:
+- Use the application in **read-only mode** (view regions, paths, points)
+- Test write operations using **curl or API testing tools** with the API key
+- Wait for frontend authentication integration
 
 ## Usage
 
