@@ -73,19 +73,22 @@ class PathBase(BaseModel):
     
     @validator('coordinates')
     def validate_coordinates(cls, v):
-        if not v or len(v) < 2:
-            raise ValueError('Path must have at least 2 coordinate points for valid linestring')
+        # Allow empty coordinates (paths without linestring data)
+        if not v:
+            return []  # Return empty list for consistency
         
-        # Ensure each coordinate has x and y
+        # Allow any number of coordinates - database contains valid spatial data
+        # Single points = point paths, 2+ points = linestrings, empty = no spatial data
         for i, coord in enumerate(v):
             if 'x' not in coord or 'y' not in coord:
                 raise ValueError(f'Coordinate {i} must have x and y values')
             
-            # Ensure coordinates are numeric and within wilderness bounds
+            # Ensure coordinates are numeric
             try:
                 x, y = float(coord['x']), float(coord['y'])
-                if not (-1024 <= x <= 1024) or not (-1024 <= y <= 1024):
-                    raise ValueError(f'Coordinate {i} ({x}, {y}) outside wilderness bounds (-1024 to +1024)')
+                # Remove strict bounds checking - database may have valid paths outside these bounds
+                # if not (-1024 <= x <= 1024) or not (-1024 <= y <= 1024):
+                #     raise ValueError(f'Coordinate {i} ({x}, {y}) outside wilderness bounds (-1024 to +1024)')
             except (ValueError, TypeError):
                 raise ValueError(f'Coordinate {i} x and y values must be numeric')
         
@@ -136,9 +139,7 @@ class PathUpdate(BaseModel):
     @validator('coordinates')
     def validate_coordinates_if_provided(cls, v):
         if v is not None:
-            if len(v) < 2:
-                raise ValueError('Path must have at least 2 coordinate points')
-            
+            # Allow empty coordinates or any number of points
             for i, coord in enumerate(v):
                 if 'x' not in coord or 'y' not in coord:
                     raise ValueError(f'Coordinate {i} must have x and y values')
