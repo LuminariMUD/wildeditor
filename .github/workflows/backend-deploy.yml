@@ -181,6 +181,39 @@ jobs:
           echo "Testing SSH connection to ${{ secrets.PRODUCTION_HOST }}..."
           ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "echo 'SSH connection successful'"
           
+      - name: Setup server environment
+        run: |
+          echo "Verifying server environment..."
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'SETUP_EOF'
+          
+          # Check if Docker is installed
+          if ! command -v docker &> /dev/null; then
+            echo "❌ Docker is not installed on the server."
+            echo "Please run the setup script first:"
+            echo "  scp scripts/setup-server.sh user@server:/tmp/"
+            echo "  ssh user@server 'chmod +x /tmp/setup-server.sh && /tmp/setup-server.sh'"
+            exit 1
+          fi
+          
+          # Check if user is in docker group
+          if ! groups | grep -q docker; then
+            echo "❌ User is not in docker group."
+            echo "Please run: sudo usermod -aG docker $USER && exit && ssh back in"
+            exit 1
+          fi
+          
+          # Test Docker access without sudo
+          if ! docker ps >/dev/null 2>&1; then
+            echo "❌ Cannot access Docker without sudo."
+            echo "Please ensure user is in docker group and log out/in to activate it."
+            exit 1
+          fi
+          
+          echo "✅ Server environment verified"
+          echo "✅ Docker is installed and accessible"
+          echo "✅ User has proper Docker permissions"
+          SETUP_EOF
+          
       - name: Deploy to production server
         run: |
           # Create deployment script
@@ -195,25 +228,41 @@ jobs:
           DOCKER_IMAGE="${{ env.REGISTRY }}/${{ github.repository }}-backend:latest"
           CONTAINER_NAME="wildeditor-backend"
           
+          # Check if user is in docker group or has passwordless sudo
+          if groups | grep -q docker; then
+            DOCKER_CMD="docker"
+            MKDIR_CMD="mkdir -p"
+            echo "✅ User is in docker group, running without sudo"
+          elif sudo -n true 2>/dev/null; then
+            DOCKER_CMD="sudo docker"
+            MKDIR_CMD="sudo mkdir -p"
+            echo "✅ Passwordless sudo available"
+          else
+            echo "❌ Error: User needs to be in docker group or have passwordless sudo access"
+            echo "Please run: sudo usermod -aG docker \$USER && newgrp docker"
+            echo "Or configure passwordless sudo for docker commands"
+            exit 1
+          fi
+          
           # Create app directory if it doesn't exist
-          sudo mkdir -p $APP_DIR
+          $MKDIR_CMD $APP_DIR
           cd $APP_DIR
           
           # Login to GitHub Container Registry
-          echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | $DOCKER_CMD login ghcr.io -u ${{ github.actor }} --password-stdin
           
           # Pull latest image
           echo "📦 Pulling latest Docker image..."
-          sudo docker pull $DOCKER_IMAGE
+          $DOCKER_CMD pull $DOCKER_IMAGE
           
           # Stop existing container
           echo "🛑 Stopping existing container..."
-          sudo docker stop $CONTAINER_NAME || true
-          sudo docker rm $CONTAINER_NAME || true
+          $DOCKER_CMD stop $CONTAINER_NAME || true
+          $DOCKER_CMD rm $CONTAINER_NAME || true
           
           # Start new container
           echo "🏃 Starting new container..."
-          sudo docker run -d \
+          $DOCKER_CMD run -d \
             --name $CONTAINER_NAME \
             --restart unless-stopped \
             -p 8000:8000 \
@@ -231,13 +280,13 @@ jobs:
           # Wait for container to be healthy
           echo "🏥 Waiting for health check..."
           for i in {1..30}; do
-            if sudo docker exec $CONTAINER_NAME python -c "import requests; requests.get('http://localhost:8000/api/health')" 2>/dev/null; then
+            if $DOCKER_CMD exec $CONTAINER_NAME python -c "import requests; requests.get('http://localhost:8000/api/health')" 2>/dev/null; then
               echo "✅ Container is healthy!"
               break
             fi
             if [ $i -eq 30 ]; then
               echo "❌ Container failed to become healthy"
-              sudo docker logs $CONTAINER_NAME
+              $DOCKER_CMD logs $CONTAINER_NAME
               exit 1
             fi
             echo "Waiting... ($i/30)"
@@ -246,7 +295,7 @@ jobs:
           
           # Cleanup old images
           echo "🧹 Cleaning up old images..."
-          sudo docker image prune -f
+          $DOCKER_CMD image prune -f
           
           echo "🎉 Deployment completed successfully!"
           EOF
@@ -256,7 +305,10 @@ jobs:
           scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 deploy.sh ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:/tmp/
           
           echo "Executing deployment script on server..."
-          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "chmod +x /tmp/deploy.sh && /tmp/deploy.sh"
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
+            chmod +x /tmp/deploy.sh
+            /tmp/deploy.sh
+          "
           
       - name: Verify deployment
         run: |
