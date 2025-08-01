@@ -262,6 +262,30 @@ jobs:
           
           echo "✅ Database URL received: \${DATABASE_URL:0:20}..." # Show first 20 chars for debugging
           
+          # Test MySQL connectivity from host before starting container
+          echo "🔍 Testing MySQL connectivity from host..."
+          if command -v mysql >/dev/null 2>&1; then
+            # Extract connection details for testing
+            DB_HOST=\$(echo "\$DATABASE_URL" | sed -n 's/.*@\([^:]*\):.*/\1/p')
+            DB_PORT=\$(echo "\$DATABASE_URL" | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
+            DB_USER=\$(echo "\$DATABASE_URL" | sed -n 's/.*\/\/\([^:]*\):.*/\1/p')
+            
+            if [ "\$DB_HOST" = "localhost" ] || [ "\$DB_HOST" = "127.0.0.1" ]; then
+              echo "✅ MySQL host is localhost - should be accessible from host"
+              # Test if MySQL is running
+              if ss -tlnp | grep :3306 >/dev/null; then
+                echo "✅ MySQL is listening on port 3306"
+              else
+                echo "❌ MySQL does not appear to be listening on port 3306"
+                ss -tlnp | grep :330 || echo "No processes found listening on port 330*"
+              fi
+            else
+              echo "🌐 MySQL host is: \$DB_HOST"
+            fi
+          else
+            echo "ℹ️  MySQL client not installed on host - skipping host connectivity test"
+          fi
+          
           # Check if user is in docker group or has passwordless sudo
           if groups | grep -q docker; then
             DOCKER_CMD="docker"
@@ -294,13 +318,24 @@ jobs:
           \$DOCKER_CMD stop \$CONTAINER_NAME || true
           \$DOCKER_CMD rm \$CONTAINER_NAME || true
           
-          # Start new container
-          echo "🏃 Starting new container..."
-          \$DOCKER_CMD run -d \\
+          # Get host IP for database connection
+          HOST_IP=\$(ip route show default | awk '/default/ {print \$3}')
+          if [ -z "\$HOST_IP" ]; then
+            # Fallback method to get host IP
+            HOST_IP=\$(hostname -I | awk '{print \$1}')
+          fi
+          echo "🌐 Detected host IP: \$HOST_IP"
+          
+          # Replace host.docker.internal or localhost in DATABASE_URL with actual host IP
+          UPDATED_DATABASE_URL=\$(echo "\$DATABASE_URL" | sed "s/host\\.docker\\.internal/\$HOST_IP/g" | sed "s/localhost/\$HOST_IP/g")
+          echo "🔗 Updated database URL: \${UPDATED_DATABASE_URL:0:30}..."
+          
+          # Try host networking first, fallback to bridge networking
+          echo "🏃 Starting new container with host networking..."
+          if \$DOCKER_CMD run -d \\
             --name \$CONTAINER_NAME \\
             --restart unless-stopped \\
-            --add-host=host.docker.internal:host-gateway \\
-            -p 8000:8000 \\
+            --network host \\
             -e MYSQL_DATABASE_URL="\$DATABASE_URL" \\
             -e ENVIRONMENT="production" \\
             -e DEBUG="false" \\
@@ -310,7 +345,26 @@ jobs:
             -e WORKERS="4" \\
             -e ENABLE_DOCS="false" \\
             -v /var/log/wildeditor:/var/log/wildeditor \\
-            \$DOCKER_IMAGE
+            \$DOCKER_IMAGE; then
+            echo "✅ Container started with host networking (can use localhost for database)"
+          else
+            echo "⚠️  Host networking failed, trying bridge networking with IP substitution..."
+            \$DOCKER_CMD run -d \\
+              --name \$CONTAINER_NAME \\
+              --restart unless-stopped \\
+              -p 8000:8000 \\
+              -e MYSQL_DATABASE_URL="\$UPDATED_DATABASE_URL" \\
+              -e ENVIRONMENT="production" \\
+              -e DEBUG="false" \\
+              -e PORT="8000" \\
+              -e FRONTEND_URL="*" \\
+              -e LOG_LEVEL="INFO" \\
+              -e WORKERS="4" \\
+              -e ENABLE_DOCS="false" \\
+              -v /var/log/wildeditor:/var/log/wildeditor \\
+              \$DOCKER_IMAGE
+            echo "✅ Container started with bridge networking"
+          fi
           
           # Wait for container to be healthy
           echo "🏥 Waiting for health check..."
