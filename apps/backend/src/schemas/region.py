@@ -117,6 +117,30 @@ class RegionResponse(RegionBase):
     region_type_name: Optional[str] = None
     sector_type_name: Optional[str] = None
     
+    @validator('coordinates')
+    def validate_coordinates_response(cls, v):
+        # For responses, allow empty coordinates (regions without polygon data)
+        if not v:
+            return []  # Return empty list instead of failing validation
+        
+        # Allow single points (will be treated as point regions/landmarks)
+        if len(v) == 1:
+            coord = v[0]
+            if 'x' not in coord or 'y' not in coord:
+                raise ValueError('Coordinate must have x and y values')
+            return v
+        
+        # For polygons, need at least 3 points
+        if len(v) < 3:
+            raise ValueError('Polygons must have at least 3 points, or use 1 point for landmarks')
+        
+        # Ensure each coordinate has x and y
+        for coord in v:
+            if 'x' not in coord or 'y' not in coord:
+                raise ValueError('Each coordinate must have x and y values')
+        
+        return v
+    
     class Config:
         from_attributes = True
 
