@@ -101,7 +101,7 @@ def get_paths(
             if path.path_linestring:
                 try:
                     result = db.execute(
-                        text("SELECT ST_AsText(path_linestring) FROM paths WHERE vnum = :vnum"),
+                        text("SELECT ST_AsText(path_linestring) FROM path_data WHERE vnum = :vnum"),
                         {"vnum": path.vnum}
                     ).fetchone()
                     if result and result[0]:
@@ -226,7 +226,7 @@ def get_path(vnum: int, db: Session = Depends(get_db)):
     if path.path_linestring:
         try:
             result = db.execute(
-                text("SELECT ST_AsText(path_linestring) FROM paths WHERE vnum = :vnum"),
+                text("SELECT ST_AsText(path_linestring) FROM path_data WHERE vnum = :vnum"),
                 {"vnum": path.vnum}
             ).fetchone()
             if result and result[0]:
