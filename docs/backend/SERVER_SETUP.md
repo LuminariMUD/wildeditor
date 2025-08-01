@@ -83,12 +83,35 @@ If you prefer to set up manually:
 
 ## GitHub Secrets Required
 
-Make sure these secrets are configured in your GitHub repository:
+Make sure these secrets are configured in your GitHub repository (Settings → Secrets and variables → Actions):
 
-- `PRODUCTION_HOST` - Your server's hostname or IP address
-- `PRODUCTION_USER` - The username for SSH access
-- `PRODUCTION_SSH_KEY` - The private SSH key for authentication
-- `GITHUB_TOKEN` - Already available in GitHub Actions
+### Required Secrets:
+- **`PRODUCTION_HOST`** - Your server's hostname or IP address
+- **`PRODUCTION_USER`** - The username for SSH access (e.g., `wildedit`)
+- **`PRODUCTION_SSH_KEY`** - The private SSH key for authentication
+- **`MYSQL_DATABASE_URL`** - Your MySQL/MariaDB connection string
+
+### Database URL Format:
+The `MYSQL_DATABASE_URL` should be in this format:
+```
+mysql+pymysql://username:password@hostname:port/database_name
+```
+
+Example:
+```
+mysql+pymysql://wildeditor_user:your_password@your-db-server.com:3306/wildeditor_db
+```
+
+### How to Add Secrets:
+1. Go to your GitHub repository
+2. Click on **Settings** tab
+3. In the left sidebar, click **Secrets and variables** → **Actions**
+4. Click **New repository secret**
+5. Add each secret with its name and value
+
+### Other Available Secrets:
+- **`GITHUB_TOKEN`** - Already available in GitHub Actions (no need to add)
+- **`SLACK_WEBHOOK_URL`** - Optional, for deployment notifications
 
 ## Verification
 

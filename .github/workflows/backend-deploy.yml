@@ -215,6 +215,8 @@ jobs:
           SETUP_EOF
           
       - name: Deploy to production server
+        env:
+          MYSQL_DATABASE_URL: ${{ secrets.MYSQL_DATABASE_URL }}
         run: |
           # Create deployment script
           cat > deploy.sh << 'EOF'
@@ -227,6 +229,7 @@ jobs:
           APP_DIR="/opt/wildeditor-backend"
           DOCKER_IMAGE="${{ env.REGISTRY }}/luminarimud/wildeditor-backend:latest"
           CONTAINER_NAME="wildeditor-backend"
+          DATABASE_URL="MYSQL_DATABASE_URL_PLACEHOLDER"
           
           # Check if user is in docker group or has passwordless sudo
           if groups | grep -q docker; then
@@ -266,14 +269,14 @@ jobs:
             --name $CONTAINER_NAME \
             --restart unless-stopped \
             -p 8000:8000 \
-            -e MYSQL_DATABASE_URL="${MYSQL_DATABASE_URL}" \
-            -e ENVIRONMENT="development" \
-            -e DEBUG="true" \
+            -e MYSQL_DATABASE_URL="$DATABASE_URL" \
+            -e ENVIRONMENT="production" \
+            -e DEBUG="false" \
             -e PORT="8000" \
-            -e FRONTEND_URL="http://localhost:5173" \
-            -e LOG_LEVEL="DEBUG" \
-            -e WORKERS="2" \
-            -e ENABLE_DOCS="true" \
+            -e FRONTEND_URL="https://wildeditor.luminari.com" \
+            -e LOG_LEVEL="INFO" \
+            -e WORKERS="4" \
+            -e ENABLE_DOCS="false" \
             -v /var/log/wildeditor:/var/log/wildeditor \
             $DOCKER_IMAGE
           
@@ -299,6 +302,9 @@ jobs:
           
           echo "🎉 Deployment completed successfully!"
           EOF
+          
+          # Replace the placeholder with the actual database URL
+          sed -i "s|MYSQL_DATABASE_URL_PLACEHOLDER|${MYSQL_DATABASE_URL}|g" deploy.sh
           
           # Copy and execute deployment script
           echo "Copying deployment script to server..."
