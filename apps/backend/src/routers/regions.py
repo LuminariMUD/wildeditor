@@ -4,6 +4,8 @@ from sqlalchemy import text
 from sqlalchemy.engine import Result
 from typing import List, Optional, Any
 from datetime import datetime
+from geoalchemy2 import WKBElement
+from geoalchemy2.functions import ST_AsText
 from ..models.region import Region
 from ..schemas.region import (
     RegionCreate, RegionResponse, RegionUpdate, create_landmark_region,
@@ -130,10 +132,31 @@ def get_regions(
             # Convert MySQL POLYGON to coordinates
             coordinates = []
             if region.region_polygon:
-                # Use ST_AsText to get WKT format
-                result = db.execute(text("SELECT ST_AsText(:polygon)"), {"polygon": region.region_polygon}).fetchone()
-                if result:
-                    coordinates = polygon_wkt_to_coordinates(result[0])
+                try:
+                    # Method 1: Use geoalchemy2's ST_AsText function properly
+                    result = db.execute(
+                        text("SELECT ST_AsText(region_polygon) FROM regions WHERE vnum = :vnum"),
+                        {"vnum": region.vnum}
+                    ).fetchone()
+                    if result and result[0]:
+                        coordinates = polygon_wkt_to_coordinates(result[0])
+                except Exception as e:
+                    print(f"Error converting polygon for region {region.vnum}: {e}")
+                    try:
+                        # Method 2: Try to handle WKBElement directly
+                        if hasattr(region.region_polygon, 'data'):
+                            # If it's a WKBElement, try to convert to hex and then to WKT
+                            wkb_hex = region.region_polygon.data.hex() if hasattr(region.region_polygon.data, 'hex') else str(region.region_polygon.data)
+                            result = db.execute(
+                                text("SELECT ST_AsText(ST_GeomFromWKB(UNHEX(:wkb_hex)))"),
+                                {"wkb_hex": wkb_hex}
+                            ).fetchone()
+                            if result and result[0]:
+                                coordinates = polygon_wkt_to_coordinates(result[0])
+                    except Exception as e2:
+                        print(f"All polygon conversion methods failed for region {region.vnum}: {e2}")
+                        # Set empty coordinates as fallback
+                        coordinates = []
             
             # Handle MySQL zero datetime
             reset_time = region.region_reset_time
@@ -222,9 +245,16 @@ def get_region(vnum: int, db: Session = Depends(get_db)):
     # Convert MySQL POLYGON to coordinates
     coordinates = []
     if region.region_polygon:
-        result = db.execute(text("SELECT ST_AsText(:polygon)"), {"polygon": region.region_polygon}).fetchone()
-        if result:
-            coordinates = polygon_wkt_to_coordinates(result[0])
+        try:
+            result = db.execute(
+                text("SELECT ST_AsText(region_polygon) FROM regions WHERE vnum = :vnum"),
+                {"vnum": region.vnum}
+            ).fetchone()
+            if result and result[0]:
+                coordinates = polygon_wkt_to_coordinates(result[0])
+        except Exception as e:
+            print(f"Error converting polygon for region {region.vnum}: {e}")
+            coordinates = []
     
     # Handle MySQL zero datetime  
     reset_time = region.region_reset_time
@@ -348,7 +378,8 @@ def create_landmark(
             )
         
         # Create landmark region data (as geographic type)
-        landmark_data = create_landmark_region(x, y, name, vnum, zone_vnum, radius)
+        landmark_radius = radius if radius is not None else 0.2
+        landmark_data = create_landmark_region(x, y, name, vnum, zone_vnum, landmark_radius)
         landmark = RegionCreate(**landmark_data)
         
         return create_region(landmark, db)

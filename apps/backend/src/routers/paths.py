@@ -99,10 +99,16 @@ def get_paths(
             # Convert MySQL LINESTRING to coordinates
             coordinates = []
             if path.path_linestring:
-                # Use ST_AsText to get WKT format
-                result = db.execute(text("SELECT ST_AsText(:linestring)"), {"linestring": path.path_linestring}).fetchone()
-                if result:
-                    coordinates = linestring_wkt_to_coordinates(result[0])
+                try:
+                    result = db.execute(
+                        text("SELECT ST_AsText(path_linestring) FROM paths WHERE vnum = :vnum"),
+                        {"vnum": path.vnum}
+                    ).fetchone()
+                    if result and result[0]:
+                        coordinates = linestring_wkt_to_coordinates(result[0])
+                except Exception as e:
+                    print(f"Error converting linestring for path {path.vnum}: {e}")
+                    coordinates = []
             
             path_dict = {
                 "vnum": path.vnum,
@@ -218,9 +224,16 @@ def get_path(vnum: int, db: Session = Depends(get_db)):
     # Convert MySQL LINESTRING to coordinates
     coordinates = []
     if path.path_linestring:
-        result = db.execute(text("SELECT ST_AsText(:linestring)"), {"linestring": path.path_linestring}).fetchone()
-        if result:
-            coordinates = linestring_wkt_to_coordinates(result[0])
+        try:
+            result = db.execute(
+                text("SELECT ST_AsText(path_linestring) FROM paths WHERE vnum = :vnum"),
+                {"vnum": path.vnum}
+            ).fetchone()
+            if result and result[0]:
+                coordinates = linestring_wkt_to_coordinates(result[0])
+        except Exception as e:
+            print(f"Error converting linestring for path {path.vnum}: {e}")
+            coordinates = []
     
     path_dict = {
         "vnum": path.vnum,
