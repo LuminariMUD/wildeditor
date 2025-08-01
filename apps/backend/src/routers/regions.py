@@ -158,10 +158,33 @@ def get_regions(
                         # Set empty coordinates as fallback
                         coordinates = []
             
-            # Handle MySQL zero datetime
+            # Handle MySQL zero datetime and string dates
             reset_time = region.region_reset_time
-            if reset_time and reset_time.year < 1900:
-                reset_time = datetime(2000, 1, 1)
+            if reset_time:
+                try:
+                    # If it's a string, try to parse it as a datetime
+                    if isinstance(reset_time, str):
+                        from datetime import datetime as dt
+                        # Try common MySQL datetime formats
+                        try:
+                            reset_time = dt.fromisoformat(reset_time.replace('T', ' ').replace('Z', ''))
+                        except:
+                            try:
+                                reset_time = dt.strptime(reset_time, '%Y-%m-%d %H:%M:%S')
+                            except:
+                                try:
+                                    reset_time = dt.strptime(reset_time, '%Y-%m-%d')
+                                except:
+                                    # If all parsing fails, set to default
+                                    reset_time = datetime(2000, 1, 1)
+                    
+                    # Check for MySQL zero datetime (dates before 1900)
+                    if hasattr(reset_time, 'year') and reset_time.year < 1900:
+                        reset_time = datetime(2000, 1, 1)
+                        
+                except Exception as e:
+                    print(f"Error parsing reset_time for region {region.vnum}: {e}")
+                    reset_time = datetime(2000, 1, 1)
             
             region_dict = {
                 "vnum": region.vnum,
@@ -256,10 +279,33 @@ def get_region(vnum: int, db: Session = Depends(get_db)):
             print(f"Error converting polygon for region {region.vnum}: {e}")
             coordinates = []
     
-    # Handle MySQL zero datetime  
+    # Handle MySQL zero datetime and string dates
     reset_time = region.region_reset_time
-    if reset_time and reset_time.year < 1900:
-        reset_time = datetime(2000, 1, 1)
+    if reset_time:
+        try:
+            # If it's a string, try to parse it as a datetime
+            if isinstance(reset_time, str):
+                from datetime import datetime as dt
+                # Try common MySQL datetime formats
+                try:
+                    reset_time = dt.fromisoformat(reset_time.replace('T', ' ').replace('Z', ''))
+                except:
+                    try:
+                        reset_time = dt.strptime(reset_time, '%Y-%m-%d %H:%M:%S')
+                    except:
+                        try:
+                            reset_time = dt.strptime(reset_time, '%Y-%m-%d')
+                        except:
+                            # If all parsing fails, set to default
+                            reset_time = datetime(2000, 1, 1)
+            
+            # Check for MySQL zero datetime (dates before 1900)
+            if hasattr(reset_time, 'year') and reset_time.year < 1900:
+                reset_time = datetime(2000, 1, 1)
+                
+        except Exception as e:
+            print(f"Error parsing reset_time for region {region.vnum}: {e}")
+            reset_time = datetime(2000, 1, 1)
     
     region_dict = {
         "vnum": region.vnum,
