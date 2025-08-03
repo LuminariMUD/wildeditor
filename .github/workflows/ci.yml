@@ -109,6 +109,7 @@ jobs:
           VITE_API_URL=${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
           VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL || '' }}
           VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY || '' }}
+          VITE_DISABLE_AUTH=true
           VITE_ENVIRONMENT=production
           EOF
           echo "Contents of production .env file:"
@@ -120,6 +121,7 @@ jobs:
           VITE_API_URL: ${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VITE_DISABLE_AUTH: 'true'
           
       - name: Debug build environment
         run: |
@@ -232,10 +234,28 @@ jobs:
           VITE_API_URL=${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
           VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL || '' }}
           VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY || '' }}
+          VITE_DISABLE_AUTH=true
           VITE_ENVIRONMENT=production
           EOF
           echo "Contents of production .env file:"
           cat apps/frontend/.env
+          
+      - name: Verify source code before build
+        run: |
+          echo "=== CHECKING SOURCE CODE BEFORE BUILD ==="
+          echo "Contents of api.ts file (first 10 lines):"
+          cat apps/frontend/src/services/api.ts | head -10
+          echo ""
+          echo "Environment variables available during build:"
+          echo "VITE_API_URL: ${VITE_API_URL}"
+          echo "NODE_ENV: ${NODE_ENV}"
+          echo "All VITE_ variables:"
+          env | grep VITE_ || echo "No VITE_ variables found"
+        env:
+          VITE_API_URL: ${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }} 
+          VITE_DISABLE_AUTH: 'true'
           
       - name: Build production
         run: npm run build
@@ -243,17 +263,27 @@ jobs:
           VITE_API_URL: ${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VITE_DISABLE_AUTH: 'true'
           
       - name: Verify build environment variables
         run: |
           echo "Checking if environment variables were properly embedded in build..."
           echo "Checking for API URL in build files..."
+          echo "=== SEARCHING FOR ALL HTTP URLs IN BUILD FILES ==="
+          find apps/frontend/dist -name "*.js" -exec grep -H "http[^\"']*" {} \; || echo "No HTTP URLs found"
+          echo ""
+          echo "=== SEARCHING FOR SPECIFIC PATTERNS ==="
+          find apps/frontend/dist -name "*.js" -exec grep -H "localhost\|127.0.0.1\|3001\|8000\|74.208.126.44" {} \; || echo "No localhost/IP patterns found"
+          echo ""
+          echo "=== CHECKING FOR API_BASE_URL ==="
+          find apps/frontend/dist -name "*.js" -exec grep -H "API_BASE_URL\|api/health" {} \; || echo "No API_BASE_URL found"
+          
           if grep -q "74.208.126.44:8000" apps/frontend/dist/assets/*.js 2>/dev/null; then
             echo "✅ Found correct API URL in build files"
           else
             echo "❌ Correct API URL not found in build files"
             echo "Checking what API URL is in the build..."
-            grep -o "http[s]*://[^/]*[^\"']*" apps/frontend/dist/assets/*.js 2>/dev/null | head -5 || echo "No URLs found"
+            grep -o "http[s]*://[^/]*[^\"']*" apps/frontend/dist/assets/*.js 2>/dev/null | head -10 || echo "No URLs found"
           fi
           
           if grep -q "supabase.co" apps/frontend/dist/assets/*.js 2>/dev/null; then
@@ -273,6 +303,11 @@ jobs:
           
       - name: Deploy to Netlify
         run: |
+          echo "=== PRE-DEPLOYMENT FINAL CHECK ==="
+          echo "Final verification of what's being deployed:"
+          find apps/frontend/dist -name "*.js" -exec grep -l "3001\|localhost:3001" {} \; && echo "❌ FOUND localhost:3001 in build!" || echo "✅ No localhost:3001 found"
+          find apps/frontend/dist -name "*.js" -exec grep -l "74.208.126.44" {} \; && echo "✅ FOUND correct API URL" || echo "❌ Correct API URL not found"
+          echo ""
           netlify deploy --prod --dir=apps/frontend/dist --filter=@wildeditor/frontend --site=${{ secrets.NETLIFY_PROD_SITE_ID }} --auth=${{ secrets.NETLIFY_AUTH_TOKEN }} --message="Production deploy from ${{ github.sha }}"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
