@@ -60,17 +60,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     const canvasX = clientX - rect.left;
     const canvasY = clientY - rect.top;
     
-    // Account for zoom scaling - the canvas is scaled by zoom but maintains aspect ratio
-    const scale = state.zoom / 100;
-    
-    // Convert CSS coordinates to actual canvas coordinates
-    // The canvas element may be scaled by CSS, so we need to account for that
-    const actualCanvasWidth = canvas.width / scale;
-    const actualCanvasHeight = canvas.height / scale;
-    
-    // Normalize to 0-1 range based on the displayed (scaled) canvas size
-    const normalizedX = canvasX / actualCanvasWidth;
-    const normalizedY = canvasY / actualCanvasHeight;
+    // Convert CSS coordinates to normalized coordinates (0-1)
+    // The canvas display size is controlled by CSS, account for that
+    const normalizedX = canvasX / rect.width;
+    const normalizedY = canvasY / rect.height;
     
     // Ensure we're within bounds
     const clampedX = Math.max(0, Math.min(1, normalizedX));
@@ -81,7 +74,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       x: Math.round((clampedX * (COORDINATE_RANGE * 2)) - COORDINATE_RANGE),
       y: Math.round(COORDINATE_RANGE - (clampedY * (COORDINATE_RANGE * 2)))
     };
-  }, [state.zoom]);
+  }, []);
 
   const drawGrid = useCallback((ctx: CanvasRenderingContext2D) => {
     if (!state.showGrid) return;
@@ -129,8 +122,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const drawRegionOptimized = useCallback((ctx: CanvasRenderingContext2D, region: Region & { canvasCoords: {x: number, y:number}[] }) => {
     if (!state.showRegions || region.canvasCoords.length < 3) return;
     
-    ctx.fillStyle = region.color + '40';
-    ctx.strokeStyle = region.color;
+    const regionColor = region.color || '#3B82F6'; // Default blue color if none set
+    ctx.fillStyle = regionColor + '40';
+    ctx.strokeStyle = regionColor;
     ctx.lineWidth = state.selectedItem?.id === region.id ? 3 : 2;
 
     ctx.beginPath();
@@ -144,7 +138,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
     // Draw vertices
     region.canvasCoords.forEach((coord, index) => {
-      ctx.fillStyle = region.color;
+      ctx.fillStyle = regionColor;
       ctx.beginPath();
       ctx.arc(coord.x, coord.y, 4, 0, Math.PI * 2);
       ctx.fill();
@@ -160,7 +154,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const drawPathOptimized = useCallback((ctx: CanvasRenderingContext2D, path: Path & { canvasCoords: {x: number, y:number}[] }) => {
     if (!state.showPaths || path.canvasCoords.length < 2) return;
     
-    ctx.strokeStyle = path.color;
+    const pathColor = path.color || '#10B981'; // Default green color if none set
+    ctx.strokeStyle = pathColor;
     ctx.lineWidth = state.selectedItem?.id === path.id ? 4 : 3;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -174,7 +169,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
     // Draw vertices
     path.canvasCoords.forEach((coord, index) => {
-      ctx.fillStyle = path.color;
+      ctx.fillStyle = pathColor;
       ctx.beginPath();
       ctx.arc(coord.x, coord.y, 3, 0, Math.PI * 2);
       ctx.fill();
@@ -302,10 +297,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
   // Memoize expensive calculations
   const canvasScale = useMemo(() => state.zoom / 100, [state.zoom]);
-  const canvasSize = useMemo(() => ({ 
-    width: MAP_SIZE * canvasScale, 
-    height: MAP_SIZE * canvasScale 
-  }), [canvasScale]);
   
   // Memoize coordinate transformations for all objects to avoid recalculating every render
   const transformedRegions = useMemo(() => {
@@ -342,21 +333,20 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       return;
     }
     
-    // Set canvas internal resolution based on zoom
-    canvas.width = canvasSize.width;
-    canvas.height = canvasSize.height;
+    // Set canvas internal resolution to a fixed high value for crisp rendering
+    canvas.width = MAP_SIZE;
+    canvas.height = MAP_SIZE;
     
-    // Set canvas display size (this affects the CSS size and canvasToGame calculations)
-    canvas.style.width = `${MAP_SIZE}px`;
-    canvas.style.height = `${MAP_SIZE}px`;
+    // Set canvas display size based on zoom
+    const displaySize = MAP_SIZE * canvasScale;
+    canvas.style.width = `${displaySize}px`;
+    canvas.style.height = `${displaySize}px`;
 
     // Clear canvas with dark background
     ctx.fillStyle = '#1F2937';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Scale the context for zoom - this scales all drawing operations
-    ctx.save();
-    ctx.scale(canvasScale, canvasScale);
+    // No need to scale the context - we're controlling zoom via CSS display size
 
     // Draw background wilderness map image
     drawBackgroundImage(ctx);
@@ -400,9 +390,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
     // Draw current drawing
     drawCurrentDrawing(ctx);
-
-    ctx.restore();
-  }, [imageLoaded, canvasSize, canvasScale, drawBackgroundImage, drawGrid, drawCurrentDrawing, transformedRegions, transformedPaths, transformedPoints, gameToCanvas, drawRegionOptimized, drawPathOptimized, drawPointOptimized]);
+  }, [imageLoaded, canvasScale, drawBackgroundImage, drawGrid, drawCurrentDrawing, transformedRegions, transformedPaths, transformedPoints, gameToCanvas, drawRegionOptimized, drawPathOptimized, drawPointOptimized]);
 
   useEffect(() => {
     render();
@@ -541,7 +529,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         console.log('[Canvas] Region selected:', {
           region: clickedRegion.name,
           id: clickedRegion.id,
-          type: clickedRegion.type,
+          region_type: clickedRegion.region_type,
           pointCount: clickedRegion.coordinates.length
         });
         onSelectItem(clickedRegion);
@@ -577,18 +565,20 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   }, [state.tool, state.zoom, points, regions, paths, canvasToGame, gameToCanvas, onClick, onSelectItem, isPointInPolygon, distanceToPath]);
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-auto bg-gray-800">
-      <canvas
-        ref={canvasRef}
-        className="cursor-crosshair"
-        onMouseMove={handleMouseMove}
-        onClick={handleClick}
-        style={{
-          imageRendering: 'pixelated',
-          maxWidth: '100%',
-          height: 'auto'
-        }}
-      />
+    <div ref={containerRef} className="flex-1 overflow-auto bg-gray-800 p-4">
+      <div className="flex items-center justify-center min-h-full min-w-full">
+        <canvas
+          ref={canvasRef}
+          className="cursor-crosshair"
+          onMouseMove={handleMouseMove}
+          onClick={handleClick}
+          style={{
+            imageRendering: 'pixelated',
+            // Maintain exact proportions - no CSS scaling beyond what we set in render()
+            display: 'block'
+          }}
+        />
+      </div>
     </div>
   );
 };

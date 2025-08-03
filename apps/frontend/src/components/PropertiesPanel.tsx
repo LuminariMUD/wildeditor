@@ -122,13 +122,13 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           <label className="block text-sm font-medium text-gray-300 mb-1">Type</label>
           <select
             value={(selectedItem as Region).type}
-            onChange={(e) => onUpdate({ type: e.target.value as Region['type'] })}
+            onChange={(e) => onUpdate({ type: parseInt(e.target.value) as Region['type'] })}
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            <option value="geographic">Geographic</option>
-            <option value="encounter">Encounter</option>
-            <option value="sector_transform">Sector Transform</option>
-            <option value="sector">Sector</option>
+            <option value={1}>Geographic</option>
+            <option value={2}>Encounter</option>
+            <option value={3}>Sector Transform</option>
+            <option value={4}>Sector</option>
           </select>
         </div>
       )}
@@ -138,14 +138,15 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           <label className="block text-sm font-medium text-gray-300 mb-1">Type</label>
           <select
             value={(selectedItem as Path).type}
-            onChange={(e) => onUpdate({ type: e.target.value as Path['type'] })}
+            onChange={(e) => onUpdate({ type: parseInt(e.target.value) as Path['type'] })}
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            <option value="road">Road</option>
-            <option value="dirt_road">Dirt Road</option>
-            <option value="geographic">Geographic</option>
-            <option value="river">River</option>
-            <option value="stream">Stream</option>
+            <option value={0}>Road</option>
+            <option value={1}>Dirt Road</option>
+            <option value={2}>Geographic</option>
+            <option value={3}>River</option>
+            <option value={4}>Stream</option>
+            <option value={5}>Trail</option>
           </select>
         </div>
       )}
@@ -164,15 +165,31 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         </div>
       )}
 
-      {/* Properties for regions */}
-      {isRegion && (
+      {/* Properties for regions and paths */}
+      {(isRegion || isPath) && (
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Properties</label>
+          <label className="block text-sm font-medium text-gray-300 mb-1">Properties (JSON)</label>
           <textarea
-            value={(selectedItem as Region).properties}
-            onChange={(e) => onUpdate({ properties: e.target.value })}
+            value={(selectedItem as Region | Path).props}
+            onChange={(e) => onUpdate({ props: e.target.value })}
             rows={3}
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            placeholder='{"description": "Custom properties"}'
+          />
+        </div>
+      )}
+
+      {/* Zone VNUM for regions and paths */}
+      {(isRegion || isPath) && (
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">Zone VNUM</label>
+          <input
+            type="number"
+            value={(selectedItem as Region | Path).zone_vnum}
+            onChange={(e) => onUpdate({ zone_vnum: Math.max(1, parseInt(e.target.value) || 1) })}
+            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            min="1"
+            max="99999"
           />
         </div>
       )}

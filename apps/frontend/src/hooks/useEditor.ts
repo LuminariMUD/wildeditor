@@ -25,26 +25,47 @@ export const useEditor = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Set API token when session changes
+  // Check if auth is disabled (for development mode)
+  const authDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
+
+  // Set API token when session changes (only if auth is enabled)
   useEffect(() => {
-    if (session?.access_token) {
+    if (!authDisabled && session?.access_token) {
       apiClient.setToken(session.access_token);
     }
-  }, [session]);
+  }, [session, authDisabled]);
 
   // Load data from API
   const loadData = useCallback(async () => {
-    if (!session?.access_token) return;
+    console.log('[Editor] Starting data load, authDisabled:', authDisabled, 'session:', !!session?.access_token);
+    
+    // Skip auth check if auth is disabled or if we have a valid session
+    if (!authDisabled && !session?.access_token) {
+      console.log('[Editor] Skipping data load - no session and auth not disabled');
+      return;
+    }
     
     setLoading(true);
     setError(null);
     
     try {
+      // First test the health endpoint
+      console.log('[Editor] Testing health endpoint...');
+      const health = await apiClient.healthCheck();
+      console.log('[Editor] Health check successful:', health);
+      
+      console.log('[Editor] Making data API calls...');
       const [regionsData, pathsData, pointsData] = await Promise.all([
         apiClient.getRegions(),
         apiClient.getPaths(),
         apiClient.getPoints()
       ]);
+      
+      console.log('[Editor] API calls successful:', {
+        regions: regionsData.length,
+        paths: pathsData.length,
+        points: pointsData.length
+      });
       
       setRegions(regionsData);
       setPaths(pathsData);
@@ -60,9 +81,9 @@ export const useEditor = () => {
     } finally {
       setLoading(false);
     }
-  }, [session]);
+  }, [session, authDisabled]);
 
-  // Load data when session is available
+  // Load data when session is available or immediately if auth is disabled
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -188,7 +209,7 @@ export const useEditor = () => {
         currentDrawing: [...prev.currentDrawing, coordinate]
       }));
     }
-  }, [state.tool, state.isDrawing, state.currentDrawing.length, points.length, selectItem, session?.access_token]);
+  }, [state.tool, state.isDrawing, state.currentDrawing.length, points.length, selectItem, session?.access_token, authDisabled]);
 
   const cancelDrawing = useCallback(() => {
     console.log('[Drawing] Canceling drawing:', {
@@ -240,12 +261,18 @@ export const useEditor = () => {
 
     if (state.tool === 'polygon' && state.currentDrawing.length >= 3) {
       const newRegion: Region = {
-        id: Date.now().toString(),
-        vnum: regions.length + 103,
+        vnum: Math.max(1000, ...regions.map(r => r.vnum || 0)) + 1, // Generate next vnum
+        zone_vnum: 1,
         name: `New Region ${regions.length + 1}`,
-        type: 'geographic',
+        region_type: 1, // Geographic region
         coordinates: [...state.currentDrawing], // Create a copy to avoid reference issues
-        properties: 'Custom region',
+        region_props: null,
+        region_reset_data: "",
+        region_reset_time: null,
+        
+        // Frontend compatibility fields
+        id: Date.now().toString(),
+        props: '{"description": "Custom region"}', // compatibility
         color: '#F59E0B'
       };
       
@@ -253,7 +280,7 @@ export const useEditor = () => {
         id: newRegion.id,
         vnum: newRegion.vnum,
         points: newRegion.coordinates.length,
-        type: newRegion.type
+        type: newRegion.region_type
       });
       
       // Optimistic update
@@ -261,7 +288,7 @@ export const useEditor = () => {
       selectItem(newRegion);
       
       // Save to API
-      if (session?.access_token) {
+      if (authDisabled || session?.access_token) {
         apiClient.createRegion(newRegion)
           .then(() => {
             console.log('[Drawing] Region created successfully:', newRegion.id);
@@ -281,11 +308,17 @@ export const useEditor = () => {
       }
     } else if (state.tool === 'linestring' && state.currentDrawing.length >= 2) {
       const newPath: Path = {
-        id: Date.now().toString(),
-        vnum: paths.length + 203,
+        vnum: Math.max(2000, ...paths.map(p => p.vnum || 0)) + 1, // Generate next vnum
+        zone_vnum: 1,
         name: `New Path ${paths.length + 1}`,
-        type: 'road',
+        path_type: 1, // Paved Road
         coordinates: [...state.currentDrawing], // Create a copy to avoid reference issues
+        path_props: 0,
+        
+        // Frontend compatibility fields
+        id: Date.now().toString(),
+        type: 0, // compatibility (0=Road)
+        props: '{"width": "wide", "condition": "excellent"}', // compatibility
         color: '#EC4899'
       };
       
@@ -301,7 +334,7 @@ export const useEditor = () => {
       selectItem(newPath);
       
       // Save to API
-      if (session?.access_token) {
+      if (authDisabled || session?.access_token) {
         apiClient.createPath(newPath)
           .then(() => {
             console.log('[Drawing] Path created successfully:', newPath.id);
@@ -324,7 +357,7 @@ export const useEditor = () => {
     // Always clean up drawing state after processing
     console.log('[Drawing] Cleaning up drawing state');
     setState(prev => ({ ...prev, isDrawing: false, currentDrawing: [] }));
-  }, [state.isDrawing, state.currentDrawing, state.tool, regions.length, paths.length, selectItem, session?.access_token]);
+  }, [state.isDrawing, state.currentDrawing, state.tool, regions.length, paths.length, selectItem, session?.access_token, authDisabled]);
 
   const updateSelectedItem = useCallback((updates: Partial<Region | Path | Point>) => {
     if (!state.selectedItem) {
@@ -333,69 +366,70 @@ export const useEditor = () => {
     }
     
     console.log('[Update] Updating selected item:', {
-      id: state.selectedItem.id,
       updates: Object.keys(updates)
     });
 
-    const itemId = state.selectedItem.id;
+    // Get the item ID - use vnum for regions/paths, or id for points
+    let itemId: string;
+    if ('vnum' in state.selectedItem) {
+      itemId = state.selectedItem.vnum?.toString() || state.selectedItem.id || '';
+    } else {
+      itemId = state.selectedItem.id || '';
+    }
+    
+    if (!itemId) {
+      console.error('[Update] No valid ID found for selected item');
+      return;
+    }
     
     if ('coordinates' in state.selectedItem) {
-      if ('vnum' in state.selectedItem && 'type' in state.selectedItem) {
-        // It's a Region or Path
-        // Check if it's a region or path by checking if it has a vnum property
-        if ('vnum' in state.selectedItem) {
-          // First check if it's in regions array
-          const isRegion = regions.some(r => r.id === itemId);
-          
-          if (isRegion) {
-            // It's a Region
-            setRegions(prev => prev.map(region => 
-              region.id === itemId
-                ? { ...region, ...updates } as Region
-                : region
-            ));
-            
-            // Save to API
-            if (session?.access_token) {
-              apiClient.updateRegion(itemId, updates)
-                .then(() => {
-                  console.log('[Update] Region updated successfully:', itemId);
-                })
-                .catch(err => {
-                  console.error('[Update] Failed to update region:', {
-                    error: err,
-                    regionId: itemId,
-                    updates,
-                    message: err.message || 'Unknown error'
-                  });
-                  setError('Failed to update region: ' + (err.message || 'Unknown error'));
-                });
-            }
-          } else {
-            // It's a Path
-            setPaths(prev => prev.map(path => 
-              path.id === itemId
-                ? { ...path, ...updates } as Path
-                : path
-            ));
-            
-            // Save to API
-            if (session?.access_token) {
-              apiClient.updatePath(itemId, updates)
-                .then(() => {
-                  console.log('[Update] Path updated successfully:', itemId);
-                })
-                .catch(err => {
-                  console.error('[Update] Failed to update path:', {
-                    error: err,
-                    pathId: itemId,
-                    updates,
-                    message: err.message || 'Unknown error'
-                  });
-                  setError('Failed to update path: ' + (err.message || 'Unknown error'));
-                });
-            }
-          }
+      if ('region_type' in state.selectedItem) {
+        // It's a Region
+        setRegions(prev => prev.map(region => 
+          (region.vnum?.toString() === itemId || region.id === itemId)
+            ? { ...region, ...updates } as Region
+            : region
+        ));
+        
+        // Save to API
+        if (authDisabled || session?.access_token) {
+          apiClient.updateRegion(itemId, updates as Partial<Region>)
+            .then(() => {
+              console.log('[Update] Region updated successfully:', itemId);
+            })
+            .catch(err => {
+              console.error('[Update] Failed to update region:', {
+                error: err,
+                regionId: itemId,
+                updates,
+                message: err.message || 'Unknown error'
+              });
+              setError('Failed to update region: ' + (err.message || 'Unknown error'));
+            });
+        }
+      } else if ('path_type' in state.selectedItem) {
+        // It's a Path
+        setPaths(prev => prev.map(path => 
+          (path.vnum?.toString() === itemId || path.id === itemId)
+            ? { ...path, ...updates } as Path
+            : path
+        ));
+        
+        // Save to API
+        if (authDisabled || session?.access_token) {
+          apiClient.updatePath(itemId, updates as Partial<Path>)
+            .then(() => {
+              console.log('[Update] Path updated successfully:', itemId);
+            })
+            .catch(err => {
+              console.error('[Update] Failed to update path:', {
+                error: err,
+                pathId: itemId,
+                updates,
+                message: err.message || 'Unknown error'
+              });
+              setError('Failed to update path: ' + (err.message || 'Unknown error'));
+            });
         }
       }
     } else {
@@ -407,8 +441,8 @@ export const useEditor = () => {
       ));
       
       // Save to API
-      if (session?.access_token) {
-        apiClient.updatePoint(itemId, updates)
+      if (authDisabled || session?.access_token) {
+        apiClient.updatePoint(itemId, updates as Partial<Point>)
           .then(() => {
             console.log('[Update] Point updated successfully:', itemId);
           })
@@ -424,8 +458,8 @@ export const useEditor = () => {
       }
     }
     
-    setState(prev => ({ ...prev, selectedItem: { ...prev.selectedItem!, ...updates } }));
-  }, [state.selectedItem, session, regions]);
+    setState(prev => ({ ...prev, selectedItem: { ...prev.selectedItem!, ...updates } as Region | Path | Point }));
+  }, [state.selectedItem, session, regions, authDisabled]);
 
   return {
     state,

@@ -5,10 +5,36 @@ interface StatusBarProps {
   mousePosition: Coordinate;
   zoom: number;
   onZoomChange: (zoom: number) => void;
+  regionCount?: number;
+  pathCount?: number;
+  loading?: boolean;
+  error?: string | null;
 }
 
-export const StatusBar: React.FC<StatusBarProps> = ({ mousePosition, zoom, onZoomChange }) => {
+export const StatusBar: React.FC<StatusBarProps> = ({ 
+  mousePosition, 
+  zoom, 
+  onZoomChange, 
+  regionCount = 0, 
+  pathCount = 0,
+  loading = false,
+  error = null
+}) => {
   const zoomLevels = [50, 75, 100, 150, 200, 300];
+
+  const getStatusColor = () => {
+    if (error) return 'text-red-400';
+    if (loading) return 'text-yellow-400';
+    if (regionCount > 0 || pathCount > 0) return 'text-green-400';
+    return 'text-gray-400';
+  };
+
+  const getStatusText = () => {
+    if (error) return 'API Error';
+    if (loading) return 'Loading...';
+    if (regionCount > 0 || pathCount > 0) return 'Connected';
+    return 'No Data';
+  };
 
   return (
     <div className="bg-gray-800 border-t border-gray-700 px-4 py-2 flex items-center justify-between text-sm">
@@ -18,8 +44,20 @@ export const StatusBar: React.FC<StatusBarProps> = ({ mousePosition, zoom, onZoo
         </span>
         <div className="w-px h-4 bg-gray-600"></div>
         <span className="text-gray-300">
-          Server: <span className="text-green-400">Development</span>
+          API: <span className={getStatusColor()}>{getStatusText()}</span>
         </span>
+        <div className="w-px h-4 bg-gray-600"></div>
+        <span className="text-gray-300">
+          Data: <span className="text-blue-400">{regionCount}R</span>, <span className="text-green-400">{pathCount}P</span>
+        </span>
+        {error && (
+          <>
+            <div className="w-px h-4 bg-gray-600"></div>
+            <span className="text-red-400 text-xs" title={error}>
+              {error.length > 30 ? `${error.substring(0, 30)}...` : error}
+            </span>
+          </>
+        )}
       </div>
       
       <div className="flex items-center gap-2">

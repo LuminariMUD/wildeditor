@@ -150,6 +150,10 @@ function App() {
           mousePosition={state.mousePosition}
           zoom={state.zoom}
           onZoomChange={setZoom}
+          regionCount={regions.length}
+          pathCount={paths.length}
+          loading={loading}
+          error={error}
         />
       </div>
       
