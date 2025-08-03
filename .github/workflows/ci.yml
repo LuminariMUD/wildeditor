@@ -252,7 +252,7 @@ jobs:
           echo "All VITE_ variables:"
           env | grep VITE_ || echo "No VITE_ variables found"
         env:
-          VITE_API_URL: ${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
+          VITE_API_URL: ${{ secrets.PROD_API_URL || 'https://74.208.126.44:8000/api' }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }} 
           VITE_DISABLE_AUTH: 'true'
@@ -260,7 +260,7 @@ jobs:
       - name: Build production
         run: npm run build
         env:
-          VITE_API_URL: ${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
+          VITE_API_URL: ${{ secrets.PROD_API_URL || 'https://74.208.126.44:8000/api' }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           VITE_DISABLE_AUTH: 'true'
