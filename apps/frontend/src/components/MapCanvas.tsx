@@ -24,6 +24,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const backgroundImageRef = useRef<HTMLImageElement | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [hoveredVertex, setHoveredVertex] = useState<{ type: 'region' | 'path', id: string, index: number } | null>(null);
   
   // Track previous zoom level for centering
   const prevZoomRef = useRef<number>(state.zoom);
@@ -48,27 +49,40 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   // Handle zoom centering - maintain the same center point when zoom changes
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || prevZoomRef.current === state.zoom) return;
+    const canvas = canvasRef.current;
+    if (!container || !canvas || prevZoomRef.current === state.zoom) return;
 
     const prevZoom = prevZoomRef.current;
     const newZoom = state.zoom;
-    const zoomRatio = newZoom / prevZoom;
-
-    // Get the current center point of the viewport
+    
+    // Store the center point before zoom changes
     const containerRect = container.getBoundingClientRect();
-    const centerX = container.scrollLeft + containerRect.width / 2;
-    const centerY = container.scrollTop + containerRect.height / 2;
-
-    // Calculate the new scroll position to maintain the same center point
-    const newScrollX = centerX * zoomRatio - containerRect.width / 2;
-    const newScrollY = centerY * zoomRatio - containerRect.height / 2;
-
-    // Update scroll position to maintain center
-    container.scrollLeft = Math.max(0, newScrollX);
-    container.scrollTop = Math.max(0, newScrollY);
-
-    // Update the previous zoom reference
+    const prevCanvasSize = MAP_SIZE * (prevZoom / 100);
+    const prevCenterXRatio = (container.scrollLeft + containerRect.width / 2) / prevCanvasSize;
+    const prevCenterYRatio = (container.scrollTop + containerRect.height / 2) / prevCanvasSize;
+    
+    // Update the previous zoom reference early
     prevZoomRef.current = state.zoom;
+    
+    // Use a small delay to ensure the render effect has completed and CSS changes are applied
+    const timeoutId = setTimeout(() => {
+      const newCanvasSize = MAP_SIZE * (newZoom / 100);
+      
+      // Calculate new scroll position to maintain the same center point
+      const newScrollX = prevCenterXRatio * newCanvasSize - containerRect.width / 2;
+      const newScrollY = prevCenterYRatio * newCanvasSize - containerRect.height / 2;
+      
+      // Clamp to valid scroll range
+      const maxScrollX = Math.max(0, newCanvasSize - containerRect.width);
+      const maxScrollY = Math.max(0, newCanvasSize - containerRect.height);
+      
+      container.scrollLeft = Math.max(0, Math.min(maxScrollX, newScrollX));
+      container.scrollTop = Math.max(0, Math.min(maxScrollY, newScrollY));
+      
+      console.log(`[Zoom] Centered zoom ${prevZoom}% -> ${newZoom}%, scroll: (${container.scrollLeft}, ${container.scrollTop})`);
+    }, 16); // Single frame delay (16ms)
+    
+    return () => clearTimeout(timeoutId);
   }, [state.zoom]);
 
   // Convert game coordinates (-1024 to +1024) to canvas coordinates (0 to MAP_SIZE)
@@ -177,27 +191,49 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     // Draw polygon outline
     ctx.stroke();
 
-    // Draw vertices only when selected or when zoomed in enough to see them clearly
-    if (isSelected || state.zoom >= 150) {
+    // Only draw vertices when selected, and only show dots on mouseover
+    if (isSelected) {
       region.canvasCoords.forEach((coord, index) => {
-        ctx.fillStyle = regionColor;
-        ctx.beginPath();
-        ctx.arc(coord.x, coord.y, isSelected ? 4 : 2, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Draw vertex numbers only when selected
-        if (isSelected) {
+        // Check if this vertex is being hovered
+        const isHovered = hoveredVertex?.type === 'region' && 
+                          hoveredVertex?.id === region.id && 
+                          hoveredVertex?.index === index;
+        
+        if (isHovered) {
+          // Draw highlighted vertex dot on hover
+          ctx.fillStyle = regionColor;
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(coord.x, coord.y, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          
+          // Show vertex number on hover
           ctx.fillStyle = '#FFFFFF';
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = 1;
           ctx.font = '12px monospace';
           ctx.textAlign = 'center';
-          ctx.strokeText((index + 1).toString(), coord.x, coord.y - 8);
-          ctx.fillText((index + 1).toString(), coord.x, coord.y - 8);
+          ctx.strokeText((index + 1).toString(), coord.x, coord.y - 10);
+          ctx.fillText((index + 1).toString(), coord.x, coord.y - 10);
         }
       });
+
+      // Show vertex count for selected regions with many points
+      if (region.canvasCoords.length > 3) {
+        const centerX = region.canvasCoords.reduce((sum, coord) => sum + coord.x, 0) / region.canvasCoords.length;
+        const centerY = region.canvasCoords.reduce((sum, coord) => sum + coord.y, 0) / region.canvasCoords.length;
+        
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(centerX - 25, centerY - 10, 50, 20);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${region.canvasCoords.length}pts`, centerX, centerY + 5);
+      }
     }
-  }, [state.showRegions, state.selectedItem, state.zoom]);
+  }, [state.showRegions, state.selectedItem, state.zoom, hoveredVertex]);
   
   const drawPathOptimized = useCallback((ctx: CanvasRenderingContext2D, path: Path & { canvasCoords: {x: number, y:number}[] }) => {
     if (!state.showPaths || path.canvasCoords.length < 2) return;
@@ -219,27 +255,49 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     }
     ctx.stroke();
 
-    // Draw vertices only when selected or when zoomed in enough to see them clearly
-    if (isSelected || state.zoom >= 150) {
+    // Only draw vertices when selected, and only show dots on mouseover
+    if (isSelected) {
       path.canvasCoords.forEach((coord, index) => {
-        ctx.fillStyle = pathColor;
-        ctx.beginPath();
-        ctx.arc(coord.x, coord.y, isSelected ? 3 : 1, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Draw vertex numbers only when selected
-        if (isSelected) {
+        // Check if this vertex is being hovered
+        const isHovered = hoveredVertex?.type === 'path' && 
+                          hoveredVertex?.id === path.id && 
+                          hoveredVertex?.index === index;
+        
+        if (isHovered) {
+          // Draw highlighted vertex dot on hover
+          ctx.fillStyle = pathColor;
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(coord.x, coord.y, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          
+          // Show vertex number on hover
           ctx.fillStyle = '#FFFFFF';
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = 1;
           ctx.font = '10px monospace';
           ctx.textAlign = 'center';
-          ctx.strokeText((index + 1).toString(), coord.x, coord.y - 6);
-          ctx.fillText((index + 1).toString(), coord.x, coord.y - 6);
+          ctx.strokeText((index + 1).toString(), coord.x, coord.y - 8);
+          ctx.fillText((index + 1).toString(), coord.x, coord.y - 8);
         }
       });
+
+      // Show vertex count for selected paths with many points
+      if (path.canvasCoords.length > 4) {
+        const midIndex = Math.floor(path.canvasCoords.length / 2);
+        const midPoint = path.canvasCoords[midIndex];
+        
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(midPoint.x - 25, midPoint.y - 10, 50, 20);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${path.canvasCoords.length}pts`, midPoint.x, midPoint.y + 5);
+      }
     }
-  }, [state.showPaths, state.selectedItem, state.zoom]);
+  }, [state.showPaths, state.selectedItem, state.zoom, hoveredVertex]);
   
   const drawPointOptimized = useCallback((ctx: CanvasRenderingContext2D, point: Point & { canvasPos: {x: number, y:number} }) => {
     const color = point.type === 'landmark' ? '#F59E0B' : '#8B5CF6';
@@ -471,7 +529,77 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const gameCoord = canvasToGame(e.clientX, e.clientY);
     onMouseMove(gameCoord);
-  }, [canvasToGame, onMouseMove]);
+    
+    // Check for vertex hover when an item is selected
+    if (state.selectedItem && state.tool === 'select') {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      
+      const canvasClickX = e.clientX - rect.left;
+      const canvasClickY = e.clientY - rect.top;
+      const scale = state.zoom / 100;
+      
+      let newHoveredVertex: { type: 'region' | 'path', id: string, index: number } | null = null;
+      
+      // Check for region vertex hover
+      if (state.selectedItem && 'coordinates' in state.selectedItem && state.selectedItem.coordinates.length >= 3) {
+        const region = regions.find(r => r.id === state.selectedItem?.id);
+        if (region && region.id) {
+          for (let i = 0; i < region.coordinates.length; i++) {
+            const canvasPos = gameToCanvas(region.coordinates[i]);
+            const scaledPos = {
+              x: canvasPos.x * scale,
+              y: canvasPos.y * scale
+            };
+            
+            const distance = Math.sqrt(
+              Math.pow(canvasClickX - scaledPos.x, 2) +
+              Math.pow(canvasClickY - scaledPos.y, 2)
+            );
+            
+            if (distance <= 8) { // 8px hover radius
+              newHoveredVertex = { type: 'region', id: region.id, index: i };
+              break;
+            }
+          }
+        }
+      }
+      
+      // Check for path vertex hover (if no region vertex is hovered)
+      if (!newHoveredVertex && state.selectedItem && 'coordinates' in state.selectedItem && state.selectedItem.coordinates.length >= 2) {
+        const path = paths.find(p => p.id === state.selectedItem?.id);
+        if (path && path.id) {
+          for (let i = 0; i < path.coordinates.length; i++) {
+            const canvasPos = gameToCanvas(path.coordinates[i]);
+            const scaledPos = {
+              x: canvasPos.x * scale,
+              y: canvasPos.y * scale
+            };
+            
+            const distance = Math.sqrt(
+              Math.pow(canvasClickX - scaledPos.x, 2) +
+              Math.pow(canvasClickY - scaledPos.y, 2)
+            );
+            
+            if (distance <= 8) { // 8px hover radius
+              newHoveredVertex = { type: 'path', id: path.id, index: i };
+              break;
+            }
+          }
+        }
+      }
+      
+      // Update hovered vertex state if it changed
+      if (JSON.stringify(newHoveredVertex) !== JSON.stringify(hoveredVertex)) {
+        setHoveredVertex(newHoveredVertex);
+      }
+    } else {
+      // Clear hover state if not in select mode or no item selected
+      if (hoveredVertex) {
+        setHoveredVertex(null);
+      }
+    }
+  }, [canvasToGame, onMouseMove, state.selectedItem, state.tool, state.zoom, regions, paths, gameToCanvas, hoveredVertex, setHoveredVertex]);
 
   // Geometric utility functions for accurate selection
   const isPointInPolygon = useCallback((point: Coordinate, polygon: Coordinate[]): boolean => {

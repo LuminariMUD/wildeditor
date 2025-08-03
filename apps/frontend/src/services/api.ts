@@ -54,11 +54,19 @@ const getPathColor = (pathType: number): string => {
   }
 };
 
+// Helper functions to extract vnum from prefixed IDs
+const extractRegionVnum = (id: string): string => {
+  return id.startsWith('region-') ? id.substring(7) : id;
+};
+
+const extractPathVnum = (id: string): string => {
+  return id.startsWith('path-') ? id.substring(5) : id;
+};
+
 // Helper functions to convert between API format and frontend format
 const apiRegionToFrontend = (apiRegion: ApiRegionResponse): Region => ({
   ...apiRegion,
-  id: apiRegion.vnum?.toString() || Date.now().toString(),
-  type: apiRegion.region_type, // compatibility
+  id: apiRegion.vnum ? `region-${apiRegion.vnum}` : `region-${Date.now()}`,
   props: apiRegion.region_props ? JSON.stringify({value: apiRegion.region_props}) : '{}', // compatibility
   color: getRegionColor(apiRegion.region_type), // Add default color based on type
 });
@@ -76,7 +84,7 @@ const frontendRegionToApi = (region: Omit<Region, 'id'>): Omit<ApiRegionResponse
 
 const apiPathToFrontend = (apiPath: ApiPathResponse): Path => ({
   ...apiPath,
-  id: apiPath.vnum?.toString() || Date.now().toString(),
+  id: apiPath.vnum ? `path-${apiPath.vnum}` : `path-${Date.now()}`,
   type: (apiPath.path_type - 1) as 0 | 1 | 2 | 3 | 4 | 5, // API uses 1-6, frontend expects 0-5 for compatibility
   props: apiPath.path_props ? JSON.stringify({value: apiPath.path_props}) : '{}', // compatibility
   color: getPathColor(apiPath.path_type), // Add default color based on type
@@ -165,8 +173,9 @@ class ApiClient {
   }
 
   async getRegion(id: string): Promise<Region> {
-    // ID in frontend is actually vnum in API
-    const response = await this.request<ApiRegionResponse>(`/regions/${id}`);
+    // Extract vnum from prefixed ID
+    const vnum = extractRegionVnum(id);
+    const response = await this.request<ApiRegionResponse>(`/regions/${vnum}`);
     return apiRegionToFrontend(response);
   }
 
@@ -188,7 +197,8 @@ class ApiClient {
     if (updates.region_props !== undefined) apiUpdates.region_props = updates.region_props;
     if (updates.zone_vnum !== undefined) apiUpdates.zone_vnum = updates.zone_vnum;
     
-    const response = await this.request<ApiRegionResponse>(`/regions/${id}`, {
+    const vnum = extractRegionVnum(id);
+    const response = await this.request<ApiRegionResponse>(`/regions/${vnum}`, {
       method: 'PUT',
       body: JSON.stringify(apiUpdates)
     });
@@ -196,7 +206,8 @@ class ApiClient {
   }
 
   async deleteRegion(id: string): Promise<void> {
-    await this.request<void>(`/regions/${id}`, {
+    const vnum = extractRegionVnum(id);
+    await this.request<void>(`/regions/${vnum}`, {
       method: 'DELETE'
     });
   }
@@ -209,8 +220,9 @@ class ApiClient {
   }
 
   async getPath(id: string): Promise<Path> {
-    // ID in frontend is actually vnum in API
-    const response = await this.request<ApiPathResponse>(`/paths/${id}`);
+    // Extract vnum from prefixed ID
+    const vnum = extractPathVnum(id);
+    const response = await this.request<ApiPathResponse>(`/paths/${vnum}`);
     return apiPathToFrontend(response);
   }
 
@@ -232,7 +244,8 @@ class ApiClient {
     if (updates.path_props !== undefined) apiUpdates.path_props = updates.path_props;
     if (updates.zone_vnum !== undefined) apiUpdates.zone_vnum = updates.zone_vnum;
     
-    const response = await this.request<ApiPathResponse>(`/paths/${id}`, {
+    const vnum = extractPathVnum(id);
+    const response = await this.request<ApiPathResponse>(`/paths/${vnum}`, {
       method: 'PUT',
       body: JSON.stringify(apiUpdates)
     });
@@ -240,7 +253,8 @@ class ApiClient {
   }
 
   async deletePath(id: string): Promise<void> {
-    await this.request<void>(`/paths/${id}`, {
+    const vnum = extractPathVnum(id);
+    await this.request<void>(`/paths/${vnum}`, {
       method: 'DELETE'
     });
   }

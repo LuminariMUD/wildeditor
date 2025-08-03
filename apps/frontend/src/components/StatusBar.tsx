@@ -20,7 +20,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   loading = false,
   error = null
 }) => {
-  const zoomLevels = [50, 75, 100, 150, 200, 300];
+  const zoomLevels = [25, 50, 75, 100, 150, 200, 300, 500, 800, 1200, 1600, 2000];
 
   const getStatusColor = () => {
     if (error) return 'text-red-400';

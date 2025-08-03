@@ -67,6 +67,27 @@ export const useEditor = () => {
         points: pointsData.length
       });
       
+      // Check for duplicate IDs
+      const regionIds = regionsData.map(r => r.id);
+      const uniqueRegionIds = new Set(regionIds);
+      if (regionIds.length !== uniqueRegionIds.size) {
+        console.warn('[Editor] Duplicate region IDs detected!', {
+          total: regionIds.length,
+          unique: uniqueRegionIds.size,
+          duplicates: regionIds.filter((id, index) => regionIds.indexOf(id) !== index)
+        });
+      }
+      
+      const pathIds = pathsData.map(p => p.id);
+      const uniquePathIds = new Set(pathIds);
+      if (pathIds.length !== uniquePathIds.size) {
+        console.warn('[Editor] Duplicate path IDs detected!', {
+          total: pathIds.length,
+          unique: uniquePathIds.size,
+          duplicates: pathIds.filter((id, index) => pathIds.indexOf(id) !== index)
+        });
+      }
+      
       setRegions(regionsData);
       setPaths(pathsData);
       setPoints(pointsData);
