@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import { Coordinate, Region, Path, Point, EditorState } from '../types';
 
 interface MapCanvasProps {
@@ -22,9 +22,25 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const backgroundImageRef = useRef<HTMLImageElement | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   const MAP_SIZE = 2048;
   const COORDINATE_RANGE = 1024;
+
+  // Load background image
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      backgroundImageRef.current = img;
+      setImageLoaded(true);
+      console.log('Wilderness background image loaded successfully');
+    };
+    img.onerror = (error) => {
+      console.warn('Failed to load wilderness background image:', error);
+    };
+    img.src = '/luminari_wilderness.png';
+  }, []);
 
   // Convert game coordinates (-1024 to +1024) to canvas coordinates (0 to MAP_SIZE)
   const gameToCanvas = useCallback((coord: Coordinate): { x: number; y: number } => {
@@ -96,6 +112,16 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
     ctx.setLineDash([]);
   }, [state.showGrid, gameToCanvas]);
+
+  const drawBackgroundImage = useCallback((ctx: CanvasRenderingContext2D) => {
+    if (!state.showBackground) return;
+    
+    const img = backgroundImageRef.current;
+    if (!img) return;
+
+    // Draw the wilderness map image as background, scaled to fit the entire canvas
+    ctx.drawImage(img, 0, 0, MAP_SIZE, MAP_SIZE);
+  }, [state.showBackground]);
 
   // Note: Removed old drawing functions as they're replaced by optimized versions
 
@@ -324,13 +350,16 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     canvas.style.width = `${MAP_SIZE}px`;
     canvas.style.height = `${MAP_SIZE}px`;
 
-    // Clear canvas
+    // Clear canvas with dark background
     ctx.fillStyle = '#1F2937';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Scale the context for zoom - this scales all drawing operations
     ctx.save();
     ctx.scale(canvasScale, canvasScale);
+
+    // Draw background wilderness map image
+    drawBackgroundImage(ctx);
 
     // Draw grid
     drawGrid(ctx);
@@ -373,7 +402,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     drawCurrentDrawing(ctx);
 
     ctx.restore();
-  }, [canvasSize, canvasScale, drawGrid, drawCurrentDrawing, transformedRegions, transformedPaths, transformedPoints, gameToCanvas, drawRegionOptimized, drawPathOptimized, drawPointOptimized]);
+  }, [imageLoaded, canvasSize, canvasScale, drawBackgroundImage, drawGrid, drawCurrentDrawing, transformedRegions, transformedPaths, transformedPoints, gameToCanvas, drawRegionOptimized, drawPathOptimized, drawPointOptimized]);
 
   useEffect(() => {
     render();

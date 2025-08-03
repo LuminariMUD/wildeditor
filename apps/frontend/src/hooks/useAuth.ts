@@ -7,7 +7,39 @@ export const useAuth = () => {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Check if auth is disabled for development
+  const authDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true'
+
   useEffect(() => {
+    if (authDisabled) {
+      // Create a mock user for development
+      const mockUser = {
+        id: 'dev-user',
+        email: 'dev@localhost',
+        aud: 'authenticated',
+        role: 'authenticated',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        app_metadata: {},
+        user_metadata: {}
+      } as User
+
+      const mockSession = {
+        access_token: 'dev-token',
+        refresh_token: 'dev-refresh',
+        expires_in: 3600,
+        expires_at: Date.now() + 3600000,
+        token_type: 'bearer',
+        user: mockUser
+      } as Session
+
+      setUser(mockUser)
+      setSession(mockSession)
+      setLoading(false)
+      console.log('🔧 Development mode: Authentication bypassed')
+      return
+    }
+
     if (!supabase) {
       setLoading(false)
       return
@@ -33,6 +65,11 @@ export const useAuth = () => {
   }, [])
 
   const signUp = async (email: string, password: string) => {
+    if (authDisabled) {
+      console.log('🔧 Development mode: Sign up bypassed')
+      return { data: { user: user, session: session }, error: null }
+    }
+
     if (!supabase) {
       console.error('🔴🔴🔴 AUTHENTICATION ATTEMPT FAILED - SUPABASE NOT CONFIGURED 🔴🔴🔴')
       console.error('Check the browser console for configuration instructions')
@@ -59,6 +96,11 @@ export const useAuth = () => {
   }
 
   const signIn = async (email: string, password: string) => {
+    if (authDisabled) {
+      console.log('🔧 Development mode: Sign in bypassed')
+      return { data: { user: user, session: session }, error: null }
+    }
+
     if (!supabase) {
       console.error('🔴🔴🔴 AUTHENTICATION ATTEMPT FAILED - SUPABASE NOT CONFIGURED 🔴🔴🔴')
       console.error('Check the browser console for configuration instructions')
@@ -82,6 +124,11 @@ export const useAuth = () => {
   }
 
   const signOut = async () => {
+    if (authDisabled) {
+      console.log('🔧 Development mode: Sign out bypassed')
+      return { error: null }
+    }
+
     if (!supabase) {
       return { error: new Error('Supabase not configured') }
     }
@@ -90,6 +137,11 @@ export const useAuth = () => {
   }
 
   const resetPassword = async (email: string) => {
+    if (authDisabled) {
+      console.log('🔧 Development mode: Password reset bypassed')
+      return { data: null, error: null }
+    }
+
     if (!supabase) {
       return { data: null, error: new Error('Supabase not configured') }
     }

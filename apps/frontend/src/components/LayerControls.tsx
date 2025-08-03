@@ -1,20 +1,23 @@
 import React from 'react';
-import { Grid, Map, Route } from 'lucide-react';
+import { Grid, Map, Route, Image } from 'lucide-react';
 
 interface LayerControlsProps {
   showGrid: boolean;
   showRegions: boolean;
   showPaths: boolean;
-  onToggleLayer: (layer: 'grid' | 'regions' | 'paths') => void;
+  showBackground: boolean;
+  onToggleLayer: (layer: 'grid' | 'regions' | 'paths' | 'background') => void;
 }
 
 export const LayerControls: React.FC<LayerControlsProps> = ({
   showGrid,
   showRegions,
   showPaths,
+  showBackground,
   onToggleLayer
 }) => {
   const layers = [
+    { id: 'background' as const, icon: Image, label: 'Background Map', visible: showBackground },
     { id: 'grid' as const, icon: Grid, label: 'Grid', visible: showGrid },
     { id: 'regions' as const, icon: Map, label: 'Regions', visible: showRegions },
     { id: 'paths' as const, icon: Route, label: 'Paths', visible: showPaths }

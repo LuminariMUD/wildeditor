@@ -40,6 +40,7 @@ export interface EditorState {
   showGrid: boolean;
   showRegions: boolean;
   showPaths: boolean;
+  showBackground: boolean;
   mousePosition: Coordinate;
 }
 

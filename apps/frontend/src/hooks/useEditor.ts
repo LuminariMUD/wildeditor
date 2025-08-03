@@ -12,6 +12,7 @@ const initialState: EditorState = {
   showGrid: true,
   showRegions: true,
   showPaths: true,
+  showBackground: true,
   mousePosition: { x: 0, y: 0 }
 };
 
@@ -97,7 +98,7 @@ export const useEditor = () => {
     setState(prev => ({ ...prev, mousePosition: coordinate }));
   }, []);
 
-  const toggleLayer = useCallback((layer: 'grid' | 'regions' | 'paths') => {
+  const toggleLayer = useCallback((layer: 'grid' | 'regions' | 'paths' | 'background') => {
     setState(prev => ({ 
       ...prev, 
       [`show${layer.charAt(0).toUpperCase() + layer.slice(1)}`]: 
