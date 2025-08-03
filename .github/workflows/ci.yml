@@ -101,6 +101,18 @@ jobs:
           rm -rf apps/frontend/.vite
           rm -rf apps/frontend/node_modules/.vite
           npm cache clean --force
+          
+      - name: Override environment files
+        run: |
+          echo "Creating production .env file to override any local settings..."
+          cat > apps/frontend/.env << EOF
+          VITE_API_URL=${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
+          VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL || '' }}
+          VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY || '' }}
+          VITE_ENVIRONMENT=production
+          EOF
+          echo "Contents of production .env file:"
+          cat apps/frontend/.env
         
       - name: Build preview with correct API URL
         run: npm run build
@@ -108,6 +120,18 @@ jobs:
           VITE_API_URL: ${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          
+      - name: Debug build environment
+        run: |
+          echo "Debugging environment variables during build..."
+          echo "VITE_API_URL that was used: ${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}"
+          echo "Checking if build files contain the expected API URL..."
+          echo "Contents of dist directory:"
+          ls -la apps/frontend/dist/ || echo "No dist directory found"
+          echo "Contents of assets directory:"
+          ls -la apps/frontend/dist/assets/ || echo "No assets directory found"
+          echo "Searching for API URLs in all JS files:"
+          find apps/frontend/dist -name "*.js" -exec grep -l "api\|localhost\|http" {} \; || echo "No JS files with API URLs found"
           
       - name: Install Netlify CLI
         run: npm install -g netlify-cli
@@ -200,6 +224,18 @@ jobs:
           rm -rf apps/frontend/.vite
           rm -rf apps/frontend/node_modules/.vite
           npm cache clean --force
+          
+      - name: Override environment files for production
+        run: |
+          echo "Creating production .env file to override any local settings..."
+          cat > apps/frontend/.env << EOF
+          VITE_API_URL=${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
+          VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL || '' }}
+          VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY || '' }}
+          VITE_ENVIRONMENT=production
+          EOF
+          echo "Contents of production .env file:"
+          cat apps/frontend/.env
           
       - name: Build production
         run: npm run build
