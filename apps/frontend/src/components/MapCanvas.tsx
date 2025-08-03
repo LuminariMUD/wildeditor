@@ -24,6 +24,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const backgroundImageRef = useRef<HTMLImageElement | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+  
+  // Track previous zoom level for centering
+  const prevZoomRef = useRef<number>(state.zoom);
 
   const MAP_SIZE = 2048;
   const COORDINATE_RANGE = 1024;
@@ -41,6 +44,32 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     };
     img.src = '/luminari_wilderness.png';
   }, []);
+
+  // Handle zoom centering - maintain the same center point when zoom changes
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || prevZoomRef.current === state.zoom) return;
+
+    const prevZoom = prevZoomRef.current;
+    const newZoom = state.zoom;
+    const zoomRatio = newZoom / prevZoom;
+
+    // Get the current center point of the viewport
+    const containerRect = container.getBoundingClientRect();
+    const centerX = container.scrollLeft + containerRect.width / 2;
+    const centerY = container.scrollTop + containerRect.height / 2;
+
+    // Calculate the new scroll position to maintain the same center point
+    const newScrollX = centerX * zoomRatio - containerRect.width / 2;
+    const newScrollY = centerY * zoomRatio - containerRect.height / 2;
+
+    // Update scroll position to maintain center
+    container.scrollLeft = Math.max(0, newScrollX);
+    container.scrollTop = Math.max(0, newScrollY);
+
+    // Update the previous zoom reference
+    prevZoomRef.current = state.zoom;
+  }, [state.zoom]);
 
   // Convert game coordinates (-1024 to +1024) to canvas coordinates (0 to MAP_SIZE)
   const gameToCanvas = useCallback((coord: Coordinate): { x: number; y: number } => {
@@ -123,10 +152,13 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     if (!state.showRegions || region.canvasCoords.length < 3) return;
     
     const regionColor = region.color || '#3B82F6'; // Default blue color if none set
-    ctx.fillStyle = regionColor + '40';
-    ctx.strokeStyle = regionColor;
-    ctx.lineWidth = state.selectedItem?.id === region.id ? 3 : 2;
-
+    const isSelected = state.selectedItem?.id === region.id;
+    
+    // Fill with transparent color (25% opacity)
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = regionColor;
+    
+    // Draw polygon fill
     ctx.beginPath();
     ctx.moveTo(region.canvasCoords[0].x, region.canvasCoords[0].y);
     for (let i = 1; i < region.canvasCoords.length; i++) {
@@ -134,29 +166,49 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     }
     ctx.closePath();
     ctx.fill();
+    
+    // Reset alpha for stroke
+    ctx.globalAlpha = 1.0;
+    ctx.strokeStyle = regionColor;
+    ctx.lineWidth = isSelected ? 2 : 1; // 1-pixel lines at 100% zoom, 2-pixel when selected
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    // Draw polygon outline
     ctx.stroke();
 
-    // Draw vertices
-    region.canvasCoords.forEach((coord, index) => {
-      ctx.fillStyle = regionColor;
-      ctx.beginPath();
-      ctx.arc(coord.x, coord.y, 4, 0, Math.PI * 2);
-      ctx.fill();
+    // Draw vertices only when selected or when zoomed in enough to see them clearly
+    if (isSelected || state.zoom >= 150) {
+      region.canvasCoords.forEach((coord, index) => {
+        ctx.fillStyle = regionColor;
+        ctx.beginPath();
+        ctx.arc(coord.x, coord.y, isSelected ? 4 : 2, 0, Math.PI * 2);
+        ctx.fill();
 
-      // Draw vertex numbers
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = '12px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText((index + 1).toString(), coord.x, coord.y - 8);
-    });
-  }, [state.showRegions, state.selectedItem]);
+        // Draw vertex numbers only when selected
+        if (isSelected) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 1;
+          ctx.font = '12px monospace';
+          ctx.textAlign = 'center';
+          ctx.strokeText((index + 1).toString(), coord.x, coord.y - 8);
+          ctx.fillText((index + 1).toString(), coord.x, coord.y - 8);
+        }
+      });
+    }
+  }, [state.showRegions, state.selectedItem, state.zoom]);
   
   const drawPathOptimized = useCallback((ctx: CanvasRenderingContext2D, path: Path & { canvasCoords: {x: number, y:number}[] }) => {
     if (!state.showPaths || path.canvasCoords.length < 2) return;
     
     const pathColor = path.color || '#10B981'; // Default green color if none set
+    const isSelected = state.selectedItem?.id === path.id;
+    
+    // Draw path line
+    ctx.globalAlpha = 1.0; // Paths are solid, not transparent
     ctx.strokeStyle = pathColor;
-    ctx.lineWidth = state.selectedItem?.id === path.id ? 4 : 3;
+    ctx.lineWidth = isSelected ? 2 : 1; // 1-pixel lines at 100% zoom, 2-pixel when selected
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -167,20 +219,27 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     }
     ctx.stroke();
 
-    // Draw vertices
-    path.canvasCoords.forEach((coord, index) => {
-      ctx.fillStyle = pathColor;
-      ctx.beginPath();
-      ctx.arc(coord.x, coord.y, 3, 0, Math.PI * 2);
-      ctx.fill();
+    // Draw vertices only when selected or when zoomed in enough to see them clearly
+    if (isSelected || state.zoom >= 150) {
+      path.canvasCoords.forEach((coord, index) => {
+        ctx.fillStyle = pathColor;
+        ctx.beginPath();
+        ctx.arc(coord.x, coord.y, isSelected ? 3 : 1, 0, Math.PI * 2);
+        ctx.fill();
 
-      // Draw vertex numbers
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = '10px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText((index + 1).toString(), coord.x, coord.y - 6);
-    });
-  }, [state.showPaths, state.selectedItem]);
+        // Draw vertex numbers only when selected
+        if (isSelected) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 1;
+          ctx.font = '10px monospace';
+          ctx.textAlign = 'center';
+          ctx.strokeText((index + 1).toString(), coord.x, coord.y - 6);
+          ctx.fillText((index + 1).toString(), coord.x, coord.y - 6);
+        }
+      });
+    }
+  }, [state.showPaths, state.selectedItem, state.zoom]);
   
   const drawPointOptimized = useCallback((ctx: CanvasRenderingContext2D, point: Point & { canvasPos: {x: number, y:number} }) => {
     const color = point.type === 'landmark' ? '#F59E0B' : '#8B5CF6';
