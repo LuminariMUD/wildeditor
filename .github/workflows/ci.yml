@@ -177,7 +177,7 @@ jobs:
       - name: Build production
         run: npm run build
         env:
-          VITE_API_URL: ${{ secrets.PROD_API_URL || 'https://api.wildeditor.luminari.com' }}
+          VITE_API_URL: ${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           
