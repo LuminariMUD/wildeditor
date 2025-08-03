@@ -219,19 +219,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           ctx.fillText((index + 1).toString(), coord.x, coord.y - 10);
         }
       });
-
-      // Show vertex count for selected regions with many points
-      if (region.canvasCoords.length > 3) {
-        const centerX = region.canvasCoords.reduce((sum, coord) => sum + coord.x, 0) / region.canvasCoords.length;
-        const centerY = region.canvasCoords.reduce((sum, coord) => sum + coord.y, 0) / region.canvasCoords.length;
-        
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(centerX - 25, centerY - 10, 50, 20);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '12px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${region.canvasCoords.length}pts`, centerX, centerY + 5);
-      }
     }
   }, [state.showRegions, state.selectedItem, state.zoom, hoveredVertex]);
   
@@ -283,19 +270,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           ctx.fillText((index + 1).toString(), coord.x, coord.y - 8);
         }
       });
-
-      // Show vertex count for selected paths with many points
-      if (path.canvasCoords.length > 4) {
-        const midIndex = Math.floor(path.canvasCoords.length / 2);
-        const midPoint = path.canvasCoords[midIndex];
-        
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(midPoint.x - 25, midPoint.y - 10, 50, 20);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '10px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${path.canvasCoords.length}pts`, midPoint.x, midPoint.y + 5);
-      }
     }
   }, [state.showPaths, state.selectedItem, state.zoom, hoveredVertex]);
   

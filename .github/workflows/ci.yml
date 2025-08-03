@@ -89,15 +89,31 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build preview with correct API URL
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           
       - name: Install Netlify CLI
         run: npm install -g netlify-cli
         
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: apps/frontend/dist
+      - name: Verify preview build environment variables
+        run: |
+          echo "Checking if API URL was properly embedded in preview build..."
+          if grep -q "74.208.126.44:8000" apps/frontend/dist/assets/*.js 2>/dev/null; then
+            echo "✅ Found correct API URL in preview build files"
+          else
+            echo "❌ Correct API URL not found in preview build files"
+            echo "Checking what API URL is in the build..."
+            grep -o "http[s]*://[^/]*[^\"']*" apps/frontend/dist/assets/*.js 2>/dev/null | head -5 || echo "No URLs found"
+          fi
           
       - name: Deploy preview
         run: |
@@ -184,6 +200,15 @@ jobs:
       - name: Verify build environment variables
         run: |
           echo "Checking if environment variables were properly embedded in build..."
+          echo "Checking for API URL in build files..."
+          if grep -q "74.208.126.44:8000" apps/frontend/dist/assets/*.js 2>/dev/null; then
+            echo "✅ Found correct API URL in build files"
+          else
+            echo "❌ Correct API URL not found in build files"
+            echo "Checking what API URL is in the build..."
+            grep -o "http[s]*://[^/]*[^\"']*" apps/frontend/dist/assets/*.js 2>/dev/null | head -5 || echo "No URLs found"
+          fi
+          
           if grep -q "supabase.co" apps/frontend/dist/assets/*.js 2>/dev/null; then
             echo "✅ Found Supabase URL in build files"
           else
