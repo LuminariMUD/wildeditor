@@ -2,6 +2,36 @@ import { Region, Path, Point } from '@wildeditor/shared/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
+// API response types (what we get from the backend)
+interface ApiRegionResponse {
+  vnum: number;
+  zone_vnum: number;
+  name: string;
+  region_type: 1 | 2 | 3 | 4;
+  coordinates: { x: number; y: number }[];
+  region_props?: number | null;
+  region_reset_data?: string;
+  region_reset_time?: string | null;
+  region_type_name?: string;
+  sector_type_name?: string | null;
+}
+
+interface ApiPathResponse {
+  vnum: number;
+  zone_vnum: number;
+  name: string;
+  path_type: 1 | 2 | 3 | 5 | 6;
+  coordinates: { x: number; y: number }[];
+  path_props?: number;
+  path_type_name?: string;
+}
+
+interface ApiPointResponse {
+  name: string;
+  type: 'landmark' | 'poi';
+  coordinate: { x: number; y: number };
+}
+
 // Helper functions to assign colors based on types
 const getRegionColor = (regionType: number): string => {
   switch (regionType) {
@@ -25,7 +55,7 @@ const getPathColor = (pathType: number): string => {
 };
 
 // Helper functions to convert between API format and frontend format
-const apiRegionToFrontend = (apiRegion: any): Region => ({
+const apiRegionToFrontend = (apiRegion: ApiRegionResponse): Region => ({
   ...apiRegion,
   id: apiRegion.vnum?.toString() || Date.now().toString(),
   type: apiRegion.region_type, // compatibility
@@ -33,7 +63,7 @@ const apiRegionToFrontend = (apiRegion: any): Region => ({
   color: getRegionColor(apiRegion.region_type), // Add default color based on type
 });
 
-const frontendRegionToApi = (region: Omit<Region, 'id'>): any => ({
+const frontendRegionToApi = (region: Omit<Region, 'id'>): Omit<ApiRegionResponse, 'region_type_name' | 'sector_type_name'> => ({
   vnum: region.vnum,
   zone_vnum: region.zone_vnum,
   name: region.name,
@@ -44,15 +74,15 @@ const frontendRegionToApi = (region: Omit<Region, 'id'>): any => ({
   region_reset_time: region.region_reset_time,
 });
 
-const apiPathToFrontend = (apiPath: any): Path => ({
+const apiPathToFrontend = (apiPath: ApiPathResponse): Path => ({
   ...apiPath,
   id: apiPath.vnum?.toString() || Date.now().toString(),
-  type: apiPath.path_type - 1, // API uses 1-6, frontend expects 0-5 for compatibility
+  type: (apiPath.path_type - 1) as 0 | 1 | 2 | 3 | 4 | 5, // API uses 1-6, frontend expects 0-5 for compatibility
   props: apiPath.path_props ? JSON.stringify({value: apiPath.path_props}) : '{}', // compatibility
   color: getPathColor(apiPath.path_type), // Add default color based on type
 });
 
-const frontendPathToApi = (path: Omit<Path, 'id'>): any => ({
+const frontendPathToApi = (path: Omit<Path, 'id'>): Omit<ApiPathResponse, 'path_type_name'> => ({
   vnum: path.vnum,
   zone_vnum: path.zone_vnum, 
   name: path.name,
@@ -61,13 +91,13 @@ const frontendPathToApi = (path: Omit<Path, 'id'>): any => ({
   path_props: path.path_props || 0,
 });
 
-const apiPointToFrontend = (apiPoint: any): Point => ({
+const apiPointToFrontend = (apiPoint: ApiPointResponse): Point => ({
   ...apiPoint,
   // Points don't have vnum in the API yet, so generate ID
   id: Date.now().toString(),
 });
 
-const frontendPointToApi = (point: Omit<Point, 'id'>): any => ({
+const frontendPointToApi = (point: Omit<Point, 'id'>): ApiPointResponse => ({
   name: point.name,
   type: point.type,
   coordinate: point.coordinate,
@@ -129,20 +159,20 @@ class ApiClient {
 
   // Region methods
   async getRegions(): Promise<Region[]> {
-    const response = await this.request<Region[]>('/regions');
+    const response = await this.request<ApiRegionResponse[]>('/regions');
     // Convert API format to frontend format
     return Array.isArray(response) ? response.map(apiRegionToFrontend) : [];
   }
 
   async getRegion(id: string): Promise<Region> {
     // ID in frontend is actually vnum in API
-    const response = await this.request<any>(`/regions/${id}`);
+    const response = await this.request<ApiRegionResponse>(`/regions/${id}`);
     return apiRegionToFrontend(response);
   }
 
   async createRegion(region: Omit<Region, 'id'>): Promise<Region> {
     const apiData = frontendRegionToApi(region);
-    const response = await this.request<any>('/regions', {
+    const response = await this.request<ApiRegionResponse>('/regions', {
       method: 'POST',
       body: JSON.stringify(apiData)
     });
@@ -151,14 +181,14 @@ class ApiClient {
 
   async updateRegion(id: string, updates: Partial<Region>): Promise<Region> {
     // Convert updates to API format
-    const apiUpdates: any = {};
+    const apiUpdates: Partial<Omit<ApiRegionResponse, 'region_type_name' | 'sector_type_name'>> = {};
     if (updates.name !== undefined) apiUpdates.name = updates.name;
     if (updates.region_type !== undefined) apiUpdates.region_type = updates.region_type;
     if (updates.coordinates !== undefined) apiUpdates.coordinates = updates.coordinates;
     if (updates.region_props !== undefined) apiUpdates.region_props = updates.region_props;
     if (updates.zone_vnum !== undefined) apiUpdates.zone_vnum = updates.zone_vnum;
     
-    const response = await this.request<any>(`/regions/${id}`, {
+    const response = await this.request<ApiRegionResponse>(`/regions/${id}`, {
       method: 'PUT',
       body: JSON.stringify(apiUpdates)
     });
@@ -173,20 +203,20 @@ class ApiClient {
 
   // Path methods
   async getPaths(): Promise<Path[]> {
-    const response = await this.request<Path[]>('/paths');
+    const response = await this.request<ApiPathResponse[]>('/paths');
     // Convert API format to frontend format
     return Array.isArray(response) ? response.map(apiPathToFrontend) : [];
   }
 
   async getPath(id: string): Promise<Path> {
     // ID in frontend is actually vnum in API
-    const response = await this.request<any>(`/paths/${id}`);
+    const response = await this.request<ApiPathResponse>(`/paths/${id}`);
     return apiPathToFrontend(response);
   }
 
   async createPath(path: Omit<Path, 'id'>): Promise<Path> {
     const apiData = frontendPathToApi(path);
-    const response = await this.request<any>('/paths', {
+    const response = await this.request<ApiPathResponse>('/paths', {
       method: 'POST',
       body: JSON.stringify(apiData)
     });
@@ -195,14 +225,14 @@ class ApiClient {
 
   async updatePath(id: string, updates: Partial<Path>): Promise<Path> {
     // Convert updates to API format
-    const apiUpdates: any = {};
+    const apiUpdates: Partial<Omit<ApiPathResponse, 'path_type_name'>> = {};
     if (updates.name !== undefined) apiUpdates.name = updates.name;
     if (updates.path_type !== undefined) apiUpdates.path_type = updates.path_type;
     if (updates.coordinates !== undefined) apiUpdates.coordinates = updates.coordinates;
     if (updates.path_props !== undefined) apiUpdates.path_props = updates.path_props;
     if (updates.zone_vnum !== undefined) apiUpdates.zone_vnum = updates.zone_vnum;
     
-    const response = await this.request<any>(`/paths/${id}`, {
+    const response = await this.request<ApiPathResponse>(`/paths/${id}`, {
       method: 'PUT',
       body: JSON.stringify(apiUpdates)
     });
@@ -223,13 +253,13 @@ class ApiClient {
   }
 
   async getPoint(id: string): Promise<Point> {
-    const response = await this.request<any>(`/points/${id}`);
+    const response = await this.request<ApiPointResponse>(`/points/${id}`);
     return apiPointToFrontend(response);
   }
 
   async createPoint(point: Omit<Point, 'id'>): Promise<Point> {
     const apiData = frontendPointToApi(point);
-    const response = await this.request<any>('/points', {
+    const response = await this.request<ApiPointResponse>('/points', {
       method: 'POST',
       body: JSON.stringify(apiData)
     });
@@ -237,7 +267,7 @@ class ApiClient {
   }
 
   async updatePoint(id: string, updates: Partial<Point>): Promise<Point> {
-    const response = await this.request<any>(`/points/${id}`, {
+    const response = await this.request<ApiPointResponse>(`/points/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates)
     });
