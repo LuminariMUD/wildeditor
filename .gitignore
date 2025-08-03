@@ -12,11 +12,14 @@ dist
 dist-ssr
 *.local
 
-# Python compiled files and cache
+# Python compiled files and cache - COMPREHENSIVE
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+*.pyc
+*.pyo
+*.pyd
 .Python
 build/
 develop-eggs/
@@ -35,6 +38,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+*.cpython-*
 
 # PyInstaller
 *.manifest
