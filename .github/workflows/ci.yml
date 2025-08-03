@@ -94,6 +94,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
+      - name: Clear build cache
+        run: |
+          echo "Clearing any cached build artifacts..."
+          rm -rf apps/frontend/dist
+          rm -rf apps/frontend/.vite
+          rm -rf apps/frontend/node_modules/.vite
+          npm cache clean --force
+        
       - name: Build preview with correct API URL
         run: npm run build
         env:
@@ -189,6 +197,9 @@ jobs:
         run: |
           echo "Cleaning any previous build artifacts to ensure fresh production build..."
           rm -rf apps/frontend/dist
+          rm -rf apps/frontend/.vite
+          rm -rf apps/frontend/node_modules/.vite
+          npm cache clean --force
           
       - name: Build production
         run: npm run build
