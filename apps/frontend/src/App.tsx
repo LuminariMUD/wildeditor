@@ -132,6 +132,7 @@ function App() {
             onMouseMove={setMousePosition}
             onClick={handleCanvasClick}
             onSelectItem={selectItem}
+            onZoomChange={setZoom}
           />
 
           {/* Right sidebar */}

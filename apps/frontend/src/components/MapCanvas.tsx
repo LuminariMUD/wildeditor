@@ -9,6 +9,7 @@ interface MapCanvasProps {
   onMouseMove: (coordinate: Coordinate) => void;
   onClick: (coordinate: Coordinate) => void;
   onSelectItem: (item: Region | Path | Point | null) => void;
+  onZoomChange: (zoom: number) => void;
 }
 
 export const MapCanvas: React.FC<MapCanvasProps> = ({
@@ -18,7 +19,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   points,
   onMouseMove,
   onClick,
-  onSelectItem
+  onSelectItem,
+  onZoomChange
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -84,6 +86,55 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     
     return () => clearTimeout(timeoutId);
   }, [state.zoom]);
+
+  // Mouse wheel zoom handler
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    // Only zoom when Shift is held down
+    if (!e.shiftKey) return;
+    
+    e.preventDefault();
+    
+    const container = containerRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) return;
+    
+    // Calculate zoom delta (negative deltaY means zoom in)
+    const zoomDelta = e.deltaY > 0 ? -10 : 10; // 10% steps
+    const newZoom = Math.max(25, Math.min(400, state.zoom + zoomDelta));
+    
+    if (newZoom === state.zoom) return; // No change needed
+    
+    // Get mouse position relative to the container
+    const containerRect = container.getBoundingClientRect();
+    const mouseX = e.clientX - containerRect.left;
+    const mouseY = e.clientY - containerRect.top;
+    
+    // Calculate the mouse position as a ratio of the current canvas size
+    const currentCanvasSize = MAP_SIZE * (state.zoom / 100);
+    const mouseXRatio = (container.scrollLeft + mouseX) / currentCanvasSize;
+    const mouseYRatio = (container.scrollTop + mouseY) / currentCanvasSize;
+    
+    // Update zoom first
+    onZoomChange(newZoom);
+    
+    // Schedule scroll adjustment for after the canvas has re-rendered
+    setTimeout(() => {
+      const newCanvasSize = MAP_SIZE * (newZoom / 100);
+      
+      // Calculate new scroll position to keep mouse position fixed
+      const newScrollX = mouseXRatio * newCanvasSize - mouseX;
+      const newScrollY = mouseYRatio * newCanvasSize - mouseY;
+      
+      // Clamp to valid scroll range
+      const maxScrollX = Math.max(0, newCanvasSize - containerRect.width);
+      const maxScrollY = Math.max(0, newCanvasSize - containerRect.height);
+      
+      container.scrollLeft = Math.max(0, Math.min(maxScrollX, newScrollX));
+      container.scrollTop = Math.max(0, Math.min(maxScrollY, newScrollY));
+      
+      console.log(`[Wheel Zoom] ${state.zoom}% -> ${newZoom}% at mouse position (${mouseX}, ${mouseY})`);
+    }, 16);
+  }, [state.zoom, onZoomChange]);
 
   // Convert game coordinates (-1024 to +1024) to canvas coordinates (0 to MAP_SIZE)
   const gameToCanvas = useCallback((coord: Coordinate): { x: number; y: number } => {
@@ -733,6 +784,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           className="cursor-crosshair"
           onMouseMove={handleMouseMove}
           onClick={handleClick}
+          onWheel={handleWheel}
           style={{
             imageRendering: 'pixelated',
             // Maintain exact proportions - no CSS scaling beyond what we set in render()
