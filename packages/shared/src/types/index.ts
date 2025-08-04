@@ -58,6 +58,8 @@ export interface EditorState {
   showRegions: boolean;
   showPaths: boolean;
   showBackground: boolean;
+  showAxes: boolean;
+  showOrigin: boolean;
   mousePosition: Coordinate;
 }
 

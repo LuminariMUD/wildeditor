@@ -176,7 +176,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     const gridSize = 50; // Grid every 50 game units
     
     ctx.strokeStyle = '#374151';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1; // Fixed 1px width regardless of zoom
     ctx.setLineDash([2, 2]);
 
     // Vertical lines
@@ -209,6 +209,38 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     // Draw the wilderness map image as background, scaled to fit the entire canvas
     ctx.drawImage(img, 0, 0, MAP_SIZE, MAP_SIZE);
   }, [state.showBackground]);
+
+  const drawAxes = useCallback((ctx: CanvasRenderingContext2D) => {
+    if (!state.showAxes) return;
+    
+    ctx.strokeStyle = '#6B7280';
+    ctx.lineWidth = 1; // Fixed 1px width regardless of zoom
+    
+    // X-axis (horizontal)
+    const xAxisY = MAP_SIZE / 2;
+    ctx.beginPath();
+    ctx.moveTo(0, xAxisY);
+    ctx.lineTo(MAP_SIZE, xAxisY);
+    ctx.stroke();
+    
+    // Y-axis (vertical)
+    const yAxisX = MAP_SIZE / 2;
+    ctx.beginPath();
+    ctx.moveTo(yAxisX, 0);
+    ctx.lineTo(yAxisX, MAP_SIZE);
+    ctx.stroke();
+  }, [state.showAxes]);
+
+  const drawOrigin = useCallback((ctx: CanvasRenderingContext2D) => {
+    if (!state.showOrigin) return;
+    
+    // Draw origin marker
+    const origin = gameToCanvas({ x: 0, y: 0 });
+    ctx.fillStyle = '#EF4444';
+    ctx.beginPath();
+    ctx.arc(origin.x, origin.y, 2, 0, Math.PI * 2); // Smaller 2px radius
+    ctx.fill();
+  }, [state.showOrigin, gameToCanvas]);
 
   // Note: Removed old drawing functions as they're replaced by optimized versions
 
@@ -497,29 +529,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     drawGrid(ctx);
 
     // Draw coordinate axes
-    ctx.strokeStyle = '#6B7280';
-    ctx.lineWidth = 2;
-    
-    // X-axis (horizontal)
-    const xAxisY = MAP_SIZE / 2;
-    ctx.beginPath();
-    ctx.moveTo(0, xAxisY);
-    ctx.lineTo(MAP_SIZE, xAxisY);
-    ctx.stroke();
-    
-    // Y-axis (vertical)
-    const yAxisX = MAP_SIZE / 2;
-    ctx.beginPath();
-    ctx.moveTo(yAxisX, 0);
-    ctx.lineTo(yAxisX, MAP_SIZE);
-    ctx.stroke();
+    drawAxes(ctx);
 
     // Draw origin marker
-    const origin = gameToCanvas({ x: 0, y: 0 });
-    ctx.fillStyle = '#EF4444';
-    ctx.beginPath();
-    ctx.arc(origin.x, origin.y, 5, 0, Math.PI * 2);
-    ctx.fill();
+    drawOrigin(ctx);
 
     // Draw regions using pre-transformed coordinates
     transformedRegions.forEach(region => drawRegionOptimized(ctx, region));
@@ -532,7 +545,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
     // Draw current drawing
     drawCurrentDrawing(ctx);
-  }, [imageLoaded, canvasScale, drawBackgroundImage, drawGrid, drawCurrentDrawing, transformedRegions, transformedPaths, transformedPoints, gameToCanvas, drawRegionOptimized, drawPathOptimized, drawPointOptimized]);
+  }, [imageLoaded, canvasScale, drawBackgroundImage, drawGrid, drawAxes, drawOrigin, drawCurrentDrawing, transformedRegions, transformedPaths, transformedPoints, gameToCanvas, drawRegionOptimized, drawPathOptimized, drawPointOptimized]);
 
   useEffect(() => {
     render();

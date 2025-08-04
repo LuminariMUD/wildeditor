@@ -118,6 +118,8 @@ function App() {
               showRegions={state.showRegions}
               showPaths={state.showPaths}
               showBackground={state.showBackground}
+              showAxes={state.showAxes}
+              showOrigin={state.showOrigin}
               onToggleLayer={toggleLayer}
             />
             <div className="flex-1"></div>
