@@ -4,6 +4,7 @@ from .routers.regions import router as regions_router
 from .routers.paths import router as paths_router
 from .routers.points import router as points_router
 from .middleware.auth import verify_api_key
+import os
 
 app = FastAPI(
     title="Wildeditor Backend API",
@@ -13,10 +14,13 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Get CORS origins from environment variable or use defaults
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,https://wildedit.luminarimud.com,https://wildeditor.luminari.com").split(",")
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # Frontend development servers
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
