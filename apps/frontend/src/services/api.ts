@@ -139,18 +139,34 @@ class ApiClient {
     
     // Check if API key is required and available
     const requiresApiKey = this.isDestructiveOperation(method);
+    console.log(`[API] API Key check:`, { 
+      requiresApiKey, 
+      hasApiKey: !!this.apiKey, 
+      apiKeyLength: this.apiKey?.length || 0,
+      method,
+      endpoint 
+    });
+    
     if (requiresApiKey && !this.apiKey) {
       const error = new Error('API key is required for this operation but not configured. Please check VITE_WILDEDITOR_API_KEY environment variable.');
       console.error('[API] Missing API key for destructive operation:', method, endpoint);
       throw error;
     }
     
-    const headers = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(this.token && { Authorization: `Bearer ${this.token}` }),
-      ...(requiresApiKey && this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
-      ...options.headers
     };
+
+    // For destructive operations, use the API key
+    // For non-destructive operations, use the session token if available
+    if (requiresApiKey && this.apiKey) {
+      headers.Authorization = `Bearer ${this.apiKey}`;
+    } else if (this.token && !requiresApiKey) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
+    // Allow options to override headers
+    Object.assign(headers, options.headers);
 
     console.log(`[API] Making request to: ${url}`);
     console.log(`[API] Method: ${method}, Requires API Key: ${requiresApiKey}`);
