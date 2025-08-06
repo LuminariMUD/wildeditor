@@ -233,7 +233,7 @@ export const TreeView: FC<TreeViewProps> = ({
       <div key={node.id}>
         <div
           className={`
-            flex items-center gap-2 px-2 py-1 text-sm cursor-pointer transition-colors
+            flex items-center gap-2 px-2 py-1 text-sm cursor-pointer transition-colors whitespace-nowrap
             ${isSelected 
               ? 'bg-blue-600 text-white' 
               : `${isHidden ? 'text-gray-500' : 'text-gray-300'} hover:bg-gray-800 hover:text-white`
@@ -336,7 +336,7 @@ export const TreeView: FC<TreeViewProps> = ({
       
       <div className="flex-1 overflow-auto">
         {treeData.length > 0 ? (
-          <div className="py-1">
+          <div className="py-1 w-max">
             {treeData.map(node => renderNode(node))}
           </div>
         ) : (
