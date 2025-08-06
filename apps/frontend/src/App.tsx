@@ -20,7 +20,6 @@ function App() {
     state,
     regions,
     paths,
-    points,
     loading,
     error,
     centerOnCoordinate,
@@ -60,14 +59,14 @@ function App() {
         case 's':
           setTool('select');
           break;
-        case 'p':
-          setTool('point');
-          break;
-        case 'g':
-          setTool('polygon');
-          break;
         case 'l':
-          setTool('linestring');
+          setTool('landmark');
+          break;
+        case 'r':
+          setTool('region');
+          break;
+        case 'p':
+          setTool('path');
           break;
         case 'escape':
           if (state.isDrawing) {
@@ -144,7 +143,6 @@ function App() {
                 <TreeView
                   regions={regions}
                   paths={paths}
-                  points={points}
                   selectedItem={state.selectedItem}
                   onSelectItem={selectItem}
                   onCenterOnItem={centerOnItem}
@@ -166,7 +164,6 @@ function App() {
               state={state}
               regions={regions.filter(region => !hiddenRegions.has(region.vnum) && !isItemHiddenByFolder(region))}
               paths={paths.filter(path => !hiddenPaths.has(path.vnum) && !isItemHiddenByFolder(path))}
-              points={points}
               onMouseMove={setMousePosition}
               onClick={handleCanvasClick}
               onSelectItem={selectItem}

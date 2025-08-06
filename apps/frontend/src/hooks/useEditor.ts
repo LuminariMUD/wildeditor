@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from './useAuth';
 import { apiClient } from '../services/api';
-import { EditorState, DrawingTool, Coordinate, Region, Path, Point } from '../types';
+import { EditorState, DrawingTool, Coordinate, Region, Path } from '../types';
 
 const initialState: EditorState = {
   tool: 'select',
@@ -23,7 +23,6 @@ export const useEditor = () => {
   const [state, setState] = useState<EditorState>(initialState);
   const [regions, setRegions] = useState<Region[]>([]);
   const [paths, setPaths] = useState<Path[]>([]);
-  const [points, setPoints] = useState<Point[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [centerOnCoordinate, setCenterOnCoordinate] = useState<Coordinate | null>(null);
@@ -65,20 +64,18 @@ export const useEditor = () => {
       console.log('[Editor] Health check successful:', health);
       
       console.log('[Editor] Making data API calls...');
-      const [regionsData, pathsData, pointsData] = await Promise.all([
+      const [regionsData, pathsData] = await Promise.all([
         apiClient.getRegions(),
-        apiClient.getPaths(),
-        apiClient.getPoints()
+        apiClient.getPaths()
       ]);
       
       console.log('[Editor] API calls successful:', {
         regions: regionsData.length,
-        paths: pathsData.length,
-        points: pointsData.length
+        paths: pathsData.length
       });
       
       // Check for duplicate IDs
-      const regionIds = regionsData.map(r => r.id);
+      const regionIds = regionsData.map((r: Region) => r.id);
       const uniqueRegionIds = new Set(regionIds);
       if (regionIds.length !== uniqueRegionIds.size) {
         console.warn('[Editor] Duplicate region IDs detected!', {
@@ -100,7 +97,6 @@ export const useEditor = () => {
       
       setRegions(regionsData);
       setPaths(pathsData);
-      setPoints(pointsData);
     } catch (err) {
       console.error('Failed to load data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -108,7 +104,6 @@ export const useEditor = () => {
       // Clear data on error - no more fallback mock data
       setRegions([]);
       setPaths([]);
-      setPoints([]);
     } finally {
       setLoading(false);
     }
@@ -210,7 +205,7 @@ export const useEditor = () => {
     return false;
   }, [hiddenFolders]);
 
-  const selectItem = useCallback((item: Region | Path | Point | null) => {
+  const selectItem = useCallback((item: Region | Path | null) => {
     if (item) {
       console.log('[Selection] Item selected:', {
         type: 'coordinates' in item ? ('vnum' in item ? 'region/path' : 'unknown') : 'point',
@@ -241,35 +236,46 @@ export const useEditor = () => {
       return;
     }
 
-    if (state.tool === 'point') {
-      const newPoint: Point = {
-        id: Date.now().toString(),
-        coordinate,
-        name: `New Point ${points.length + 1}`,
-        type: 'landmark',
-        isDirty: true  // Mark as unsaved
+    if (state.tool === 'landmark') {
+      // Create a landmark as a small geographic region around the point
+      const landmarkRegion: Region = {
+        vnum: Date.now(), // Will be replaced by backend
+        zone_vnum: 1,
+        name: `New Landmark ${regions.length + 1}`,
+        region_type: 1, // Geographic
+        coordinates: [
+          { x: coordinate.x - 0.2, y: coordinate.y - 0.2 }, // Small 0.4x0.4 square around the point
+          { x: coordinate.x + 0.2, y: coordinate.y - 0.2 },
+          { x: coordinate.x + 0.2, y: coordinate.y + 0.2 },
+          { x: coordinate.x - 0.2, y: coordinate.y + 0.2 }
+        ],
+        region_props: 0,
+        id: `region-${Date.now()}`,
+        props: '{}',
+        color: '#3B82F6', // Geographic blue
+        isDirty: true
       };
       
-      console.log('[Drawing] Creating new point:', {
-        id: newPoint.id,
-        coordinate: newPoint.coordinate,
-        name: newPoint.name
+      console.log('[Drawing] Creating new landmark region:', {
+        vnum: landmarkRegion.vnum,
+        centerCoordinate: coordinate,
+        name: landmarkRegion.name
       });
       
-      // Add to local state immediately (buffered)
-      setPoints(prev => [...prev, newPoint]);
-      selectItem(newPoint);
+      // Add to regions state immediately (buffered)
+      setRegions(prev => [...prev, landmarkRegion]);
+      selectItem(landmarkRegion);
       
       // Mark as unsaved
-      setUnsavedItems(prev => new Set(prev).add(newPoint.id!));
+      setUnsavedItems(prev => new Set(prev).add(landmarkRegion.vnum.toString()));
       
-      console.log('[Drawing] Point created locally, marked as unsaved');
-    } else if (state.tool === 'polygon' || state.tool === 'linestring') {
+      console.log('[Drawing] Landmark region created locally, marked as unsaved');
+    } else if (state.tool === 'region' || state.tool === 'path') {
       const newPointCount = state.currentDrawing.length + 1;
       console.log('[Drawing] Adding point to', state.tool, ':', {
         pointNumber: newPointCount,
         coordinate,
-        requiredPoints: state.tool === 'polygon' ? 3 : 2
+        requiredPoints: state.tool === 'region' ? 3 : 2
       });
       
       setState(prev => ({
@@ -278,7 +284,7 @@ export const useEditor = () => {
         currentDrawing: [...prev.currentDrawing, coordinate]
       }));
     }
-  }, [state.tool, state.isDrawing, state.currentDrawing.length, points.length, selectItem]);
+  }, [state.tool, state.isDrawing, state.currentDrawing.length, regions.length, selectItem]);
 
   const cancelDrawing = useCallback(() => {
     console.log('[Drawing] Canceling drawing:', {
@@ -308,14 +314,14 @@ export const useEditor = () => {
 
     // Validate minimum points for each shape type
     const minPointsForTool = {
-      polygon: 3,
-      linestring: 2
+      region: 3,
+      path: 2
     };
 
     const minPoints = minPointsForTool[state.tool as keyof typeof minPointsForTool];
     
     if (state.currentDrawing.length < minPoints) {
-      const errorMsg = `${state.tool === 'polygon' ? 'Polygon' : 'Path'} requires at least ${minPoints} points`;
+      const errorMsg = `${state.tool === 'region' ? 'Region' : 'Path'} requires at least ${minPoints} points`;
       console.error('[Drawing] Not enough points:', {
         tool: state.tool,
         currentPoints: state.currentDrawing.length,
@@ -328,7 +334,7 @@ export const useEditor = () => {
     // Clear any previous errors
     setError(null);
 
-    if (state.tool === 'polygon' && state.currentDrawing.length >= 3) {
+    if (state.tool === 'region' && state.currentDrawing.length >= 3) {
       const newRegion: Region = {
         vnum: Math.max(1000, ...regions.map(r => r.vnum || 0)) + 1, // Generate next vnum
         zone_vnum: 1,
@@ -361,7 +367,7 @@ export const useEditor = () => {
       setUnsavedItems(prev => new Set(prev).add(newRegion.id!));
       
       console.log('[Drawing] Region created locally, marked as unsaved');
-    } else if (state.tool === 'linestring' && state.currentDrawing.length >= 2) {
+    } else if (state.tool === 'path' && state.currentDrawing.length >= 2) {
       const newPath: Path = {
         vnum: Math.max(2000, ...paths.map(p => p.vnum || 0)) + 1, // Generate next vnum
         zone_vnum: 1,
@@ -400,7 +406,7 @@ export const useEditor = () => {
     setState(prev => ({ ...prev, isDrawing: false, currentDrawing: [] }));
   }, [state.isDrawing, state.currentDrawing, state.tool, regions, paths, selectItem]);
 
-  const updateSelectedItem = useCallback((updates: Partial<Region | Path | Point>) => {
+  const updateSelectedItem = useCallback((updates: Partial<Region | Path>) => {
     if (!state.selectedItem) {
       console.warn('[Update] No item selected to update');
       return;
@@ -415,7 +421,9 @@ export const useEditor = () => {
     if ('vnum' in state.selectedItem) {
       itemId = state.selectedItem.vnum?.toString() || state.selectedItem.id || '';
     } else {
-      itemId = state.selectedItem.id || '';
+      // This should not happen since we only have Region/Path items with vnums
+      console.error('[Update] Selected item has no vnum or id');
+      return;
     }
     
     if (!itemId) {
@@ -442,20 +450,13 @@ export const useEditor = () => {
             : path
         ));
       }
-    } else {
-      // It's a Point
-      setPoints(prev => prev.map(point => 
-        point.id === itemId
-          ? { ...point, ...updatesWithDirty } as Point
-          : point
-      ));
     }
     
     // Mark as unsaved
     setUnsavedItems(prev => new Set(prev).add(itemId));
     
     // Update selected item state
-    setState(prev => ({ ...prev, selectedItem: { ...prev.selectedItem!, ...updatesWithDirty } as Region | Path | Point }));
+    setState(prev => ({ ...prev, selectedItem: { ...prev.selectedItem!, ...updatesWithDirty } as Region | Path }));
     
     console.log('[Update] Item updated locally, marked as unsaved:', itemId);
   }, [state.selectedItem]);
@@ -478,7 +479,7 @@ export const useEditor = () => {
     
     try {
       // Find the item in our local state
-      let item: Region | Path | Point | undefined;
+      let item: Region | Path | undefined;
       
       // Check regions first
       item = regions.find(r => r.id === itemId || r.vnum?.toString() === itemId);
@@ -526,29 +527,6 @@ export const useEditor = () => {
         }
       }
       
-      // Check points if not found in regions or paths
-      if (!item) {
-        item = points.find(p => p.id === itemId);
-        if (item && 'coordinate' in item) {
-          const point = item as Point;
-          // Points don't have vnum, so always create new or update by ID
-          if (points.some(p => p.id === point.id && !p.isDirty)) {
-            // Update existing point
-            await apiClient.updatePoint(point.id!, point);
-            console.log('[Save] Point updated successfully:', itemId);
-          } else {
-            // Create new point
-            await apiClient.createPoint(point);
-            console.log('[Save] Point created successfully:', itemId);
-          }
-          
-          // Mark as clean
-          setPoints(prev => prev.map(p => 
-            p.id === itemId ? { ...p, isDirty: false } : p
-          ));
-        }
-      }
-      
       if (!item) {
         console.error('[Save] Item not found:', itemId);
         setError('Item not found for saving');
@@ -586,7 +564,7 @@ export const useEditor = () => {
         return newSet;
       });
     }
-  }, [authDisabled, session, savingItems, regions, paths, points, state.selectedItem]);
+  }, [authDisabled, session, savingItems, regions, paths, state.selectedItem]);
 
   // Save all unsaved items
   const saveAllUnsaved = useCallback(async () => {
@@ -607,7 +585,7 @@ export const useEditor = () => {
     console.log('[Discard] Discarding unsaved changes for item:', itemId);
     
     // Find the item in our local state
-    let item: Region | Path | Point | undefined;
+    let item: Region | Path | undefined;
     
     // Check regions first
     item = regions.find(r => r.id === itemId || r.vnum?.toString() === itemId);
@@ -682,32 +660,6 @@ export const useEditor = () => {
       }
     }
     
-    // Check points if not found in regions or paths
-    if (!item) {
-      item = points.find(p => p.id === itemId);
-      if (item && 'coordinate' in item) {
-        const point = item as Point;
-        
-        // Points are always considered "new" since they don't have vnums
-        // If it's dirty, it means it's unsaved, so remove it
-        if (point.isDirty) {
-          console.log('[Discard] Removing new unsaved point:', itemId);
-          setPoints(prev => prev.filter(p => p.id !== itemId));
-          
-          // Clear selection if this was the selected item
-          if (state.selectedItem && state.selectedItem.id === itemId) {
-            setState(prev => ({ ...prev, selectedItem: null }));
-          }
-        } else {
-          // If it's not dirty, just mark as clean (shouldn't happen, but safety)
-          console.log('[Discard] Marking point as clean:', itemId);
-          setPoints(prev => prev.map(p => 
-            p.id === itemId ? { ...p, isDirty: false } : p
-          ));
-        }
-      }
-    }
-    
     if (!item) {
       console.warn('[Discard] Item not found:', itemId);
       return;
@@ -738,18 +690,15 @@ export const useEditor = () => {
     }
     
     console.log('[Discard] Item changes discarded successfully:', itemId);
-  }, [regions, paths, points, state.selectedItem]);
+  }, [regions, paths, state.selectedItem]);
 
-  const centerOnItem = useCallback((item: Region | Path | Point) => {
+  const centerOnItem = useCallback((item: Region | Path) => {
     let coordinate: Coordinate;
     
-    if ('coordinate' in item) {
-      // Point - use its coordinate directly
-      coordinate = item.coordinate;
-    } else if ('coordinates' in item && item.coordinates.length > 0) {
+    if ('coordinates' in item && item.coordinates.length > 0) {
       // Region or Path - calculate center of bounding box
       const bounds = item.coordinates.reduce(
-        (acc, coord) => ({
+        (acc: {minX: number, maxX: number, minY: number, maxY: number}, coord: Coordinate) => ({
           minX: Math.min(acc.minX, coord.x),
           maxX: Math.max(acc.maxX, coord.x),
           minY: Math.min(acc.minY, coord.y),
@@ -785,7 +734,6 @@ export const useEditor = () => {
     // Reset all items to their original state (remove isDirty flag)
     setRegions(current => current.map(region => ({ ...region, isDirty: false })));
     setPaths(current => current.map(path => ({ ...path, isDirty: false })));
-    setPoints(current => current.map(point => ({ ...point, isDirty: false })));
     
     // Clear selected item's dirty flag
     if (state.selectedItem?.isDirty) {
@@ -803,8 +751,8 @@ export const useEditor = () => {
     
     try {
       // Find the item to delete
-      let item: Region | Path | Point | undefined;
-      let itemType: 'region' | 'path' | 'point' | undefined;
+      let item: Region | Path | undefined;
+      let itemType: 'region' | 'path' | undefined;
       
       // Check regions first
       item = regions.find(r => r.id === itemId || r.vnum?.toString() === itemId);
@@ -842,21 +790,6 @@ export const useEditor = () => {
         }
       }
       
-      // Check points if not found in regions or paths
-      if (!item) {
-        item = points.find(p => p.id === itemId);
-        if (item && 'coordinate' in item) {
-          itemType = 'point';
-          
-          // Points don't have vnums yet, so just remove from local state
-          // await apiClient.deletePoint(item.id); // Uncomment when point API is ready
-          
-          // Remove from local state
-          setPoints(prev => prev.filter(p => p.id !== itemId));
-          console.log('[Delete] Point removed from local state:', itemId);
-        }
-      }
-      
       if (!item) {
         console.warn('[Delete] Item not found:', itemId);
         setError(`Item not found: ${itemId}`);
@@ -885,13 +818,12 @@ export const useEditor = () => {
       console.error('[Delete] Failed to delete item:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete item');
     }
-  }, [regions, paths, points, state.selectedItem, setState]);
+  }, [regions, paths, state.selectedItem, setState]);
 
   return {
     state,
     regions,
     paths,
-    points,
     loading,
     error,
     centerOnCoordinate,

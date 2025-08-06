@@ -1,10 +1,10 @@
 import React, { useCallback } from 'react';
 import { Save, RotateCcw, Trash2, Plus } from 'lucide-react';
-import { Region, Path, Point } from '../types';
+import { Region, Path } from '../types';
 
 interface PropertiesPanelProps {
-  selectedItem: Region | Path | Point | null;
-  onUpdate: (updates: Partial<Region | Path | Point>) => void;
+  selectedItem: Region | Path | null;
+  onUpdate: (updates: Partial<Region | Path>) => void;
   onFinishDrawing?: () => void;
   isDrawing: boolean;
   // New save props
@@ -85,15 +85,14 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     );
   }
 
-  const isPoint = 'coordinate' in selectedItem;
-  const isRegion = !isPoint && 'vnum' in selectedItem && 'coordinates' in selectedItem && selectedItem.coordinates.length >= 3;
-  const isPath = !isPoint && !isRegion && 'vnum' in selectedItem && 'coordinates' in selectedItem;
+  const isRegion = 'vnum' in selectedItem && 'coordinates' in selectedItem && selectedItem.coordinates.length >= 3;
+  const isPath = 'vnum' in selectedItem && 'coordinates' in selectedItem && !isRegion;
 
   return (
     <div className="p-4 bg-gray-900 space-y-4 max-h-full overflow-y-auto">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-white">
-          {isRegion ? 'Region' : isPath ? 'Path' : 'Point'}
+          {isRegion ? 'Region' : 'Path'}
         </h3>
         <button 
           onClick={() => {
@@ -173,20 +172,6 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         </div>
       )}
 
-      {isPoint && (
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Type</label>
-          <select
-            value={(selectedItem as Point).type}
-            onChange={(e) => onUpdate({ type: e.target.value as Point['type'] })}
-            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="landmark">Landmark</option>
-            <option value="poi">Point of Interest</option>
-          </select>
-        </div>
-      )}
-
       {/* Properties for regions and paths */}
       {(isRegion || isPath) && (
         <div>
@@ -217,52 +202,13 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       )}
 
       {/* Coordinates */}
-      {isPoint ? (
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Coordinate</label>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">X</label>
-              <input
-                type="number"
-                value={(selectedItem as Point).coordinate.x}
-                onChange={(e) => onUpdate({ 
-                  coordinate: { 
-                    ...(selectedItem as Point).coordinate, 
-                    x: validateCoordinate(parseInt(e.target.value) || 0) 
-                  } 
-                })}
-                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:ring-1 focus:ring-blue-500"
-                min={COORDINATE_BOUNDS.min}
-                max={COORDINATE_BOUNDS.max}
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">Y</label>
-              <input
-                type="number"
-                value={(selectedItem as Point).coordinate.y}
-                onChange={(e) => onUpdate({ 
-                  coordinate: { 
-                    ...(selectedItem as Point).coordinate, 
-                    y: validateCoordinate(parseInt(e.target.value) || 0) 
-                  } 
-                })}
-                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:ring-1 focus:ring-blue-500"
-                min={COORDINATE_BOUNDS.min}
-                max={COORDINATE_BOUNDS.max}
-              />
-            </div>
-          </div>
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-gray-300">Points</label>
+          <button className="text-blue-400 hover:text-blue-300 p-1">
+            <Plus size={14} />
+          </button>
         </div>
-      ) : (
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium text-gray-300">Points</label>
-            <button className="text-blue-400 hover:text-blue-300 p-1">
-              <Plus size={14} />
-            </button>
-          </div>
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {('coordinates' in selectedItem ? selectedItem.coordinates : []).map((coord, index) => (
               <div key={index} className="flex items-center gap-2 p-2 bg-gray-800 rounded">
@@ -302,7 +248,6 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             ))}
           </div>
         </div>
-      )}
 
       {/* Action buttons */}
       <div className="flex gap-2 pt-4 border-t border-gray-700">

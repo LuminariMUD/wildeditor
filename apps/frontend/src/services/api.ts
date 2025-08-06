@@ -1,4 +1,4 @@
-import { Region, Path, Point } from '@wildeditor/shared/types';
+import { Region, Path } from '@wildeditor/shared/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const API_KEY = import.meta.env.VITE_WILDEDITOR_API_KEY || '';
@@ -34,12 +34,6 @@ interface ApiPathResponse {
   coordinates: { x: number; y: number }[];
   path_props?: number;
   path_type_name?: string;
-}
-
-interface ApiPointResponse {
-  name: string;
-  type: 'landmark' | 'poi';
-  coordinate: { x: number; y: number };
 }
 
 // Helper functions to assign colors based on types
@@ -107,18 +101,6 @@ const frontendPathToApi = (path: Omit<Path, 'id'>): Omit<ApiPathResponse, 'path_
   path_type: path.path_type,
   coordinates: path.coordinates,
   path_props: path.path_props || 0,
-});
-
-const apiPointToFrontend = (apiPoint: ApiPointResponse): Point => ({
-  ...apiPoint,
-  // Points don't have vnum in the API yet, so generate ID
-  id: Date.now().toString(),
-});
-
-const frontendPointToApi = (point: Omit<Point, 'id'>): ApiPointResponse => ({
-  name: point.name,
-  type: point.type,
-  coordinate: point.coordinate,
 });
 
 class ApiClient {
@@ -323,41 +305,6 @@ class ApiClient {
   async deletePath(id: string): Promise<void> {
     const vnum = extractPathVnum(id);
     await this.request<void>(`/paths/${vnum}/`, {
-      method: 'DELETE'
-    });
-  }
-
-  // Point methods - GET endpoints without trailing slash, POST/PUT/DELETE with trailing slash
-  async getPoints(): Promise<Point[]> {
-    // Points endpoint returns point info, not a collection yet
-    // For now return empty array until Points API is implemented
-    return [];
-  }
-
-  async getPoint(id: string): Promise<Point> {
-    const response = await this.request<ApiPointResponse>(`/points/${id}`);
-    return apiPointToFrontend(response);
-  }
-
-  async createPoint(point: Omit<Point, 'id'>): Promise<Point> {
-    const apiData = frontendPointToApi(point);
-    const response = await this.request<ApiPointResponse>('/points/', {
-      method: 'POST',
-      body: JSON.stringify(apiData)
-    });
-    return apiPointToFrontend(response);
-  }
-
-  async updatePoint(id: string, updates: Partial<Point>): Promise<Point> {
-    const response = await this.request<ApiPointResponse>(`/points/${id}/`, {
-      method: 'PUT',
-      body: JSON.stringify(updates)
-    });
-    return apiPointToFrontend(response);
-  }
-
-  async deletePoint(id: string): Promise<void> {
-    await this.request<void>(`/points/${id}/`, {
       method: 'DELETE'
     });
   }

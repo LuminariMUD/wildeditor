@@ -10,9 +10,9 @@ interface ToolPaletteProps {
 export const ToolPalette: React.FC<ToolPaletteProps> = ({ currentTool, onToolChange }) => {
   const tools = [
     { id: 'select' as const, icon: MousePointer, label: 'Select', shortcut: 'S' },
-    { id: 'point' as const, icon: MapPin, label: 'Point', shortcut: 'P' },
-    { id: 'polygon' as const, icon: Square, label: 'Polygon', shortcut: 'G' },
-    { id: 'linestring' as const, icon: Minus, label: 'Linestring', shortcut: 'L' }
+    { id: 'landmark' as const, icon: MapPin, label: 'Landmark', shortcut: 'L' },
+    { id: 'region' as const, icon: Square, label: 'Region', shortcut: 'R' },
+    { id: 'path' as const, icon: Minus, label: 'Path', shortcut: 'P' }
   ];
 
   return (

@@ -1,14 +1,13 @@
 import { useState, useMemo, useCallback, FC, MouseEvent } from 'react';
-import { ChevronDown, ChevronRight, Folder, FolderOpen, Map, Route, MapPin, Eye, EyeOff } from 'lucide-react';
-import { Region, Path, Point } from '../types';
+import { ChevronDown, ChevronRight, Folder, FolderOpen, Map, Route, Eye, EyeOff } from 'lucide-react';
+import { Region, Path } from '../types';
 
 interface TreeViewProps {
   regions: Region[];
   paths: Path[];
-  points: Point[];
-  selectedItem: Region | Path | Point | null;
-  onSelectItem: (item: Region | Path | Point | null) => void;
-  onCenterOnItem: (item: Region | Path | Point) => void;
+  selectedItem: Region | Path | null;
+  onSelectItem: (item: Region | Path | null) => void;
+  onCenterOnItem: (item: Region | Path) => void;
   showRegions: boolean;
   showPaths: boolean;
   onToggleLayer: (layer: 'regions' | 'paths') => void;
@@ -24,8 +23,8 @@ interface TreeViewProps {
 interface TreeNode {
   id: string;
   name: string;
-  type: 'folder' | 'region' | 'path' | 'point';
-  data?: Region | Path | Point;
+  type: 'folder' | 'region' | 'path';
+  data?: Region | Path;
   children?: TreeNode[];
   count?: number;
 }
@@ -33,7 +32,6 @@ interface TreeNode {
 export const TreeView: FC<TreeViewProps> = ({
   regions,
   paths,
-  points,
   selectedItem,
   onSelectItem,
   onCenterOnItem,
@@ -167,27 +165,8 @@ export const TreeView: FC<TreeViewProps> = ({
       tree.push(pathNode);
     }
 
-    // Points folder (if we have any)
-    if (points.length > 0) {
-      const pointNode: TreeNode = {
-        id: 'points',
-        name: 'Points',
-        type: 'folder',
-        count: points.length,
-        children: points
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .map(point => ({
-            id: `point-${point.id}`,
-            name: point.name,
-            type: 'point' as const,
-            data: point
-          }))
-      };
-      tree.push(pointNode);
-    }
-
     return tree;
-  }, [regions, paths, points, regionsByType, pathsByType]);
+  }, [regions, paths, regionsByType, pathsByType]);
 
   const toggleExpanded = useCallback((nodeId: string) => {
     setExpandedNodes(prev => {
@@ -259,8 +238,6 @@ export const TreeView: FC<TreeViewProps> = ({
         return <Map size={16} />;
       case 'path':
         return <Route size={16} />;
-      case 'point':
-        return <MapPin size={16} />;
       default:
         return null;
     }
@@ -419,7 +396,7 @@ export const TreeView: FC<TreeViewProps> = ({
       <div className="p-3 border-b border-gray-700 flex-shrink-0">
         <h3 className="text-sm font-medium text-gray-300">Wilderness Objects</h3>
         <div className="text-xs text-gray-500 mt-1">
-          {regions.length} regions • {paths.length} paths • {points.length} points
+          {regions.length} regions • {paths.length} paths
         </div>
       </div>
       

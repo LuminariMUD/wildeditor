@@ -1,14 +1,13 @@
 import { useRef, useEffect, useCallback, useState, FC } from 'react';
-import { Coordinate, Region, Path, Point, EditorState } from '../types';
+import { Coordinate, Region, Path, EditorState } from '../types';
 
 interface SimpleMapCanvasProps {
   state: EditorState;
   regions: Region[];
   paths: Path[];
-  points: Point[];
   onMouseMove: (coordinate: Coordinate) => void;
   onClick: (coordinate: Coordinate) => void;
-  onSelectItem: (item: Region | Path | Point | null) => void;
+  onSelectItem: (item: Region | Path | null) => void;
   onZoomChange: (zoom: number) => void;
   centerOnCoordinate?: Coordinate | null;
 }
@@ -17,7 +16,6 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
   state,
   regions,
   paths,
-  points,
   onMouseMove,
   onClick,
   onSelectItem,
@@ -328,26 +326,6 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     ctx.stroke();
   }, [state.showPaths, state.selectedItem, gameToCanvas, transform.scale]);
 
-  const drawPoint = useCallback((ctx: CanvasRenderingContext2D, point: Point) => {
-    const canvasPos = gameToCanvas(point.coordinate);
-    const isSelected = state.selectedItem?.id === point.id;
-
-    ctx.fillStyle = point.type === 'landmark' ? '#F59E0B' : '#8B5CF6';
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = (isSelected ? 3 : 2) / transform.scale;
-
-    ctx.beginPath();
-    ctx.arc(canvasPos.x, canvasPos.y, 6 / transform.scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Label
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = `${12 / transform.scale}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillText(point.name, canvasPos.x, canvasPos.y + 20 / transform.scale);
-  }, [state.selectedItem, gameToCanvas, transform.scale]);
-
   // Main render function
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -381,10 +359,9 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     drawAxes(ctx);
     drawOrigin(ctx);
 
-    // Draw regions, paths, points
+    // Draw regions and paths
     regions.forEach(region => drawRegion(ctx, region));
     paths.forEach(path => drawPath(ctx, path));
-    points.forEach(point => drawPoint(ctx, point));
 
     // Draw current drawing
     if (state.isDrawing && state.currentDrawing.length > 0) {
@@ -394,7 +371,7 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
       ctx.lineWidth = 2 / transform.scale;
       ctx.setLineDash([8 / transform.scale, 4 / transform.scale]);
 
-      if (state.tool === 'polygon' && canvasCoords.length >= 3) {
+      if (state.tool === 'region' && canvasCoords.length >= 3) {
         ctx.fillStyle = '#22C55E40';
         ctx.beginPath();
         ctx.moveTo(canvasCoords[0].x, canvasCoords[0].y);
@@ -404,7 +381,7 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
-      } else if (state.tool === 'linestring' && canvasCoords.length >= 2) {
+      } else if (state.tool === 'path' && canvasCoords.length >= 2) {
         ctx.beginPath();
         ctx.moveTo(canvasCoords[0].x, canvasCoords[0].y);
         for (let i = 1; i < canvasCoords.length; i++) {
@@ -423,14 +400,12 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     backgroundImage,
     regions,
     paths,
-    points,
     gameToCanvas,
     drawGrid,
     drawAxes,
     drawOrigin,
     drawRegion,
-    drawPath,
-    drawPoint
+    drawPath
   ]);
 
   // Render on state changes
@@ -462,18 +437,6 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     
     if (state.tool === 'select') {
       // Simple selection - find the first item that contains the point
-      // Check points first (smallest targets)
-      for (const point of points) {
-        const distance = Math.sqrt(
-          Math.pow(gameCoord.x - point.coordinate.x, 2) +
-          Math.pow(gameCoord.y - point.coordinate.y, 2)
-        );
-        if (distance <= 10) {
-          onSelectItem(point);
-          return;
-        }
-      }
-
       // Check regions
       for (const region of regions) {
         if (region.coordinates.length >= 3) {
@@ -539,7 +502,6 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
   }, [
     isDragging,
     state.tool,
-    points,
     regions,
     paths,
     screenToGame,

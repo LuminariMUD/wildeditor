@@ -3,16 +3,6 @@ export interface Coordinate {
   y: number;
 }
 
-export interface Point {
-  coordinate: Coordinate;
-  name: string;
-  type: 'landmark' | 'poi';
-  
-  // Frontend-only properties
-  id?: string;          // Optional frontend ID for compatibility
-  isDirty?: boolean;    // Indicates unsaved changes
-}
-
 export interface Region {
   vnum: number;           // Region virtual number (1-99999) - This is the primary key
   zone_vnum: number;      // Zone virtual number (default: 1)
@@ -49,12 +39,12 @@ export interface Path {
   isDirty?: boolean;     // Indicates unsaved changes
 }
 
-export type DrawingTool = 'select' | 'point' | 'polygon' | 'linestring';
+export type DrawingTool = 'select' | 'landmark' | 'region' | 'path';
 
 export interface EditorState {
   tool: DrawingTool;
   zoom: number;
-  selectedItem: Region | Path | Point | null;
+  selectedItem: Region | Path | null;
   isDrawing: boolean;
   currentDrawing: Coordinate[];
   showGrid: boolean;
@@ -108,13 +98,4 @@ export interface PathEntity {
   color?: string;
   created_at?: string;
   updated_at?: string;
-}
-
-export interface PointEntity {
-  id: string;
-  name: string;
-  type: Point['type'];
-  coordinate: Coordinate;
-  created_at: string;
-  updated_at: string;
 }
