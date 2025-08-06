@@ -272,6 +272,10 @@ export const TreeView: FC<TreeViewProps> = ({
       ((node.data.id && node.data.id === selectedItem.id) ||
        ('vnum' in node.data && 'vnum' in selectedItem && node.data.vnum === selectedItem.vnum));
     
+    // Check if this item is unsaved (draft)
+    const itemId = node.data?.id || ('vnum' in (node.data || {}) ? (node.data as Region | Path)?.vnum?.toString() : '');
+    const isUnsaved = itemId && unsavedItems.has(itemId);
+    
     // Check if the item is hidden individually or by folder
     const isIndividuallyHidden = (node.type === 'region' && node.data && 'vnum' in node.data && hiddenRegions.has(node.data.vnum)) ||
                                  (node.type === 'path' && node.data && 'vnum' in node.data && hiddenPaths.has(node.data.vnum));
@@ -290,6 +294,7 @@ export const TreeView: FC<TreeViewProps> = ({
               ? 'bg-blue-600 text-white' 
               : `${isHidden ? 'text-gray-500' : 'text-gray-300'} hover:bg-gray-800 hover:text-white`
             }
+            ${isUnsaved && !isSelected ? 'bg-amber-900/30 border-l-2 border-l-amber-400' : ''}
           `}
           style={{ paddingLeft }}
           onClick={(e) => handleItemClick(node, e)}
@@ -359,9 +364,14 @@ export const TreeView: FC<TreeViewProps> = ({
               (() => {
                 const itemId = node.data.id || ('vnum' in node.data ? node.data.vnum?.toString() : '');
                 return itemId && unsavedItems.has(itemId) ? (
-                  <span className="text-orange-400 font-bold text-xs" title="Unsaved changes">
-                    *
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-amber-400 font-bold text-xs bg-amber-900/40 px-1.5 py-0.5 rounded" title="Unsaved draft - not saved to database">
+                      DRAFT
+                    </span>
+                    <span className="text-amber-400 font-bold text-xs" title="Unsaved changes">
+                      *
+                    </span>
+                  </div>
                 ) : null;
               })()
             )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Save } from 'lucide-react';
+import { Save, RotateCcw } from 'lucide-react';
 import { Coordinate } from '../types';
 
 interface StatusBarProps {
@@ -13,6 +13,7 @@ interface StatusBarProps {
   // New unsaved items props
   unsavedCount?: number;
   onSaveAll?: () => void;
+  onDiscardAll?: () => void;
   isSaving?: boolean;
 }
 
@@ -26,6 +27,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   error = null,
   unsavedCount = 0,
   onSaveAll,
+  onDiscardAll,
   isSaving = false
 }) => {
   const zoomLevels = [25, 50, 75, 100, 150, 200, 300, 500, 800, 1200, 1600, 2000];
@@ -87,6 +89,23 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             >
               <Save size={12} />
               {isSaving ? 'Saving...' : 'Save All'}
+            </button>
+            <button
+              onClick={() => {
+                if (onDiscardAll && confirm(`Are you sure you want to discard all ${unsavedCount} unsaved changes?`)) {
+                  onDiscardAll();
+                }
+              }}
+              disabled={isSaving}
+              className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors ${
+                isSaving
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  : 'bg-red-600 hover:bg-red-700 text-white'
+              }`}
+              title="Discard all unsaved changes"
+            >
+              <RotateCcw size={12} />
+              Discard All
             </button>
             <div className="w-px h-4 bg-gray-600"></div>
           </>

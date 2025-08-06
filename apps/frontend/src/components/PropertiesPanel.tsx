@@ -9,6 +9,7 @@ interface PropertiesPanelProps {
   isDrawing: boolean;
   // New save props
   onSave?: (itemId: string) => void;
+  onDiscard?: (itemId: string) => void;
   isSaving?: boolean;
   hasUnsavedChanges?: boolean;
 }
@@ -19,6 +20,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onFinishDrawing,
   isDrawing,
   onSave,
+  onDiscard,
   isSaving = false,
   hasUnsavedChanges = false
 }) => {
@@ -311,9 +313,26 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           <Save size={16} />
           {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save *' : 'Saved'}
         </button>
-        <button className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
+        <button 
+          onClick={() => {
+            if (selectedItem && onDiscard && hasUnsavedChanges) {
+              const itemId = ('vnum' in selectedItem && selectedItem.vnum) 
+                ? selectedItem.vnum.toString() 
+                : selectedItem.id || '';
+              if (itemId && confirm('Are you sure you want to discard unsaved changes?')) {
+                onDiscard(itemId);
+              }
+            }
+          }}
+          disabled={!hasUnsavedChanges}
+          className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors ${
+            !hasUnsavedChanges
+              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              : 'bg-red-600 hover:bg-red-700 text-white'
+          }`}
+        >
           <RotateCcw size={16} />
-          Reset
+          Discard
         </button>
       </div>
     </div>

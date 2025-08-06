@@ -45,7 +45,9 @@ function App() {
     unsavedItems,
     savingItems,
     saveItem,
-    saveAllUnsaved
+    saveAllUnsaved,
+    discardItem,
+    discardAllUnsaved
   } = useEditor();
 
   // Keyboard shortcuts
@@ -179,6 +181,7 @@ function App() {
                 onFinishDrawing={finishDrawing}
                 isDrawing={state.isDrawing}
                 onSave={saveItem}
+                onDiscard={discardItem}
                 isSaving={state.selectedItem ? savingItems.has(
                   ('vnum' in state.selectedItem && state.selectedItem.vnum) 
                     ? state.selectedItem.vnum.toString() 
@@ -201,6 +204,7 @@ function App() {
           error={error}
           unsavedCount={unsavedItems.size}
           onSaveAll={saveAllUnsaved}
+          onDiscardAll={discardAllUnsaved}
           isSaving={savingItems.size > 0}
         />
       </div>

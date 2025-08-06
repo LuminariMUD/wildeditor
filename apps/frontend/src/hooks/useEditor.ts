@@ -602,6 +602,127 @@ export const useEditor = () => {
     }
   }, [unsavedItems, saveItem]);
 
+  // Discard unsaved changes for a specific item
+  const discardItem = useCallback((itemId: string) => {
+    console.log('[Discard] Discarding unsaved changes for item:', itemId);
+    
+    // Find the item in our local state
+    let item: Region | Path | Point | undefined;
+    
+    // Check regions first
+    item = regions.find(r => r.id === itemId || r.vnum?.toString() === itemId);
+    if (item && 'region_type' in item) {
+      const region = item as Region;
+      
+      // If this is a completely new item (never saved), remove it entirely
+      if (region.isDirty && !regions.some(r => r.vnum === region.vnum && !r.isDirty)) {
+        console.log('[Discard] Removing new unsaved region:', itemId);
+        setRegions(prev => prev.filter(r => r.id !== itemId && r.vnum?.toString() !== itemId));
+        
+        // Clear selection if this was the selected item
+        if (state.selectedItem && (state.selectedItem.id === itemId || 
+            ('vnum' in state.selectedItem && state.selectedItem.vnum?.toString() === itemId))) {
+          setState(prev => ({ ...prev, selectedItem: null }));
+        }
+      } else {
+        // If it's an existing item with changes, revert to clean state
+        // (This would require storing original state - for now we'll just clear the dirty flag)
+        console.log('[Discard] Marking region as clean (reverting changes):', itemId);
+        setRegions(prev => prev.map(r => 
+          (r.id === itemId || r.vnum?.toString() === itemId) 
+            ? { ...r, isDirty: false } 
+            : r
+        ));
+        
+        // Update selected item if it's the one we just reverted
+        if (state.selectedItem && (state.selectedItem.id === itemId || 
+            ('vnum' in state.selectedItem && state.selectedItem.vnum?.toString() === itemId))) {
+          setState(prev => ({ 
+            ...prev, 
+            selectedItem: prev.selectedItem ? { ...prev.selectedItem, isDirty: false } : null 
+          }));
+        }
+      }
+    }
+    
+    // Check paths if not found in regions
+    if (!item) {
+      item = paths.find(p => p.id === itemId || p.vnum?.toString() === itemId);
+      if (item && 'path_type' in item) {
+        const path = item as Path;
+        
+        // If this is a completely new item (never saved), remove it entirely
+        if (path.isDirty && !paths.some(p => p.vnum === path.vnum && !p.isDirty)) {
+          console.log('[Discard] Removing new unsaved path:', itemId);
+          setPaths(prev => prev.filter(p => p.id !== itemId && p.vnum?.toString() !== itemId));
+          
+          // Clear selection if this was the selected item
+          if (state.selectedItem && (state.selectedItem.id === itemId || 
+              ('vnum' in state.selectedItem && state.selectedItem.vnum?.toString() === itemId))) {
+            setState(prev => ({ ...prev, selectedItem: null }));
+          }
+        } else {
+          // If it's an existing item with changes, revert to clean state
+          console.log('[Discard] Marking path as clean (reverting changes):', itemId);
+          setPaths(prev => prev.map(p => 
+            (p.id === itemId || p.vnum?.toString() === itemId) 
+              ? { ...p, isDirty: false } 
+              : p
+          ));
+          
+          // Update selected item if it's the one we just reverted
+          if (state.selectedItem && (state.selectedItem.id === itemId || 
+              ('vnum' in state.selectedItem && state.selectedItem.vnum?.toString() === itemId))) {
+            setState(prev => ({ 
+              ...prev, 
+              selectedItem: prev.selectedItem ? { ...prev.selectedItem, isDirty: false } : null 
+            }));
+          }
+        }
+      }
+    }
+    
+    // Check points if not found in regions or paths
+    if (!item) {
+      item = points.find(p => p.id === itemId);
+      if (item && 'coordinate' in item) {
+        const point = item as Point;
+        
+        // Points are always considered "new" since they don't have vnums
+        // If it's dirty, it means it's unsaved, so remove it
+        if (point.isDirty) {
+          console.log('[Discard] Removing new unsaved point:', itemId);
+          setPoints(prev => prev.filter(p => p.id !== itemId));
+          
+          // Clear selection if this was the selected item
+          if (state.selectedItem && state.selectedItem.id === itemId) {
+            setState(prev => ({ ...prev, selectedItem: null }));
+          }
+        } else {
+          // If it's not dirty, just mark as clean (shouldn't happen, but safety)
+          console.log('[Discard] Marking point as clean:', itemId);
+          setPoints(prev => prev.map(p => 
+            p.id === itemId ? { ...p, isDirty: false } : p
+          ));
+        }
+      }
+    }
+    
+    if (!item) {
+      console.warn('[Discard] Item not found:', itemId);
+      return;
+    }
+    
+    // Remove from unsaved items
+    setUnsavedItems(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(itemId);
+      return newSet;
+    });
+    
+    console.log('[Discard] Item changes discarded successfully:', itemId);
+  }, [regions, paths, points, state.selectedItem]);
+
   const centerOnItem = useCallback((item: Region | Path | Point) => {
     let coordinate: Coordinate;
     
@@ -641,6 +762,23 @@ export const useEditor = () => {
     setTimeout(() => setCenterOnCoordinate(null), 100);
   }, []);
 
+  const discardAllUnsaved = useCallback(() => {
+    setUnsavedItems(new Set());
+    
+    // Reset all items to their original state (remove isDirty flag)
+    setRegions(current => current.map(region => ({ ...region, isDirty: false })));
+    setPaths(current => current.map(path => ({ ...path, isDirty: false })));
+    setPoints(current => current.map(point => ({ ...point, isDirty: false })));
+    
+    // Clear selected item's dirty flag
+    if (state.selectedItem?.isDirty) {
+      setState(current => ({
+        ...current,
+        selectedItem: current.selectedItem ? { ...current.selectedItem, isDirty: false } : null
+      }));
+    }
+  }, [state.selectedItem, setState]);
+
   return {
     state,
     regions,
@@ -671,6 +809,8 @@ export const useEditor = () => {
     unsavedItems,
     savingItems,
     saveItem,
-    saveAllUnsaved
+    saveAllUnsaved,
+    discardItem,
+    discardAllUnsaved
   };
 };
