@@ -26,7 +26,7 @@ VITE_WILDEDITOR_API_KEY=dev-key-for-testing
 1. In your Netlify site dashboard, go to **Site Settings** → **Environment Variables**
 2. Add a new variable:
    - **Key**: `VITE_WILDEDITOR_API_KEY`
-   - **Value**: The production API key (from GitHub Actions variable `WILDEDITOR_API_KEY`)
+   - **Value**: The production API key (from GitHub Actions variable `WILDEDITOR_API_KEY`) 
 
 ### GitHub Actions Variable
 
