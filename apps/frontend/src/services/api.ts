@@ -234,7 +234,7 @@ class ApiClient {
       if (contentType && contentType.includes('application/json')) {
         try {
           data = await response.json();
-        } catch (jsonError) {
+        } catch {
           // If JSON parsing fails but the response was successful, return undefined
           console.log(`[API] Success response for ${endpoint}: Empty or invalid JSON`);
           return undefined as T;
