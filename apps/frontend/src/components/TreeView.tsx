@@ -291,15 +291,15 @@ export const TreeView: React.FC<TreeViewProps> = ({
   };
 
   return (
-    <div className="bg-gray-900 border-b border-gray-700 flex-1 flex flex-col">
-      <div className="p-3 border-b border-gray-700">
+    <div className="bg-gray-900 border-b border-gray-700 flex-1 flex flex-col min-h-0">
+      <div className="p-3 border-b border-gray-700 flex-shrink-0">
         <h3 className="text-sm font-medium text-gray-300">Wilderness Objects</h3>
         <div className="text-xs text-gray-500 mt-1">
           {regions.length} regions • {paths.length} paths • {points.length} points
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {treeData.length > 0 ? (
           <div className="py-1">
             {treeData.map(node => renderNode(node))}
