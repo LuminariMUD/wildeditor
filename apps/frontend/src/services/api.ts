@@ -1,13 +1,9 @@
 import { Region, Path } from '@wildeditor/shared/types';
 
-// Smart API URL detection - use HTTPS if frontend is served over HTTPS
+// Always use HTTPS by default, only use HTTP for localhost development
 const getDefaultApiUrl = (): string => {
-  // If we're in a browser environment and served over HTTPS, default to HTTPS API
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-    return 'https://api.wildedit.luminarimud.com/api';
-  }
-  // Default to localhost for development
-  return 'http://localhost:8000/api';
+  // Always use HTTPS for production - no HTTP allowed
+  return 'https://api.wildedit.luminarimud.com/api';
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || getDefaultApiUrl();
