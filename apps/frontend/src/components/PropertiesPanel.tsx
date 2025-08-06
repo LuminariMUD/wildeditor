@@ -97,13 +97,23 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         </h3>
         <button 
           onClick={() => {
+            console.log('[PropertiesPanel] Delete button clicked', { onDelete: !!onDelete, selectedItem });
             if (onDelete && selectedItem) {
               const itemId = ('vnum' in selectedItem && selectedItem.vnum) 
                 || ('id' in selectedItem && selectedItem.id) 
                 || null;
+              console.log('[PropertiesPanel] Extracted itemId:', itemId);
               if (itemId) {
+                console.log('[PropertiesPanel] Calling onDelete with:', itemId.toString());
                 onDelete(itemId.toString());
+              } else {
+                console.warn('[PropertiesPanel] No valid itemId found');
               }
+            } else {
+              console.warn('[PropertiesPanel] Missing onDelete or selectedItem', { 
+                hasOnDelete: !!onDelete, 
+                hasSelectedItem: !!selectedItem 
+              });
             }
           }}
           className="text-red-400 hover:text-red-300 p-1"
