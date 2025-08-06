@@ -326,7 +326,7 @@ export const TreeView: FC<TreeViewProps> = ({
   };
 
   return (
-    <div className="bg-gray-900 border-b border-gray-700 flex-1 flex flex-col min-h-0">
+    <div className="bg-gray-900 border-b border-gray-700 flex-1 flex flex-col h-full max-h-full overflow-hidden">
       <div className="p-3 border-b border-gray-700 flex-shrink-0">
         <h3 className="text-sm font-medium text-gray-300">Wilderness Objects</h3>
         <div className="text-xs text-gray-500 mt-1">
@@ -334,7 +334,7 @@ export const TreeView: FC<TreeViewProps> = ({
         </div>
       </div>
       
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto min-h-0">
         {treeData.length > 0 ? (
           <div className="py-1 w-max">
             {treeData.map(node => renderNode(node))}
