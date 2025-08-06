@@ -485,14 +485,23 @@ export const useEditor = () => {
       item = regions.find(r => r.id === itemId || r.vnum?.toString() === itemId);
       if (item && 'region_type' in item) {
         const region = item as Region;
-        if (region.vnum && regions.some(r => r.vnum === region.vnum && !r.isDirty)) {
-          // Update existing region
-          await apiClient.updateRegion(region.vnum.toString(), region);
+        if (region.vnum && region.vnum > 0) {
+          // Update existing region (has a valid vnum from database)
+          const regionId = region.id || region.vnum.toString();
+          await apiClient.updateRegion(regionId, region);
           console.log('[Save] Region updated successfully:', itemId);
         } else {
-          // Create new region
-          await apiClient.createRegion(region);
+          // Create new region (no vnum or invalid vnum)
+          const createdRegion = await apiClient.createRegion(region);
           console.log('[Save] Region created successfully:', itemId);
+          
+          // Update the local region with the server response (including new vnum)
+          setRegions(prev => prev.map(r => 
+            (r.id === itemId || r.vnum?.toString() === itemId) 
+              ? { ...createdRegion, isDirty: false } 
+              : r
+          ));
+          return; // Early return since we already updated the region state
         }
         
         // Mark as clean
@@ -508,17 +517,26 @@ export const useEditor = () => {
         item = paths.find(p => p.id === itemId || p.vnum?.toString() === itemId);
         if (item && 'path_type' in item) {
           const path = item as Path;
-          if (path.vnum && paths.some(p => p.vnum === path.vnum && !p.isDirty)) {
-            // Update existing path
-            await apiClient.updatePath(path.vnum.toString(), path);
+          if (path.vnum && path.vnum > 0) {
+            // Update existing path (has a valid vnum from database)
+            const pathId = path.id || path.vnum.toString();
+            await apiClient.updatePath(pathId, path);
             console.log('[Save] Path updated successfully:', itemId);
           } else {
-            // Create new path
-            await apiClient.createPath(path);
+            // Create new path (no vnum or invalid vnum)
+            const createdPath = await apiClient.createPath(path);
             console.log('[Save] Path created successfully:', itemId);
+            
+            // Update the local path with the server response (including new vnum)
+            setPaths(prev => prev.map(p => 
+              (p.id === itemId || p.vnum?.toString() === itemId) 
+                ? { ...createdPath, isDirty: false } 
+                : p
+            ));
+            return; // Early return since we already updated the path state
           }
           
-          // Mark as clean
+          // Mark as clean (for update case)
           setPaths(prev => prev.map(p => 
             (p.id === itemId || p.vnum?.toString() === itemId) 
               ? { ...p, isDirty: false } 
