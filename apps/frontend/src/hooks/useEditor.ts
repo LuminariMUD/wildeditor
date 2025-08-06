@@ -485,13 +485,32 @@ export const useEditor = () => {
       item = regions.find(r => r.id === itemId || r.vnum?.toString() === itemId);
       if (item && 'region_type' in item) {
         const region = item as Region;
+        
+        // Check if region exists in database by trying to fetch it
+        let existsInDatabase = false;
         if (region.vnum && region.vnum > 0) {
-          // Update existing region (has a valid vnum from database)
+          try {
+            await apiClient.getRegion(region.vnum.toString());
+            existsInDatabase = true;
+            console.log('[Save] Region exists in database, will update:', region.vnum);
+          } catch (error: any) {
+            if (error.message?.includes('404') || error.message?.includes('not found')) {
+              existsInDatabase = false;
+              console.log('[Save] Region not found in database, will create:', region.vnum);
+            } else {
+              // Re-throw other errors (network, auth, etc.)
+              throw error;
+            }
+          }
+        }
+        
+        if (existsInDatabase) {
+          // Update existing region (exists in database)
           const regionId = region.id || region.vnum.toString();
           await apiClient.updateRegion(regionId, region);
           console.log('[Save] Region updated successfully:', itemId);
         } else {
-          // Create new region (no vnum or invalid vnum)
+          // Create new region (doesn't exist in database)
           const createdRegion = await apiClient.createRegion(region);
           console.log('[Save] Region created successfully:', itemId);
           
@@ -504,7 +523,7 @@ export const useEditor = () => {
           return; // Early return since we already updated the region state
         }
         
-        // Mark as clean
+        // Mark as clean (for update case)
         setRegions(prev => prev.map(r => 
           (r.id === itemId || r.vnum?.toString() === itemId) 
             ? { ...r, isDirty: false } 
@@ -517,13 +536,32 @@ export const useEditor = () => {
         item = paths.find(p => p.id === itemId || p.vnum?.toString() === itemId);
         if (item && 'path_type' in item) {
           const path = item as Path;
+          
+          // Check if path exists in database by trying to fetch it
+          let existsInDatabase = false;
           if (path.vnum && path.vnum > 0) {
-            // Update existing path (has a valid vnum from database)
+            try {
+              await apiClient.getPath(path.vnum.toString());
+              existsInDatabase = true;
+              console.log('[Save] Path exists in database, will update:', path.vnum);
+            } catch (error: any) {
+              if (error.message?.includes('404') || error.message?.includes('not found')) {
+                existsInDatabase = false;
+                console.log('[Save] Path not found in database, will create:', path.vnum);
+              } else {
+                // Re-throw other errors (network, auth, etc.)
+                throw error;
+              }
+            }
+          }
+          
+          if (existsInDatabase) {
+            // Update existing path (exists in database)
             const pathId = path.id || path.vnum.toString();
             await apiClient.updatePath(pathId, path);
             console.log('[Save] Path updated successfully:', itemId);
           } else {
-            // Create new path (no vnum or invalid vnum)
+            // Create new path (doesn't exist in database)
             const createdPath = await apiClient.createPath(path);
             console.log('[Save] Path created successfully:', itemId);
             
