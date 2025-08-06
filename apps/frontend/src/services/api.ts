@@ -222,7 +222,29 @@ class ApiClient {
         throw new Error(errorMessage);
       }
 
-      const data = await response.json();
+      // Handle responses with no content (like 204 No Content for DELETE operations)
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        console.log(`[API] Success response for ${endpoint}: No content (${response.status})`);
+        return undefined as T;
+      }
+
+      // Try to parse JSON, but handle empty responses gracefully
+      let data: T;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          // If JSON parsing fails but the response was successful, return undefined
+          console.log(`[API] Success response for ${endpoint}: Empty or invalid JSON`);
+          return undefined as T;
+        }
+      } else {
+        // Non-JSON response, return undefined for successful requests
+        console.log(`[API] Success response for ${endpoint}: Non-JSON content`);
+        return undefined as T;
+      }
+
       console.log(`[API] Success response for ${endpoint}:`, Array.isArray(data) ? `Array with ${data.length} items` : 'Object');
       
       // The FastAPI backend returns data directly (not wrapped)
