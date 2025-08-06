@@ -266,7 +266,7 @@ class ApiClient {
     if (updates.zone_vnum !== undefined) apiUpdates.zone_vnum = updates.zone_vnum;
     
     const vnum = extractRegionVnum(id);
-    const response = await this.request<ApiRegionResponse>(`/regions/${vnum}/`, {
+    const response = await this.request<ApiRegionResponse>(`/regions/${vnum}`, {
       method: 'PUT',
       body: JSON.stringify(apiUpdates)
     });
@@ -275,7 +275,7 @@ class ApiClient {
 
   async deleteRegion(id: string): Promise<void> {
     const vnum = extractRegionVnum(id);
-    await this.request<void>(`/regions/${vnum}/`, {
+    await this.request<void>(`/regions/${vnum}`, {
       method: 'DELETE'
     });
   }
@@ -313,7 +313,7 @@ class ApiClient {
     if (updates.zone_vnum !== undefined) apiUpdates.zone_vnum = updates.zone_vnum;
     
     const vnum = extractPathVnum(id);
-    const response = await this.request<ApiPathResponse>(`/paths/${vnum}/`, {
+    const response = await this.request<ApiPathResponse>(`/paths/${vnum}`, {
       method: 'PUT',
       body: JSON.stringify(apiUpdates)
     });
@@ -322,7 +322,7 @@ class ApiClient {
 
   async deletePath(id: string): Promise<void> {
     const vnum = extractPathVnum(id);
-    await this.request<void>(`/paths/${vnum}/`, {
+    await this.request<void>(`/paths/${vnum}`, {
       method: 'DELETE'
     });
   }
