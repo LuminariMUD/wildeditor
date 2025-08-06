@@ -198,9 +198,9 @@ class ApiClient {
     }
   }
 
-  // Region methods
+  // Region methods - GET endpoints without trailing slash, POST/PUT/DELETE with trailing slash
   async getRegions(): Promise<Region[]> {
-    const response = await this.request<ApiRegionResponse[]>('/regions/');
+    const response = await this.request<ApiRegionResponse[]>('/regions');
     // Convert API format to frontend format
     return Array.isArray(response) ? response.map(apiRegionToFrontend) : [];
   }
@@ -208,7 +208,7 @@ class ApiClient {
   async getRegion(id: string): Promise<Region> {
     // Extract vnum from prefixed ID
     const vnum = extractRegionVnum(id);
-    const response = await this.request<ApiRegionResponse>(`/regions/${vnum}/`);
+    const response = await this.request<ApiRegionResponse>(`/regions/${vnum}`);
     return apiRegionToFrontend(response);
   }
 
@@ -245,9 +245,9 @@ class ApiClient {
     });
   }
 
-  // Path methods
+  // Path methods - GET endpoints without trailing slash, POST/PUT/DELETE with trailing slash
   async getPaths(): Promise<Path[]> {
-    const response = await this.request<ApiPathResponse[]>('/paths/');
+    const response = await this.request<ApiPathResponse[]>('/paths');
     // Convert API format to frontend format
     return Array.isArray(response) ? response.map(apiPathToFrontend) : [];
   }
@@ -255,7 +255,7 @@ class ApiClient {
   async getPath(id: string): Promise<Path> {
     // Extract vnum from prefixed ID
     const vnum = extractPathVnum(id);
-    const response = await this.request<ApiPathResponse>(`/paths/${vnum}/`);
+    const response = await this.request<ApiPathResponse>(`/paths/${vnum}`);
     return apiPathToFrontend(response);
   }
 
@@ -292,7 +292,7 @@ class ApiClient {
     });
   }
 
-  // Point methods
+  // Point methods - GET endpoints without trailing slash, POST/PUT/DELETE with trailing slash
   async getPoints(): Promise<Point[]> {
     // Points endpoint returns point info, not a collection yet
     // For now return empty array until Points API is implemented
@@ -300,7 +300,7 @@ class ApiClient {
   }
 
   async getPoint(id: string): Promise<Point> {
-    const response = await this.request<ApiPointResponse>(`/points/${id}/`);
+    const response = await this.request<ApiPointResponse>(`/points/${id}`);
     return apiPointToFrontend(response);
   }
 
@@ -329,7 +329,7 @@ class ApiClient {
 
   // Health check
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
-    return await this.request<{ status: string; timestamp: string }>('/health/');
+    return await this.request<{ status: string; timestamp: string }>('/health');
   }
 }
 
