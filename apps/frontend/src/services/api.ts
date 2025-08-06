@@ -1,12 +1,24 @@
 import { Region, Path } from '@wildeditor/shared/types';
 
-// Always use HTTPS by default, only use HTTP for localhost development
-const getDefaultApiUrl = (): string => {
-  // Always use HTTPS for production - no HTTP allowed
+// Force HTTPS for production domains - no HTTP allowed for wildedit.luminarimud.com
+const getApiUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  
+  // If environment variable is set
+  if (envUrl) {
+    // Force HTTPS for any wildedit.luminarimud.com domain
+    if (envUrl.includes('wildedit.luminarimud.com') && envUrl.startsWith('http:')) {
+      console.warn('[API] Forcing HTTPS for wildedit.luminarimud.com domain');
+      return envUrl.replace('http:', 'https:');
+    }
+    return envUrl;
+  }
+  
+  // Default to HTTPS production API
   return 'https://api.wildedit.luminarimud.com/api';
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || getDefaultApiUrl();
+const API_BASE_URL = getApiUrl();
 const API_KEY = import.meta.env.VITE_WILDEDITOR_API_KEY || '';
 
 // Debug environment variable loading (remove in production)
