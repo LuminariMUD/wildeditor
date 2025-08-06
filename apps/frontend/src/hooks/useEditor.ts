@@ -27,6 +27,8 @@ export const useEditor = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [centerOnCoordinate, setCenterOnCoordinate] = useState<Coordinate | null>(null);
+  const [hiddenRegions, setHiddenRegions] = useState<Set<number>>(new Set());
+  const [hiddenPaths, setHiddenPaths] = useState<Set<number>>(new Set());
 
   // Check if auth is disabled (for development mode)
   const authDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
@@ -149,6 +151,30 @@ export const useEditor = () => {
       [`show${layer.charAt(0).toUpperCase() + layer.slice(1)}`]: 
         !prev[`show${layer.charAt(0).toUpperCase() + layer.slice(1)}` as keyof EditorState] 
     }));
+  }, []);
+
+  const toggleItemVisibility = useCallback((type: 'region' | 'path', vnum: number) => {
+    if (type === 'region') {
+      setHiddenRegions(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(vnum)) {
+          newSet.delete(vnum);
+        } else {
+          newSet.add(vnum);
+        }
+        return newSet;
+      });
+    } else if (type === 'path') {
+      setHiddenPaths(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(vnum)) {
+          newSet.delete(vnum);
+        } else {
+          newSet.add(vnum);
+        }
+        return newSet;
+      });
+    }
   }, []);
 
   const selectItem = useCallback((item: Region | Path | Point | null) => {
@@ -543,6 +569,9 @@ export const useEditor = () => {
     clearError,
     updateSelectedItem,
     centerOnItem,
-    loadData
+    loadData,
+    hiddenRegions,
+    hiddenPaths,
+    toggleItemVisibility
   };
 };

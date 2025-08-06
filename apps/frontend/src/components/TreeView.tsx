@@ -12,6 +12,9 @@ interface TreeViewProps {
   showRegions: boolean;
   showPaths: boolean;
   onToggleLayer: (layer: 'regions' | 'paths') => void;
+  hiddenRegions: Set<number>;
+  hiddenPaths: Set<number>;
+  onToggleItemVisibility: (type: 'region' | 'path', vnum: number) => void;
 }
 
 interface TreeNode {
@@ -32,7 +35,10 @@ export const TreeView: FC<TreeViewProps> = ({
   onCenterOnItem,
   showRegions,
   showPaths,
-  onToggleLayer
+  onToggleLayer,
+  hiddenRegions,
+  hiddenPaths,
+  onToggleItemVisibility
 }) => {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['regions', 'paths']));
 
@@ -216,6 +222,10 @@ export const TreeView: FC<TreeViewProps> = ({
       ((node.data.id && node.data.id === selectedItem.id) ||
        ('vnum' in node.data && 'vnum' in selectedItem && node.data.vnum === selectedItem.vnum));
     
+    // Check if the item is hidden
+    const isHidden = (node.type === 'region' && node.data && 'vnum' in node.data && hiddenRegions.has(node.data.vnum)) ||
+                     (node.type === 'path' && node.data && 'vnum' in node.data && hiddenPaths.has(node.data.vnum));
+    
     const hasChildren = node.children && node.children.length > 0;
     const paddingLeft = depth * 16 + 8;
 
@@ -226,7 +236,7 @@ export const TreeView: FC<TreeViewProps> = ({
             flex items-center gap-2 px-2 py-1 text-sm cursor-pointer transition-colors whitespace-nowrap
             ${isSelected 
               ? 'bg-blue-600 text-white' 
-              : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+              : `${isHidden ? 'text-gray-500' : 'text-gray-300'} hover:bg-gray-800 hover:text-white`
             }
           `}
           style={{ paddingLeft, minWidth: 'max-content' }}
@@ -247,11 +257,36 @@ export const TreeView: FC<TreeViewProps> = ({
           {!hasChildren && <div className="w-4" />} {/* Spacer for alignment */}
           
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            {getIcon(node, isExpanded)}
-            <span className="truncate" title={node.name}>
+            <div className={isHidden ? 'opacity-50' : ''}>
+              {getIcon(node, isExpanded)}
+            </div>
+            <span className={`truncate ${isHidden ? 'italic opacity-75' : ''}`} title={node.name}>
               {node.name}
             </span>
           </div>
+
+          {/* Individual item visibility toggle */}
+          {(node.type === 'region' || node.type === 'path') && node.data && 'vnum' in node.data && (
+            <button
+              className="p-1 hover:bg-gray-700 rounded transition-colors opacity-70 hover:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (node.data && 'vnum' in node.data) {
+                  onToggleItemVisibility(node.type as 'region' | 'path', node.data.vnum);
+                }
+              }}
+              title={
+                node.type === 'region' 
+                  ? (hiddenRegions.has((node.data as Region).vnum) ? 'Show region' : 'Hide region')
+                  : (hiddenPaths.has((node.data as Path).vnum) ? 'Show path' : 'Hide path')
+              }
+            >
+              {node.type === 'region' 
+                ? (hiddenRegions.has((node.data as Region).vnum) ? <EyeOff size={12} /> : <Eye size={12} />)
+                : (hiddenPaths.has((node.data as Path).vnum) ? <EyeOff size={12} /> : <Eye size={12} />)
+              }
+            </button>
+          )}
 
           {/* Layer visibility toggle for root folders */}
           {node.id === 'regions' && (

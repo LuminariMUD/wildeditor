@@ -34,7 +34,10 @@ function App() {
     cancelDrawing,
     clearError,
     updateSelectedItem,
-    centerOnItem
+    centerOnItem,
+    hiddenRegions,
+    hiddenPaths,
+    toggleItemVisibility
   } = useEditor();
 
   // Keyboard shortcuts
@@ -137,6 +140,9 @@ function App() {
                   showRegions={state.showRegions}
                   showPaths={state.showPaths}
                   onToggleLayer={toggleLayer}
+                  hiddenRegions={hiddenRegions}
+                  hiddenPaths={hiddenPaths}
+                  onToggleItemVisibility={toggleItemVisibility}
                 />
               </div>
             </div>
@@ -144,8 +150,8 @@ function App() {
           centerPane={
             <SimpleMapCanvas
               state={state}
-              regions={regions}
-              paths={paths}
+              regions={regions.filter(region => !hiddenRegions.has(region.vnum))}
+              paths={paths.filter(path => !hiddenPaths.has(path.vnum))}
               points={points}
               onMouseMove={setMousePosition}
               onClick={handleCanvasClick}
