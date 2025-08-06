@@ -1,6 +1,7 @@
 import { Region, Path, Point } from '@wildeditor/shared/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_KEY = import.meta.env.VITE_WILDEDITOR_API_KEY || '';
 
 // API response types (what we get from the backend)
 interface ApiRegionResponse {
@@ -114,13 +115,19 @@ const frontendPointToApi = (point: Omit<Point, 'id'>): ApiPointResponse => ({
 class ApiClient {
   private baseUrl: string;
   private token?: string;
+  private apiKey: string;
 
-  constructor(baseUrl: string) {
+  constructor(baseUrl: string, apiKey: string) {
     this.baseUrl = baseUrl;
+    this.apiKey = apiKey;
   }
 
   setToken(token: string) {
     this.token = token;
+  }
+
+  private isDestructiveOperation(method?: string): boolean {
+    return ['POST', 'PUT', 'DELETE'].includes(method?.toUpperCase() || '');
   }
 
   private async request<T>(
@@ -128,14 +135,26 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
+    const method = options.method?.toUpperCase() || 'GET';
+    
+    // Check if API key is required and available
+    const requiresApiKey = this.isDestructiveOperation(method);
+    if (requiresApiKey && !this.apiKey) {
+      const error = new Error('API key is required for this operation but not configured. Please check VITE_WILDEDITOR_API_KEY environment variable.');
+      console.error('[API] Missing API key for destructive operation:', method, endpoint);
+      throw error;
+    }
+    
     const headers = {
       'Content-Type': 'application/json',
       ...(this.token && { Authorization: `Bearer ${this.token}` }),
+      ...(requiresApiKey && this.apiKey && { 'X-API-Key': this.apiKey }),
       ...options.headers
     };
 
     console.log(`[API] Making request to: ${url}`);
-    console.log(`[API] Headers:`, headers);
+    console.log(`[API] Method: ${method}, Requires API Key: ${requiresApiKey}`);
+    console.log(`[API] Headers:`, { ...headers, 'X-API-Key': headers['X-API-Key'] ? '[REDACTED]' : undefined });
 
     try {
       const response = await fetch(url, { ...options, headers });
@@ -147,8 +166,22 @@ class ApiClient {
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorData.detail || errorMessage;
+          
+          // Enhance error message for authorization issues
+          if (response.status === 401 || response.status === 403) {
+            if (requiresApiKey) {
+              errorMessage = `Unauthorized: Invalid or missing API key for ${method} operation. ${errorMessage}`;
+            } else {
+              errorMessage = `Authentication failed: ${errorMessage}`;
+            }
+          }
         } catch {
           // If we can't parse the error as JSON, use the status
+          if (response.status === 401 || response.status === 403) {
+            errorMessage = requiresApiKey 
+              ? `Unauthorized: Invalid or missing API key for ${method} operation`
+              : 'Authentication failed';
+          }
         }
         console.error(`[API] Error response:`, errorMessage);
         throw new Error(errorMessage);
@@ -300,4 +333,4 @@ class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient(API_BASE_URL);
+export const apiClient = new ApiClient(API_BASE_URL, API_KEY);

@@ -1,7 +1,7 @@
 [build]
   # Directory to publish (relative to repository root since Netlify runs from root)
   publish = "apps/frontend/dist"
-  environment = { SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY" }
+  environment = { SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,VITE_WILDEDITOR_API_KEY" }
 
 # SPA redirect rule for React Router
 [[redirects]]
