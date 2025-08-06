@@ -148,13 +148,13 @@ class ApiClient {
     const headers = {
       'Content-Type': 'application/json',
       ...(this.token && { Authorization: `Bearer ${this.token}` }),
-      ...(requiresApiKey && this.apiKey && { 'X-API-Key': this.apiKey }),
+      ...(requiresApiKey && this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
       ...options.headers
     };
 
     console.log(`[API] Making request to: ${url}`);
     console.log(`[API] Method: ${method}, Requires API Key: ${requiresApiKey}`);
-    console.log(`[API] Headers:`, { ...headers, 'X-API-Key': headers['X-API-Key'] ? '[REDACTED]' : undefined });
+    console.log(`[API] Headers:`, { ...headers, Authorization: headers.Authorization ? '[REDACTED]' : undefined });
 
     try {
       const response = await fetch(url, { ...options, headers });
