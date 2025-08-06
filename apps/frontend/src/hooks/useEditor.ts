@@ -278,7 +278,7 @@ export const useEditor = () => {
         currentDrawing: [...prev.currentDrawing, coordinate]
       }));
     }
-  }, [state.tool, state.isDrawing, state.currentDrawing.length, points.length, selectItem, session?.access_token]);
+  }, [state.tool, state.isDrawing, state.currentDrawing.length, points.length, selectItem]);
 
   const cancelDrawing = useCallback(() => {
     console.log('[Drawing] Canceling drawing:', {
@@ -398,7 +398,7 @@ export const useEditor = () => {
     // Always clean up drawing state after processing
     console.log('[Drawing] Cleaning up drawing state');
     setState(prev => ({ ...prev, isDrawing: false, currentDrawing: [] }));
-  }, [state.isDrawing, state.currentDrawing, state.tool, regions, paths, selectItem, session?.access_token]);
+  }, [state.isDrawing, state.currentDrawing, state.tool, regions, paths, selectItem]);
 
   const updateSelectedItem = useCallback((updates: Partial<Region | Path | Point>) => {
     if (!state.selectedItem) {
@@ -572,13 +572,13 @@ export const useEditor = () => {
         }));
       }
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Save] Failed to save item:', {
         error: err,
         itemId,
-        message: err.message || 'Unknown error'
+        message: err instanceof Error ? err.message : 'Unknown error'
       });
-      setError('Failed to save item: ' + (err.message || 'Unknown error'));
+      setError('Failed to save item: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setSavingItems(prev => {
         const newSet = new Set(prev);
