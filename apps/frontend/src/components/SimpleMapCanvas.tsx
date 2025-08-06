@@ -317,15 +317,16 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
   // Main render function
   const render = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size to fill container
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+    // Set canvas size to fill container exactly
+    const containerRect = container.getBoundingClientRect();
+    canvas.width = containerRect.width;
+    canvas.height = containerRect.height;
 
     // Clear canvas
     ctx.fillStyle = '#1F2937';
@@ -401,6 +402,22 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
   // Render on state changes
   useEffect(() => {
     render();
+  }, [render]);
+
+  // Handle container resize
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      render();
+    });
+
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, [render]);
 
   // Handle clicks
@@ -497,17 +514,16 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
   ]);
 
   return (
-    <div ref={containerRef} className="flex-1 bg-gray-800 overflow-hidden">
+    <div ref={containerRef} className="w-full h-full bg-gray-800 overflow-hidden">
       <canvas
         ref={canvasRef}
-        className="w-full h-full cursor-crosshair"
+        className="w-full h-full cursor-crosshair block"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onClick={handleClick}
         onWheel={handleWheel}
-        style={{ display: 'block' }}
       />
     </div>
   );
