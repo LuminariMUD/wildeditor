@@ -233,13 +233,13 @@ export const TreeView: FC<TreeViewProps> = ({
       <div key={node.id}>
         <div
           className={`
-            flex items-center gap-2 px-2 py-1 text-sm cursor-pointer transition-colors whitespace-nowrap
+            flex items-center gap-2 px-2 py-1 text-sm cursor-pointer transition-colors
             ${isSelected 
               ? 'bg-blue-600 text-white' 
               : `${isHidden ? 'text-gray-500' : 'text-gray-300'} hover:bg-gray-800 hover:text-white`
             }
           `}
-          style={{ paddingLeft, minWidth: 'max-content' }}
+          style={{ paddingLeft }}
           onClick={(e) => handleItemClick(node, e)}
         >
           {hasChildren && (
@@ -283,7 +283,7 @@ export const TreeView: FC<TreeViewProps> = ({
             <div className={isHidden ? 'opacity-50' : ''}>
               {getIcon(node, isExpanded)}
             </div>
-            <span className={`truncate ${isHidden ? 'italic opacity-75' : ''}`} title={node.name}>
+            <span className={`${isHidden ? 'italic opacity-75' : ''}`} title={node.name}>
               {node.name}
             </span>
           </div>
@@ -334,16 +334,9 @@ export const TreeView: FC<TreeViewProps> = ({
         </div>
       </div>
       
-      <div 
-        className="flex-1 min-h-0" 
-        style={{ 
-          overflow: 'auto',
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#6B7280 #374151'
-        }}
-      >
+      <div className="flex-1 overflow-auto">
         {treeData.length > 0 ? (
-          <div className="py-1" style={{ minWidth: 'max-content' }}>
+          <div className="py-1">
             {treeData.map(node => renderNode(node))}
           </div>
         ) : (
