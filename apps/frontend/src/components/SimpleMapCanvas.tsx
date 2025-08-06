@@ -121,7 +121,6 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
 
   // Mouse wheel zoom handler
   const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (!e.shiftKey) return;
     e.preventDefault();
 
     const canvas = canvasRef.current;
