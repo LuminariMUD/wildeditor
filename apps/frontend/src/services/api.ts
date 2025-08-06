@@ -200,7 +200,7 @@ class ApiClient {
 
   // Region methods
   async getRegions(): Promise<Region[]> {
-    const response = await this.request<ApiRegionResponse[]>('/regions');
+    const response = await this.request<ApiRegionResponse[]>('/regions/');
     // Convert API format to frontend format
     return Array.isArray(response) ? response.map(apiRegionToFrontend) : [];
   }
@@ -208,13 +208,13 @@ class ApiClient {
   async getRegion(id: string): Promise<Region> {
     // Extract vnum from prefixed ID
     const vnum = extractRegionVnum(id);
-    const response = await this.request<ApiRegionResponse>(`/regions/${vnum}`);
+    const response = await this.request<ApiRegionResponse>(`/regions/${vnum}/`);
     return apiRegionToFrontend(response);
   }
 
   async createRegion(region: Omit<Region, 'id'>): Promise<Region> {
     const apiData = frontendRegionToApi(region);
-    const response = await this.request<ApiRegionResponse>('/regions', {
+    const response = await this.request<ApiRegionResponse>('/regions/', {
       method: 'POST',
       body: JSON.stringify(apiData)
     });
@@ -231,7 +231,7 @@ class ApiClient {
     if (updates.zone_vnum !== undefined) apiUpdates.zone_vnum = updates.zone_vnum;
     
     const vnum = extractRegionVnum(id);
-    const response = await this.request<ApiRegionResponse>(`/regions/${vnum}`, {
+    const response = await this.request<ApiRegionResponse>(`/regions/${vnum}/`, {
       method: 'PUT',
       body: JSON.stringify(apiUpdates)
     });
@@ -240,14 +240,14 @@ class ApiClient {
 
   async deleteRegion(id: string): Promise<void> {
     const vnum = extractRegionVnum(id);
-    await this.request<void>(`/regions/${vnum}`, {
+    await this.request<void>(`/regions/${vnum}/`, {
       method: 'DELETE'
     });
   }
 
   // Path methods
   async getPaths(): Promise<Path[]> {
-    const response = await this.request<ApiPathResponse[]>('/paths');
+    const response = await this.request<ApiPathResponse[]>('/paths/');
     // Convert API format to frontend format
     return Array.isArray(response) ? response.map(apiPathToFrontend) : [];
   }
@@ -255,13 +255,13 @@ class ApiClient {
   async getPath(id: string): Promise<Path> {
     // Extract vnum from prefixed ID
     const vnum = extractPathVnum(id);
-    const response = await this.request<ApiPathResponse>(`/paths/${vnum}`);
+    const response = await this.request<ApiPathResponse>(`/paths/${vnum}/`);
     return apiPathToFrontend(response);
   }
 
   async createPath(path: Omit<Path, 'id'>): Promise<Path> {
     const apiData = frontendPathToApi(path);
-    const response = await this.request<ApiPathResponse>('/paths', {
+    const response = await this.request<ApiPathResponse>('/paths/', {
       method: 'POST',
       body: JSON.stringify(apiData)
     });
@@ -278,7 +278,7 @@ class ApiClient {
     if (updates.zone_vnum !== undefined) apiUpdates.zone_vnum = updates.zone_vnum;
     
     const vnum = extractPathVnum(id);
-    const response = await this.request<ApiPathResponse>(`/paths/${vnum}`, {
+    const response = await this.request<ApiPathResponse>(`/paths/${vnum}/`, {
       method: 'PUT',
       body: JSON.stringify(apiUpdates)
     });
@@ -287,7 +287,7 @@ class ApiClient {
 
   async deletePath(id: string): Promise<void> {
     const vnum = extractPathVnum(id);
-    await this.request<void>(`/paths/${vnum}`, {
+    await this.request<void>(`/paths/${vnum}/`, {
       method: 'DELETE'
     });
   }
@@ -300,13 +300,13 @@ class ApiClient {
   }
 
   async getPoint(id: string): Promise<Point> {
-    const response = await this.request<ApiPointResponse>(`/points/${id}`);
+    const response = await this.request<ApiPointResponse>(`/points/${id}/`);
     return apiPointToFrontend(response);
   }
 
   async createPoint(point: Omit<Point, 'id'>): Promise<Point> {
     const apiData = frontendPointToApi(point);
-    const response = await this.request<ApiPointResponse>('/points', {
+    const response = await this.request<ApiPointResponse>('/points/', {
       method: 'POST',
       body: JSON.stringify(apiData)
     });
@@ -314,7 +314,7 @@ class ApiClient {
   }
 
   async updatePoint(id: string, updates: Partial<Point>): Promise<Point> {
-    const response = await this.request<ApiPointResponse>(`/points/${id}`, {
+    const response = await this.request<ApiPointResponse>(`/points/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(updates)
     });
@@ -322,14 +322,14 @@ class ApiClient {
   }
 
   async deletePoint(id: string): Promise<void> {
-    await this.request<void>(`/points/${id}`, {
+    await this.request<void>(`/points/${id}/`, {
       method: 'DELETE'
     });
   }
 
   // Health check
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
-    return await this.request<{ status: string; timestamp: string }>('/health');
+    return await this.request<{ status: string; timestamp: string }>('/health/');
   }
 }
 
