@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { AuthCallback } from './components/AuthCallback';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { MapCanvas } from './components/MapCanvas';
 import { ToolPalette } from './components/ToolPalette';
 import { LayerControls } from './components/LayerControls';
 import { TreeView } from './components/TreeView';
+import { ResizablePanes } from './components/ResizablePanes';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { StatusBar } from './components/StatusBar';
 import { ErrorNotification } from './components/ErrorNotification';
@@ -112,55 +113,58 @@ function App() {
         </header>
 
         {/* Main content */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Left sidebar */}
-          <div className="w-64 bg-gray-900 border-r border-gray-700 flex flex-col">
-            <ToolPalette currentTool={state.tool} onToolChange={setTool} />
-            <LayerControls
-              showGrid={state.showGrid}
-              showRegions={state.showRegions}
-              showPaths={state.showPaths}
-              showBackground={state.showBackground}
-              showAxes={state.showAxes}
-              showOrigin={state.showOrigin}
-              onToggleLayer={toggleLayer}
-            />
-            <TreeView
+        <ResizablePanes
+          leftPane={
+            <div className="bg-gray-900 flex flex-col h-full">
+              <ToolPalette currentTool={state.tool} onToolChange={setTool} />
+              <LayerControls
+                showGrid={state.showGrid}
+                showRegions={state.showRegions}
+                showPaths={state.showPaths}
+                showBackground={state.showBackground}
+                showAxes={state.showAxes}
+                showOrigin={state.showOrigin}
+                onToggleLayer={toggleLayer}
+              />
+              <div className="flex-1 min-h-0">
+                <TreeView
+                  regions={regions}
+                  paths={paths}
+                  points={points}
+                  selectedItem={state.selectedItem}
+                  onSelectItem={selectItem}
+                  onCenterOnItem={centerOnItem}
+                  showRegions={state.showRegions}
+                  showPaths={state.showPaths}
+                  onToggleLayer={toggleLayer}
+                />
+              </div>
+            </div>
+          }
+          centerPane={
+            <MapCanvas
+              state={state}
               regions={regions}
               paths={paths}
               points={points}
-              selectedItem={state.selectedItem}
+              onMouseMove={setMousePosition}
+              onClick={handleCanvasClick}
               onSelectItem={selectItem}
-              onCenterOnItem={centerOnItem}
-              showRegions={state.showRegions}
-              showPaths={state.showPaths}
-              onToggleLayer={toggleLayer}
+              onZoomChange={setZoom}
+              centerOnCoordinate={centerOnCoordinate}
             />
-          </div>
-
-          {/* Map canvas */}
-          <MapCanvas
-            state={state}
-            regions={regions}
-            paths={paths}
-            points={points}
-            onMouseMove={setMousePosition}
-            onClick={handleCanvasClick}
-            onSelectItem={selectItem}
-            onZoomChange={setZoom}
-            centerOnCoordinate={centerOnCoordinate}
-          />
-
-          {/* Right sidebar */}
-          <div className="w-80 bg-gray-900 border-l border-gray-700 flex flex-col">
-            <PropertiesPanel
-              selectedItem={state.selectedItem}
-              onUpdate={updateSelectedItem}
-              onFinishDrawing={finishDrawing}
-              isDrawing={state.isDrawing}
-            />
-          </div>
-        </div>
+          }
+          rightPane={
+            <div className="bg-gray-900 flex flex-col h-full">
+              <PropertiesPanel
+                selectedItem={state.selectedItem}
+                onUpdate={updateSelectedItem}
+                onFinishDrawing={finishDrawing}
+                isDrawing={state.isDrawing}
+              />
+            </div>
+          }
+        />
 
         {/* Status bar */}
         <StatusBar

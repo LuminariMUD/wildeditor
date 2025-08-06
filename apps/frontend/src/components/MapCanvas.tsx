@@ -163,18 +163,26 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     
     // Calculate the scroll position to center this coordinate
     const containerRect = container.getBoundingClientRect();
-    const currentCanvasSize = MAP_SIZE * (state.zoom / 100);
-    const targetScrollX = (canvasPos.x / MAP_SIZE) * currentCanvasSize - containerRect.width / 2;
-    const targetScrollY = (canvasPos.y / MAP_SIZE) * currentCanvasSize - containerRect.height / 2;
+    const scale = state.zoom / 100;
+    const targetScrollX = canvasPos.x * scale - containerRect.width / 2;
+    const targetScrollY = canvasPos.y * scale - containerRect.height / 2;
     
     // Clamp to valid scroll range
+    const currentCanvasSize = MAP_SIZE * scale;
     const maxScrollX = Math.max(0, currentCanvasSize - containerRect.width);
     const maxScrollY = Math.max(0, currentCanvasSize - containerRect.height);
     
     container.scrollLeft = Math.max(0, Math.min(maxScrollX, targetScrollX));
     container.scrollTop = Math.max(0, Math.min(maxScrollY, targetScrollY));
     
-    console.log(`[Center] Centered on coordinate (${centerOnCoordinate.x}, ${centerOnCoordinate.y}), scroll: (${container.scrollLeft}, ${container.scrollTop})`);
+    console.log(`[Center] Centering details:`, {
+      gameCoordinate: centerOnCoordinate,
+      canvasPos,
+      scale,
+      targetScroll: { x: targetScrollX, y: targetScrollY },
+      finalScroll: { x: container.scrollLeft, y: container.scrollTop },
+      containerSize: { width: containerRect.width, height: containerRect.height }
+    });
   }, [centerOnCoordinate, state.zoom, gameToCanvas]);
 
   // Convert canvas coordinates to game coordinates
