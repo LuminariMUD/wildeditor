@@ -188,8 +188,8 @@ class ApiClient {
 
     console.log(`[API] Making request to: ${url}`);
     console.log(`[API] Method: ${method}, Requires API Key: ${requiresApiKey}`);
-    console.log(`[API] API Key (first 8 chars):`, this.apiKey ? this.apiKey.substring(0, 8) + '...' : 'NOT SET');
-    console.log(`[API] Authorization header:`, headers.Authorization ? 'Bearer ' + headers.Authorization.substring(7, 15) + '...' : 'NOT SET');
+    console.log(`[API] API Key (FULL - REMOVE AFTER DEBUG):`, this.apiKey);
+    console.log(`[API] Authorization header (FULL - REMOVE AFTER DEBUG):`, headers.Authorization);
     console.log(`[API] Headers:`, { ...headers, Authorization: headers.Authorization ? '[REDACTED]' : undefined });
 
     try {
