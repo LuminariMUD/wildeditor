@@ -3,6 +3,15 @@ import { Region, Path, Point } from '@wildeditor/shared/types';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const API_KEY = import.meta.env.VITE_WILDEDITOR_API_KEY || '';
 
+// Debug environment variable loading
+console.log('[API] Environment variables loaded:', {
+  VITE_API_URL: import.meta.env.VITE_API_URL,
+  VITE_WILDEDITOR_API_KEY_LENGTH: import.meta.env.VITE_WILDEDITOR_API_KEY?.length || 0,
+  VITE_WILDEDITOR_API_KEY_FIRST8: import.meta.env.VITE_WILDEDITOR_API_KEY?.substring(0, 8) + '...' || 'NOT SET',
+  API_BASE_URL,
+  API_KEY_LENGTH: API_KEY?.length || 0
+});
+
 // API response types (what we get from the backend)
 interface ApiRegionResponse {
   vnum: number;
@@ -120,6 +129,15 @@ class ApiClient {
   constructor(baseUrl: string, apiKey: string) {
     this.baseUrl = baseUrl;
     this.apiKey = apiKey;
+    
+    // Debug API key loading
+    console.log(`[API] Constructor - API Key loaded:`, {
+      hasApiKey: !!apiKey,
+      length: apiKey?.length || 0,
+      first8: apiKey ? apiKey.substring(0, 8) + '...' : 'NOT SET',
+      containsWhitespace: apiKey ? /\s/.test(apiKey) : false,
+      trimmedLength: apiKey ? apiKey.trim().length : 0
+    });
   }
 
   setToken(token: string) {
@@ -170,6 +188,8 @@ class ApiClient {
 
     console.log(`[API] Making request to: ${url}`);
     console.log(`[API] Method: ${method}, Requires API Key: ${requiresApiKey}`);
+    console.log(`[API] API Key (first 8 chars):`, this.apiKey ? this.apiKey.substring(0, 8) + '...' : 'NOT SET');
+    console.log(`[API] Authorization header:`, headers.Authorization ? 'Bearer ' + headers.Authorization.substring(7, 15) + '...' : 'NOT SET');
     console.log(`[API] Headers:`, { ...headers, Authorization: headers.Authorization ? '[REDACTED]' : undefined });
 
     try {
