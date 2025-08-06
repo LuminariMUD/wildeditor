@@ -26,6 +26,7 @@ export const useEditor = () => {
   const [points, setPoints] = useState<Point[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [centerOnCoordinate, setCenterOnCoordinate] = useState<Coordinate | null>(null);
 
   // Check if auth is disabled (for development mode)
   const authDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
@@ -484,6 +485,45 @@ export const useEditor = () => {
     setState(prev => ({ ...prev, selectedItem: { ...prev.selectedItem!, ...updates } as Region | Path | Point }));
   }, [state.selectedItem, session, regions, authDisabled]);
 
+  const centerOnItem = useCallback((item: Region | Path | Point) => {
+    let coordinate: Coordinate;
+    
+    if ('coordinate' in item) {
+      // Point - use its coordinate directly
+      coordinate = item.coordinate;
+    } else if ('coordinates' in item && item.coordinates.length > 0) {
+      // Region or Path - calculate center of bounding box
+      const bounds = item.coordinates.reduce(
+        (acc, coord) => ({
+          minX: Math.min(acc.minX, coord.x),
+          maxX: Math.max(acc.maxX, coord.x),
+          minY: Math.min(acc.minY, coord.y),
+          maxY: Math.max(acc.maxY, coord.y)
+        }),
+        { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity }
+      );
+      
+      coordinate = {
+        x: Math.round((bounds.minX + bounds.maxX) / 2),
+        y: Math.round((bounds.minY + bounds.maxY) / 2)
+      };
+    } else {
+      console.warn('[Center] Item has no valid coordinates:', item);
+      return;
+    }
+    
+    console.log('[Center] Centering on item:', {
+      itemName: item.name,
+      coordinate
+    });
+    
+    // Trigger centering by setting the coordinate (will be cleared after effect runs)
+    setCenterOnCoordinate(coordinate);
+    
+    // Clear the centering coordinate after a brief delay to allow the effect to run
+    setTimeout(() => setCenterOnCoordinate(null), 100);
+  }, []);
+
   return {
     state,
     regions,
@@ -491,6 +531,7 @@ export const useEditor = () => {
     points,
     loading,
     error,
+    centerOnCoordinate,
     setTool,
     setZoom,
     setMousePosition,
@@ -501,6 +542,7 @@ export const useEditor = () => {
     cancelDrawing,
     clearError,
     updateSelectedItem,
+    centerOnItem,
     loadData
   };
 };

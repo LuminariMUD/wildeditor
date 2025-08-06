@@ -10,6 +10,7 @@ interface MapCanvasProps {
   onClick: (coordinate: Coordinate) => void;
   onSelectItem: (item: Region | Path | Point | null) => void;
   onZoomChange: (zoom: number) => void;
+  centerOnCoordinate?: Coordinate | null;
 }
 
 export const MapCanvas: React.FC<MapCanvasProps> = ({
@@ -20,7 +21,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   onMouseMove,
   onClick,
   onSelectItem,
-  onZoomChange
+  onZoomChange,
+  centerOnCoordinate
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -57,7 +59,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     const prevZoom = prevZoomRef.current;
     const newZoom = state.zoom;
     
-    // Store the center point before zoom changes
+    // Store the center point before zoom changes (get fresh container dimensions)
     const containerRect = container.getBoundingClientRect();
     const prevCanvasSize = MAP_SIZE * (prevZoom / 100);
     const prevCenterXRatio = (container.scrollLeft + containerRect.width / 2) / prevCanvasSize;
@@ -68,15 +70,17 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     
     // Use a small delay to ensure the render effect has completed and CSS changes are applied
     const timeoutId = setTimeout(() => {
+      // Get fresh container dimensions after the canvas has been resized
+      const updatedContainerRect = container.getBoundingClientRect();
       const newCanvasSize = MAP_SIZE * (newZoom / 100);
       
       // Calculate new scroll position to maintain the same center point
-      const newScrollX = prevCenterXRatio * newCanvasSize - containerRect.width / 2;
-      const newScrollY = prevCenterYRatio * newCanvasSize - containerRect.height / 2;
+      const newScrollX = prevCenterXRatio * newCanvasSize - updatedContainerRect.width / 2;
+      const newScrollY = prevCenterYRatio * newCanvasSize - updatedContainerRect.height / 2;
       
       // Clamp to valid scroll range
-      const maxScrollX = Math.max(0, newCanvasSize - containerRect.width);
-      const maxScrollY = Math.max(0, newCanvasSize - containerRect.height);
+      const maxScrollX = Math.max(0, newCanvasSize - updatedContainerRect.width);
+      const maxScrollY = Math.max(0, newCanvasSize - updatedContainerRect.height);
       
       container.scrollLeft = Math.max(0, Math.min(maxScrollX, newScrollX));
       container.scrollTop = Math.max(0, Math.min(maxScrollY, newScrollY));
@@ -119,6 +123,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     
     // Schedule scroll adjustment for after the canvas has re-rendered
     setTimeout(() => {
+      // Get fresh container dimensions after the canvas has been resized
+      const updatedContainerRect = container.getBoundingClientRect();
       const newCanvasSize = MAP_SIZE * (newZoom / 100);
       
       // Calculate new scroll position to keep mouse position fixed
@@ -126,8 +132,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       const newScrollY = mouseYRatio * newCanvasSize - mouseY;
       
       // Clamp to valid scroll range
-      const maxScrollX = Math.max(0, newCanvasSize - containerRect.width);
-      const maxScrollY = Math.max(0, newCanvasSize - containerRect.height);
+      const maxScrollX = Math.max(0, newCanvasSize - updatedContainerRect.width);
+      const maxScrollY = Math.max(0, newCanvasSize - updatedContainerRect.height);
       
       container.scrollLeft = Math.max(0, Math.min(maxScrollX, newScrollX));
       container.scrollTop = Math.max(0, Math.min(maxScrollY, newScrollY));
@@ -143,6 +149,33 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       y: ((COORDINATE_RANGE - coord.y) / (COORDINATE_RANGE * 2)) * MAP_SIZE
     };
   }, []);
+
+  // Handle centering on a specific coordinate
+  useEffect(() => {
+    if (!centerOnCoordinate) return;
+    
+    const container = containerRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) return;
+    
+    // Convert game coordinate to canvas position
+    const canvasPos = gameToCanvas(centerOnCoordinate);
+    
+    // Calculate the scroll position to center this coordinate
+    const containerRect = container.getBoundingClientRect();
+    const currentCanvasSize = MAP_SIZE * (state.zoom / 100);
+    const targetScrollX = (canvasPos.x / MAP_SIZE) * currentCanvasSize - containerRect.width / 2;
+    const targetScrollY = (canvasPos.y / MAP_SIZE) * currentCanvasSize - containerRect.height / 2;
+    
+    // Clamp to valid scroll range
+    const maxScrollX = Math.max(0, currentCanvasSize - containerRect.width);
+    const maxScrollY = Math.max(0, currentCanvasSize - containerRect.height);
+    
+    container.scrollLeft = Math.max(0, Math.min(maxScrollX, targetScrollX));
+    container.scrollTop = Math.max(0, Math.min(maxScrollY, targetScrollY));
+    
+    console.log(`[Center] Centered on coordinate (${centerOnCoordinate.x}, ${centerOnCoordinate.y}), scroll: (${container.scrollLeft}, ${container.scrollTop})`);
+  }, [centerOnCoordinate, state.zoom, gameToCanvas]);
 
   // Convert canvas coordinates to game coordinates
   const canvasToGame = useCallback((clientX: number, clientY: number): Coordinate => {

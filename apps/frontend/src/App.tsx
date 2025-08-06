@@ -4,6 +4,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { MapCanvas } from './components/MapCanvas';
 import { ToolPalette } from './components/ToolPalette';
 import { LayerControls } from './components/LayerControls';
+import { TreeView } from './components/TreeView';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { StatusBar } from './components/StatusBar';
 import { ErrorNotification } from './components/ErrorNotification';
@@ -21,6 +22,7 @@ function App() {
     points,
     loading,
     error,
+    centerOnCoordinate,
     setTool,
     setZoom,
     setMousePosition,
@@ -30,7 +32,8 @@ function App() {
     finishDrawing,
     cancelDrawing,
     clearError,
-    updateSelectedItem
+    updateSelectedItem,
+    centerOnItem
   } = useEditor();
 
   // Keyboard shortcuts
@@ -122,7 +125,17 @@ function App() {
               showOrigin={state.showOrigin}
               onToggleLayer={toggleLayer}
             />
-            <div className="flex-1"></div>
+            <TreeView
+              regions={regions}
+              paths={paths}
+              points={points}
+              selectedItem={state.selectedItem}
+              onSelectItem={selectItem}
+              onCenterOnItem={centerOnItem}
+              showRegions={state.showRegions}
+              showPaths={state.showPaths}
+              onToggleLayer={toggleLayer}
+            />
           </div>
 
           {/* Map canvas */}
@@ -135,6 +148,7 @@ function App() {
             onClick={handleCanvasClick}
             onSelectItem={selectItem}
             onZoomChange={setZoom}
+            centerOnCoordinate={centerOnCoordinate}
           />
 
           {/* Right sidebar */}
