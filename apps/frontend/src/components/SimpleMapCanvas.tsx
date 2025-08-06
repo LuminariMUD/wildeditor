@@ -134,10 +134,6 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     // Calculate zoom
     const zoomDelta = e.deltaY > 0 ? -10 : 10;
     const newZoom = Math.max(25, Math.min(2000, state.zoom + zoomDelta));
-    
-    // Don't do anything if zoom didn't actually change
-    if (newZoom === state.zoom) return;
-    
     const newScale = newZoom / 100;
 
     // Zoom towards mouse position
@@ -148,8 +144,6 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
       scale: newScale
     };
 
-    console.log(`Zoom: ${state.zoom}% -> ${newZoom}% (scale: ${transform.scale} -> ${newScale})`);
-    
     setTransform(newTransform);
     onZoomChange(newZoom);
   }, [state.zoom, transform, onZoomChange]);

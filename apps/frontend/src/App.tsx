@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { AuthCallback } from './components/AuthCallback';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { SimpleMapCanvas } from './components/SimpleMapCanvas2';
+import { SimpleMapCanvas } from './components/SimpleMapCanvas';
 import { ToolPalette } from './components/ToolPalette';
 import { LayerControls } from './components/LayerControls';
 import { TreeView } from './components/TreeView';
