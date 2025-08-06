@@ -3,13 +3,13 @@ import { Region, Path, Point } from '@wildeditor/shared/types';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const API_KEY = import.meta.env.VITE_WILDEDITOR_API_KEY || '';
 
-// Debug environment variable loading
+// Debug environment variable loading (remove in production)
 console.log('[API] Environment variables loaded:', {
-  VITE_API_URL: import.meta.env.VITE_API_URL,
+  VITE_API_URL: import.meta.env.VITE_API_URL, 
   VITE_WILDEDITOR_API_KEY_LENGTH: import.meta.env.VITE_WILDEDITOR_API_KEY?.length || 0,
-  VITE_WILDEDITOR_API_KEY_FIRST8: import.meta.env.VITE_WILDEDITOR_API_KEY?.substring(0, 8) + '...' || 'NOT SET',
   API_BASE_URL,
-  API_KEY_LENGTH: API_KEY?.length || 0
+  API_KEY_LENGTH: API_KEY?.length || 0,
+  API_KEY_CORRECT_LENGTH: API_KEY?.length === 32
 });
 
 // API response types (what we get from the backend)
@@ -188,10 +188,7 @@ class ApiClient {
 
     console.log(`[API] Making request to: ${url}`);
     console.log(`[API] Method: ${method}, Requires API Key: ${requiresApiKey}`);
-    console.log(`[API] API Key (FULL - REMOVE AFTER DEBUG):`, this.apiKey);
-    console.log(`[API] API Key Length:`, this.apiKey?.length);
-    console.log(`[API] API Key Each Character:`, this.apiKey?.split('').map((c, i) => `${i}: "${c}" (${c.charCodeAt(0)})`));
-    console.log(`[API] Authorization header (FULL - REMOVE AFTER DEBUG):`, headers.Authorization);
+    console.log(`[API] API Key Length:`, this.apiKey?.length, '(should be 32)');
     console.log(`[API] Headers:`, { ...headers, Authorization: headers.Authorization ? '[REDACTED]' : undefined });
 
     try {
