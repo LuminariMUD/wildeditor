@@ -47,7 +47,8 @@ function App() {
     saveItem,
     saveAllUnsaved,
     discardItem,
-    discardAllUnsaved
+    discardAllUnsaved,
+    deleteItem
   } = useEditor();
 
   // Keyboard shortcuts
@@ -182,6 +183,7 @@ function App() {
                 isDrawing={state.isDrawing}
                 onSave={saveItem}
                 onDiscard={discardItem}
+                onDelete={deleteItem}
                 isSaving={state.selectedItem ? savingItems.has(
                   ('vnum' in state.selectedItem && state.selectedItem.vnum) 
                     ? state.selectedItem.vnum.toString() 

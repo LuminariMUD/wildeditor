@@ -10,6 +10,7 @@ interface PropertiesPanelProps {
   // New save props
   onSave?: (itemId: string) => void;
   onDiscard?: (itemId: string) => void;
+  onDelete?: (itemId: string) => void;
   isSaving?: boolean;
   hasUnsavedChanges?: boolean;
 }
@@ -21,6 +22,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   isDrawing,
   onSave,
   onDiscard,
+  onDelete,
   isSaving = false,
   hasUnsavedChanges = false
 }) => {
@@ -93,7 +95,19 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         <h3 className="text-lg font-semibold text-white">
           {isRegion ? 'Region' : isPath ? 'Path' : 'Point'}
         </h3>
-        <button className="text-red-400 hover:text-red-300 p-1">
+        <button 
+          onClick={() => {
+            if (onDelete && selectedItem) {
+              const itemId = ('vnum' in selectedItem && selectedItem.vnum) 
+                || ('id' in selectedItem && selectedItem.id) 
+                || null;
+              if (itemId) {
+                onDelete(itemId.toString());
+              }
+            }
+          }}
+          className="text-red-400 hover:text-red-300 p-1"
+        >
           <Trash2 size={16} />
         </button>
       </div>

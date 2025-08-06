@@ -796,6 +796,98 @@ export const useEditor = () => {
     }
   }, [state.selectedItem, setState]);
 
+  // Delete functionality
+  const deleteItem = useCallback(async (itemId: string) => {
+    console.log('[Delete] Deleting item:', itemId);
+    setError(null);
+    
+    try {
+      // Find the item to delete
+      let item: Region | Path | Point | undefined;
+      let itemType: 'region' | 'path' | 'point' | undefined;
+      
+      // Check regions first
+      item = regions.find(r => r.id === itemId || r.vnum?.toString() === itemId);
+      if (item && 'region_type' in item) {
+        itemType = 'region';
+        const region = item as Region;
+        
+        if (region.vnum) {
+          // Delete from backend if it has a vnum (exists in database)
+          await apiClient.deleteRegion(region.vnum.toString());
+          console.log('[Delete] Region deleted from backend:', itemId);
+        }
+        
+        // Remove from local state
+        setRegions(prev => prev.filter(r => r.id !== itemId && r.vnum?.toString() !== itemId));
+        console.log('[Delete] Region removed from local state:', itemId);
+      }
+      
+      // Check paths if not found in regions
+      if (!item) {
+        item = paths.find(p => p.id === itemId || p.vnum?.toString() === itemId);
+        if (item && 'path_type' in item) {
+          itemType = 'path';
+          const path = item as Path;
+          
+          if (path.vnum) {
+            // Delete from backend if it has a vnum (exists in database)
+            await apiClient.deletePath(path.vnum.toString());
+            console.log('[Delete] Path deleted from backend:', itemId);
+          }
+          
+          // Remove from local state
+          setPaths(prev => prev.filter(p => p.id !== itemId && p.vnum?.toString() !== itemId));
+          console.log('[Delete] Path removed from local state:', itemId);
+        }
+      }
+      
+      // Check points if not found in regions or paths
+      if (!item) {
+        item = points.find(p => p.id === itemId);
+        if (item && 'coordinate' in item) {
+          itemType = 'point';
+          const point = item as Point;
+          
+          // Points don't have vnums yet, so just remove from local state
+          // await apiClient.deletePoint(point.id); // Uncomment when point API is ready
+          
+          // Remove from local state
+          setPoints(prev => prev.filter(p => p.id !== itemId));
+          console.log('[Delete] Point removed from local state:', itemId);
+        }
+      }
+      
+      if (!item) {
+        console.warn('[Delete] Item not found:', itemId);
+        setError(`Item not found: ${itemId}`);
+        return;
+      }
+      
+      // Remove from unsaved items if it was unsaved
+      setUnsavedItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+      
+      // Clear selection if this was the selected item
+      if (state.selectedItem && (
+          state.selectedItem.id === itemId || 
+          ('vnum' in state.selectedItem && state.selectedItem.vnum?.toString() === itemId)
+        )) {
+        setState(prev => ({ ...prev, selectedItem: null }));
+        console.log('[Delete] Cleared selection');
+      }
+      
+      console.log(`[Delete] ${itemType} deleted successfully:`, itemId);
+      
+    } catch (err) {
+      console.error('[Delete] Failed to delete item:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete item');
+    }
+  }, [regions, paths, points, state.selectedItem, setState]);
+
   return {
     state,
     regions,
@@ -828,6 +920,7 @@ export const useEditor = () => {
     saveItem,
     saveAllUnsaved,
     discardItem,
-    discardAllUnsaved
+    discardAllUnsaved,
+    deleteItem
   };
 };
