@@ -37,7 +37,10 @@ function App() {
     centerOnItem,
     hiddenRegions,
     hiddenPaths,
-    toggleItemVisibility
+    toggleItemVisibility,
+    hiddenFolders,
+    toggleFolderVisibility,
+    isItemHiddenByFolder
   } = useEditor();
 
   // Keyboard shortcuts
@@ -143,6 +146,8 @@ function App() {
                   hiddenRegions={hiddenRegions}
                   hiddenPaths={hiddenPaths}
                   onToggleItemVisibility={toggleItemVisibility}
+                  hiddenFolders={hiddenFolders}
+                  onToggleFolderVisibility={toggleFolderVisibility}
                 />
               </div>
             </div>
@@ -150,8 +155,8 @@ function App() {
           centerPane={
             <SimpleMapCanvas
               state={state}
-              regions={regions.filter(region => !hiddenRegions.has(region.vnum))}
-              paths={paths.filter(path => !hiddenPaths.has(path.vnum))}
+              regions={regions.filter(region => !hiddenRegions.has(region.vnum) && !isItemHiddenByFolder(region))}
+              paths={paths.filter(path => !hiddenPaths.has(path.vnum) && !isItemHiddenByFolder(path))}
               points={points}
               onMouseMove={setMousePosition}
               onClick={handleCanvasClick}

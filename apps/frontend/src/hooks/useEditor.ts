@@ -29,6 +29,7 @@ export const useEditor = () => {
   const [centerOnCoordinate, setCenterOnCoordinate] = useState<Coordinate | null>(null);
   const [hiddenRegions, setHiddenRegions] = useState<Set<number>>(new Set());
   const [hiddenPaths, setHiddenPaths] = useState<Set<number>>(new Set());
+  const [hiddenFolders, setHiddenFolders] = useState<Set<string>>(new Set());
 
   // Check if auth is disabled (for development mode)
   const authDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
@@ -176,6 +177,34 @@ export const useEditor = () => {
       });
     }
   }, []);
+
+  const toggleFolderVisibility = useCallback((folderId: string) => {
+    setHiddenFolders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(folderId)) {
+        newSet.delete(folderId);
+      } else {
+        newSet.add(folderId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // Check if an item should be hidden due to folder visibility
+  const isItemHiddenByFolder = useCallback((item: Region | Path) => {
+    if ('region_type' in item) {
+      // This is a region
+      const region = item as Region;
+      const regionTypeFolderId = `region-type-${region.region_type}`;
+      return hiddenFolders.has('regions') || hiddenFolders.has(regionTypeFolderId);
+    } else if ('path_type' in item) {
+      // This is a path
+      const path = item as Path;
+      const pathTypeFolderId = `path-type-${path.path_type}`;
+      return hiddenFolders.has('paths') || hiddenFolders.has(pathTypeFolderId);
+    }
+    return false;
+  }, [hiddenFolders]);
 
   const selectItem = useCallback((item: Region | Path | Point | null) => {
     if (item) {
@@ -572,6 +601,9 @@ export const useEditor = () => {
     loadData,
     hiddenRegions,
     hiddenPaths,
-    toggleItemVisibility
+    toggleItemVisibility,
+    hiddenFolders,
+    toggleFolderVisibility,
+    isItemHiddenByFolder
   };
 };

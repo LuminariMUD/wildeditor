@@ -15,6 +15,8 @@ interface TreeViewProps {
   hiddenRegions: Set<number>;
   hiddenPaths: Set<number>;
   onToggleItemVisibility: (type: 'region' | 'path', vnum: number) => void;
+  hiddenFolders?: Set<string>;
+  onToggleFolderVisibility?: (folderId: string) => void;
 }
 
 interface TreeNode {
@@ -38,9 +40,26 @@ export const TreeView: FC<TreeViewProps> = ({
   onToggleLayer,
   hiddenRegions,
   hiddenPaths,
-  onToggleItemVisibility
+  onToggleItemVisibility,
+  hiddenFolders: externalHiddenFolders,
+  onToggleFolderVisibility: externalToggleFolderVisibility
 }) => {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['regions', 'paths']));
+  const [internalHiddenFolders, setInternalHiddenFolders] = useState<Set<string>>(new Set());
+  
+  // Use external folder visibility state if provided, otherwise use internal state
+  const hiddenFolders = externalHiddenFolders || internalHiddenFolders;
+  const toggleFolderVisibility = externalToggleFolderVisibility || ((folderId: string) => {
+    setInternalHiddenFolders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(folderId)) {
+        newSet.delete(folderId);
+      } else {
+        newSet.add(folderId);
+      }
+      return newSet;
+    });
+  });
 
   // Group regions by type
   const regionsByType = useMemo(() => {
@@ -179,6 +198,34 @@ export const TreeView: FC<TreeViewProps> = ({
     });
   }, []);
 
+  // Check if an item is hidden due to folder visibility
+  const isItemHiddenByFolder = useCallback((node: TreeNode): boolean => {
+    // Check if any parent folder is hidden
+    const nodeId = node.id;
+    
+    // For individual items, check their parent folder
+    if (nodeId.startsWith('region-type-')) {
+      return hiddenFolders.has(nodeId) || hiddenFolders.has('regions');
+    }
+    if (nodeId.startsWith('path-type-')) {
+      return hiddenFolders.has(nodeId) || hiddenFolders.has('paths');
+    }
+    if (nodeId.startsWith('region-')) {
+      // Find parent type folder
+      const regionData = node.data as Region;
+      const parentTypeId = `region-type-${regionData.region_type}`;
+      return hiddenFolders.has(parentTypeId) || hiddenFolders.has('regions');
+    }
+    if (nodeId.startsWith('path-')) {
+      // Find parent type folder
+      const pathData = node.data as Path;
+      const parentTypeId = `path-type-${pathData.path_type}`;
+      return hiddenFolders.has(parentTypeId) || hiddenFolders.has('paths');
+    }
+    
+    return hiddenFolders.has(nodeId);
+  }, [hiddenFolders]);
+
   const handleItemClick = useCallback((node: TreeNode, event: MouseEvent) => {
     event.stopPropagation();
     
@@ -222,9 +269,11 @@ export const TreeView: FC<TreeViewProps> = ({
       ((node.data.id && node.data.id === selectedItem.id) ||
        ('vnum' in node.data && 'vnum' in selectedItem && node.data.vnum === selectedItem.vnum));
     
-    // Check if the item is hidden
-    const isHidden = (node.type === 'region' && node.data && 'vnum' in node.data && hiddenRegions.has(node.data.vnum)) ||
-                     (node.type === 'path' && node.data && 'vnum' in node.data && hiddenPaths.has(node.data.vnum));
+    // Check if the item is hidden individually or by folder
+    const isIndividuallyHidden = (node.type === 'region' && node.data && 'vnum' in node.data && hiddenRegions.has(node.data.vnum)) ||
+                                 (node.type === 'path' && node.data && 'vnum' in node.data && hiddenPaths.has(node.data.vnum));
+    const isFolderHidden = isItemHiddenByFolder(node);
+    const isHidden = isIndividuallyHidden || isFolderHidden;
     
     const hasChildren = node.children && node.children.length > 0;
     const paddingLeft = depth * 16 + 8;
@@ -242,21 +291,21 @@ export const TreeView: FC<TreeViewProps> = ({
           style={{ paddingLeft }}
           onClick={(e) => handleItemClick(node, e)}
         >
-          {hasChildren && (
+          {/* Folder visibility toggle - on the left side of all folders */}
+          {node.type === 'folder' && (
             <button
-              className="p-0.5 hover:bg-gray-700 rounded transition-colors"
+              className="p-1 hover:bg-gray-700 rounded transition-colors opacity-70 hover:opacity-100 flex-shrink-0"
               onClick={(e) => {
                 e.stopPropagation();
-                toggleExpanded(node.id);
+                toggleFolderVisibility(node.id);
               }}
+              title={hiddenFolders.has(node.id) ? `Show ${node.name.toLowerCase()}` : `Hide ${node.name.toLowerCase()}`}
             >
-              {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              {hiddenFolders.has(node.id) ? <EyeOff size={12} /> : <Eye size={12} />}
             </button>
           )}
-          
-          {!hasChildren && <div className="w-4" />} {/* Spacer for alignment */}
-          
-          {/* Individual item visibility toggle - moved to left side */}
+
+          {/* Individual item visibility toggle - for regions and paths only */}
           {(node.type === 'region' || node.type === 'path') && node.data && 'vnum' in node.data && (
             <button
               className="p-1 hover:bg-gray-700 rounded transition-colors opacity-70 hover:opacity-100 flex-shrink-0"
@@ -278,6 +327,22 @@ export const TreeView: FC<TreeViewProps> = ({
               }
             </button>
           )}
+
+          {/* Expand/collapse button */}
+          {hasChildren && (
+            <button
+              className="p-0.5 hover:bg-gray-700 rounded transition-colors flex-shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleExpanded(node.id);
+              }}
+            >
+              {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+          )}
+          
+          {/* Spacer for alignment when no expand button */}
+          {!hasChildren && <div className="w-4 flex-shrink-0" />}
           
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <div className={isHidden ? 'opacity-50' : ''}>
@@ -288,15 +353,15 @@ export const TreeView: FC<TreeViewProps> = ({
             </span>
           </div>
 
-          {/* Layer visibility toggle for root folders */}
+          {/* Layer visibility toggle for root folders - now moved to right */}
           {node.id === 'regions' && (
             <button
-              className="p-1 hover:bg-gray-700 rounded transition-colors"
+              className="p-1 hover:bg-gray-700 rounded transition-colors flex-shrink-0 ml-auto"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleLayer('regions');
               }}
-              title={showRegions ? 'Hide regions' : 'Show regions'}
+              title={showRegions ? 'Hide all regions' : 'Show all regions'}
             >
               {showRegions ? <Eye size={12} /> : <EyeOff size={12} />}
             </button>
@@ -304,12 +369,12 @@ export const TreeView: FC<TreeViewProps> = ({
           
           {node.id === 'paths' && (
             <button
-              className="p-1 hover:bg-gray-700 rounded transition-colors"
+              className="p-1 hover:bg-gray-700 rounded transition-colors flex-shrink-0 ml-auto"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleLayer('paths');
               }}
-              title={showPaths ? 'Hide paths' : 'Show paths'}
+              title={showPaths ? 'Hide all paths' : 'Show all paths'}
             >
               {showPaths ? <Eye size={12} /> : <EyeOff size={12} />}
             </button>
