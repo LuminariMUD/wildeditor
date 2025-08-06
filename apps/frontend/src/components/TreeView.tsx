@@ -334,9 +334,16 @@ export const TreeView: FC<TreeViewProps> = ({
         </div>
       </div>
       
-      <div className="flex-1 overflow-auto min-h-0">
+      <div 
+        className="flex-1 min-h-0" 
+        style={{ 
+          overflow: 'auto',
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#6B7280 #374151'
+        }}
+      >
         {treeData.length > 0 ? (
-          <div className="py-1">
+          <div className="py-1" style={{ minWidth: 'max-content' }}>
             {treeData.map(node => renderNode(node))}
           </div>
         ) : (
