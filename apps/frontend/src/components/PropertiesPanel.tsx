@@ -7,13 +7,20 @@ interface PropertiesPanelProps {
   onUpdate: (updates: Partial<Region | Path | Point>) => void;
   onFinishDrawing?: () => void;
   isDrawing: boolean;
+  // New save props
+  onSave?: (itemId: string) => void;
+  isSaving?: boolean;
+  hasUnsavedChanges?: boolean;
 }
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   selectedItem,
   onUpdate,
   onFinishDrawing,
-  isDrawing
+  isDrawing,
+  onSave,
+  isSaving = false,
+  hasUnsavedChanges = false
 }) => {
   const COORDINATE_BOUNDS = { min: -1024, max: 1024 };
   
@@ -121,8 +128,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-1">Type</label>
           <select
-            value={(selectedItem as Region).type}
-            onChange={(e) => onUpdate({ type: parseInt(e.target.value) as Region['type'] })}
+            value={(selectedItem as Region).region_type}
+            onChange={(e) => onUpdate({ region_type: parseInt(e.target.value) as Region['region_type'] })}
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value={1}>Geographic</option>
@@ -137,16 +144,15 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-1">Type</label>
           <select
-            value={(selectedItem as Path).type}
-            onChange={(e) => onUpdate({ type: parseInt(e.target.value) as Path['type'] })}
+            value={(selectedItem as Path).path_type}
+            onChange={(e) => onUpdate({ path_type: parseInt(e.target.value) as Path['path_type'] })}
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            <option value={0}>Road</option>
-            <option value={1}>Dirt Road</option>
-            <option value={2}>Geographic</option>
-            <option value={3}>River</option>
-            <option value={4}>Stream</option>
-            <option value={5}>Trail</option>
+            <option value={1}>Paved Road</option>
+            <option value={2}>Dirt Road</option>
+            <option value={3}>Geographic</option>
+            <option value={5}>River</option>
+            <option value={6}>Stream</option>
           </select>
         </div>
       )}
@@ -284,9 +290,26 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
       {/* Action buttons */}
       <div className="flex gap-2 pt-4 border-t border-gray-700">
-        <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
+        <button 
+          onClick={() => {
+            if (selectedItem && onSave) {
+              const itemId = ('vnum' in selectedItem && selectedItem.vnum) 
+                ? selectedItem.vnum.toString() 
+                : selectedItem.id || '';
+              if (itemId) {
+                onSave(itemId);
+              }
+            }
+          }}
+          disabled={isSaving || !hasUnsavedChanges}
+          className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors ${
+            isSaving || !hasUnsavedChanges
+              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 text-white'
+          }`}
+        >
           <Save size={16} />
-          Save
+          {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save *' : 'Saved'}
         </button>
         <button className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
           <RotateCcw size={16} />

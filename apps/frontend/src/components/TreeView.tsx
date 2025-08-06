@@ -17,6 +17,8 @@ interface TreeViewProps {
   onToggleItemVisibility: (type: 'region' | 'path', vnum: number) => void;
   hiddenFolders?: Set<string>;
   onToggleFolderVisibility?: (folderId: string) => void;
+  // New prop for unsaved items
+  unsavedItems?: Set<string>;
 }
 
 interface TreeNode {
@@ -42,7 +44,8 @@ export const TreeView: FC<TreeViewProps> = ({
   hiddenPaths,
   onToggleItemVisibility,
   hiddenFolders: externalHiddenFolders,
-  onToggleFolderVisibility: externalToggleFolderVisibility
+  onToggleFolderVisibility: externalToggleFolderVisibility,
+  unsavedItems = new Set()
 }) => {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['regions', 'paths']));
   const [internalHiddenFolders, setInternalHiddenFolders] = useState<Set<string>>(new Set());
@@ -351,6 +354,17 @@ export const TreeView: FC<TreeViewProps> = ({
             <span className={`${isHidden ? 'italic opacity-75' : ''}`} title={node.name}>
               {node.name}
             </span>
+            {/* Unsaved indicator */}
+            {node.data && (
+              (() => {
+                const itemId = node.data.id || ('vnum' in node.data ? node.data.vnum?.toString() : '');
+                return itemId && unsavedItems.has(itemId) ? (
+                  <span className="text-orange-400 font-bold text-xs" title="Unsaved changes">
+                    *
+                  </span>
+                ) : null;
+              })()
+            )}
           </div>
 
           {/* Layer visibility toggle for root folders - now moved to right */}

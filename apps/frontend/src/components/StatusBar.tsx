@@ -1,4 +1,5 @@
 import React from 'react';
+import { Save } from 'lucide-react';
 import { Coordinate } from '../types';
 
 interface StatusBarProps {
@@ -9,6 +10,10 @@ interface StatusBarProps {
   pathCount?: number;
   loading?: boolean;
   error?: string | null;
+  // New unsaved items props
+  unsavedCount?: number;
+  onSaveAll?: () => void;
+  isSaving?: boolean;
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({ 
@@ -18,7 +23,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   regionCount = 0, 
   pathCount = 0,
   loading = false,
-  error = null
+  error = null,
+  unsavedCount = 0,
+  onSaveAll,
+  isSaving = false
 }) => {
   const zoomLevels = [25, 50, 75, 100, 150, 200, 300, 500, 800, 1200, 1600, 2000];
 
@@ -61,6 +69,29 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       </div>
       
       <div className="flex items-center gap-2">
+        {/* Unsaved items indicator and Save All button */}
+        {unsavedCount > 0 && (
+          <>
+            <span className="text-orange-400 text-xs">
+              {unsavedCount} unsaved*
+            </span>
+            <button
+              onClick={onSaveAll}
+              disabled={isSaving}
+              className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors ${
+                isSaving
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+              title="Save all unsaved changes"
+            >
+              <Save size={12} />
+              {isSaving ? 'Saving...' : 'Save All'}
+            </button>
+            <div className="w-px h-4 bg-gray-600"></div>
+          </>
+        )}
+        
         <span className="text-gray-300">Zoom:</span>
         <select
           value={zoom}

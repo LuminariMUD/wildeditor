@@ -30,6 +30,10 @@ export const useEditor = () => {
   const [hiddenRegions, setHiddenRegions] = useState<Set<number>>(new Set());
   const [hiddenPaths, setHiddenPaths] = useState<Set<number>>(new Set());
   const [hiddenFolders, setHiddenFolders] = useState<Set<string>>(new Set());
+  
+  // Track unsaved changes for buffering
+  const [unsavedItems, setUnsavedItems] = useState<Set<string>>(new Set());
+  const [savingItems, setSavingItems] = useState<Set<string>>(new Set());
 
   // Check if auth is disabled (for development mode)
   const authDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
@@ -242,7 +246,8 @@ export const useEditor = () => {
         id: Date.now().toString(),
         coordinate,
         name: `New Point ${points.length + 1}`,
-        type: 'landmark'
+        type: 'landmark',
+        isDirty: true  // Mark as unsaved
       };
       
       console.log('[Drawing] Creating new point:', {
@@ -251,29 +256,14 @@ export const useEditor = () => {
         name: newPoint.name
       });
       
-      // Optimistic update
+      // Add to local state immediately (buffered)
       setPoints(prev => [...prev, newPoint]);
       selectItem(newPoint);
       
-      // Save to API
-      if (session?.access_token) {
-        apiClient.createPoint(newPoint)
-          .then(() => {
-            console.log('[Drawing] Point created successfully:', newPoint.id);
-          })
-          .catch(err => {
-            console.error('[Drawing] Failed to create point:', {
-              error: err,
-              point: newPoint,
-              message: err.message || 'Unknown error'
-            });
-            // Revert optimistic update
-            setPoints(prev => prev.filter(p => p.id !== newPoint.id));
-            setError('Failed to create point: ' + (err.message || 'Unknown error'));
-          });
-      } else {
-        console.warn('[Drawing] No auth token, point saved locally only');
-      }
+      // Mark as unsaved
+      setUnsavedItems(prev => new Set(prev).add(newPoint.id!));
+      
+      console.log('[Drawing] Point created locally, marked as unsaved');
     } else if (state.tool === 'polygon' || state.tool === 'linestring') {
       const newPointCount = state.currentDrawing.length + 1;
       console.log('[Drawing] Adding point to', state.tool, ':', {
@@ -352,7 +342,8 @@ export const useEditor = () => {
         // Frontend compatibility fields
         id: Date.now().toString(),
         props: '{"description": "Custom region"}', // compatibility
-        color: '#F59E0B'
+        color: '#F59E0B',
+        isDirty: true  // Mark as unsaved
       };
       
       console.log('[Drawing] Creating new region:', {
@@ -362,29 +353,14 @@ export const useEditor = () => {
         type: newRegion.region_type
       });
       
-      // Optimistic update
+      // Add to local state immediately (buffered)
       setRegions(prev => [...prev, newRegion]);
       selectItem(newRegion);
       
-      // Save to API
-      if (authDisabled || session?.access_token) {
-        apiClient.createRegion(newRegion)
-          .then(() => {
-            console.log('[Drawing] Region created successfully:', newRegion.id);
-          })
-          .catch(err => {
-            console.error('[Drawing] Failed to create region:', {
-              error: err,
-              region: newRegion,
-              message: err.message || 'Unknown error'
-            });
-            // Revert optimistic update
-            setRegions(prev => prev.filter(r => r.id !== newRegion.id));
-            setError('Failed to create region: ' + (err.message || 'Unknown error'));
-          });
-      } else {
-        console.warn('[Drawing] No auth token, region saved locally only');
-      }
+      // Mark as unsaved
+      setUnsavedItems(prev => new Set(prev).add(newRegion.id!));
+      
+      console.log('[Drawing] Region created locally, marked as unsaved');
     } else if (state.tool === 'linestring' && state.currentDrawing.length >= 2) {
       const newPath: Path = {
         vnum: Math.max(2000, ...paths.map(p => p.vnum || 0)) + 1, // Generate next vnum
@@ -398,7 +374,8 @@ export const useEditor = () => {
         id: Date.now().toString(),
         type: 0, // compatibility (0=Road)
         props: '{"width": "wide", "condition": "excellent"}', // compatibility
-        color: '#EC4899'
+        color: '#EC4899',
+        isDirty: true  // Mark as unsaved
       };
       
       console.log('[Drawing] Creating new path:', {
@@ -408,29 +385,14 @@ export const useEditor = () => {
         type: newPath.type
       });
       
-      // Optimistic update
+      // Add to local state immediately (buffered)
       setPaths(prev => [...prev, newPath]);
       selectItem(newPath);
       
-      // Save to API
-      if (authDisabled || session?.access_token) {
-        apiClient.createPath(newPath)
-          .then(() => {
-            console.log('[Drawing] Path created successfully:', newPath.id);
-          })
-          .catch(err => {
-            console.error('[Drawing] Failed to create path:', {
-              error: err,
-              path: newPath,
-              message: err.message || 'Unknown error'
-            });
-            // Revert optimistic update
-            setPaths(prev => prev.filter(p => p.id !== newPath.id));
-            setError('Failed to create path: ' + (err.message || 'Unknown error'));
-          });
-      } else {
-        console.warn('[Drawing] No auth token, path saved locally only');
-      }
+      // Mark as unsaved
+      setUnsavedItems(prev => new Set(prev).add(newPath.id!));
+      
+      console.log('[Drawing] Path created locally, marked as unsaved');
     }
     
     // Always clean up drawing state after processing
@@ -461,84 +423,184 @@ export const useEditor = () => {
       return;
     }
     
+    // Add isDirty flag to updates
+    const updatesWithDirty = { ...updates, isDirty: true };
+    
     if ('coordinates' in state.selectedItem) {
       if ('region_type' in state.selectedItem) {
         // It's a Region
         setRegions(prev => prev.map(region => 
           (region.vnum?.toString() === itemId || region.id === itemId)
-            ? { ...region, ...updates } as Region
+            ? { ...region, ...updatesWithDirty } as Region
             : region
         ));
-        
-        // Save to API
-        if (authDisabled || session?.access_token) {
-          apiClient.updateRegion(itemId, updates as Partial<Region>)
-            .then(() => {
-              console.log('[Update] Region updated successfully:', itemId);
-            })
-            .catch(err => {
-              console.error('[Update] Failed to update region:', {
-                error: err,
-                regionId: itemId,
-                updates,
-                message: err.message || 'Unknown error'
-              });
-              setError('Failed to update region: ' + (err.message || 'Unknown error'));
-            });
-        }
       } else if ('path_type' in state.selectedItem) {
         // It's a Path
         setPaths(prev => prev.map(path => 
           (path.vnum?.toString() === itemId || path.id === itemId)
-            ? { ...path, ...updates } as Path
+            ? { ...path, ...updatesWithDirty } as Path
             : path
         ));
-        
-        // Save to API
-        if (authDisabled || session?.access_token) {
-          apiClient.updatePath(itemId, updates as Partial<Path>)
-            .then(() => {
-              console.log('[Update] Path updated successfully:', itemId);
-            })
-            .catch(err => {
-              console.error('[Update] Failed to update path:', {
-                error: err,
-                pathId: itemId,
-                updates,
-                message: err.message || 'Unknown error'
-              });
-              setError('Failed to update path: ' + (err.message || 'Unknown error'));
-            });
-        }
       }
     } else {
       // It's a Point
       setPoints(prev => prev.map(point => 
         point.id === itemId
-          ? { ...point, ...updates } as Point
+          ? { ...point, ...updatesWithDirty } as Point
           : point
       ));
-      
-      // Save to API
-      if (authDisabled || session?.access_token) {
-        apiClient.updatePoint(itemId, updates as Partial<Point>)
-          .then(() => {
-            console.log('[Update] Point updated successfully:', itemId);
-          })
-          .catch(err => {
-            console.error('[Update] Failed to update point:', {
-              error: err,
-              pointId: itemId,
-              updates,
-              message: err.message || 'Unknown error'
-            });
-            setError('Failed to update point: ' + (err.message || 'Unknown error'));
-          });
-      }
     }
     
-    setState(prev => ({ ...prev, selectedItem: { ...prev.selectedItem!, ...updates } as Region | Path | Point }));
-  }, [state.selectedItem, session]);
+    // Mark as unsaved
+    setUnsavedItems(prev => new Set(prev).add(itemId));
+    
+    // Update selected item state
+    setState(prev => ({ ...prev, selectedItem: { ...prev.selectedItem!, ...updatesWithDirty } as Region | Path | Point }));
+    
+    console.log('[Update] Item updated locally, marked as unsaved:', itemId);
+  }, [state.selectedItem]);
+
+  // Save a specific item to the API
+  const saveItem = useCallback(async (itemId: string) => {
+    if (savingItems.has(itemId)) {
+      console.warn('[Save] Item is already being saved:', itemId);
+      return;
+    }
+
+    // Check if auth is available
+    if (!authDisabled && !session?.access_token) {
+      console.warn('[Save] No auth token available, cannot save');
+      setError('Authentication required to save changes');
+      return;
+    }
+
+    setSavingItems(prev => new Set(prev).add(itemId));
+    
+    try {
+      // Find the item in our local state
+      let item: Region | Path | Point | undefined;
+      
+      // Check regions first
+      item = regions.find(r => r.id === itemId || r.vnum?.toString() === itemId);
+      if (item && 'region_type' in item) {
+        const region = item as Region;
+        if (region.vnum && regions.some(r => r.vnum === region.vnum && !r.isDirty)) {
+          // Update existing region
+          await apiClient.updateRegion(region.vnum.toString(), region);
+          console.log('[Save] Region updated successfully:', itemId);
+        } else {
+          // Create new region
+          await apiClient.createRegion(region);
+          console.log('[Save] Region created successfully:', itemId);
+        }
+        
+        // Mark as clean
+        setRegions(prev => prev.map(r => 
+          (r.id === itemId || r.vnum?.toString() === itemId) 
+            ? { ...r, isDirty: false } 
+            : r
+        ));
+      }
+      
+      // Check paths if not found in regions
+      if (!item) {
+        item = paths.find(p => p.id === itemId || p.vnum?.toString() === itemId);
+        if (item && 'path_type' in item) {
+          const path = item as Path;
+          if (path.vnum && paths.some(p => p.vnum === path.vnum && !p.isDirty)) {
+            // Update existing path
+            await apiClient.updatePath(path.vnum.toString(), path);
+            console.log('[Save] Path updated successfully:', itemId);
+          } else {
+            // Create new path
+            await apiClient.createPath(path);
+            console.log('[Save] Path created successfully:', itemId);
+          }
+          
+          // Mark as clean
+          setPaths(prev => prev.map(p => 
+            (p.id === itemId || p.vnum?.toString() === itemId) 
+              ? { ...p, isDirty: false } 
+              : p
+          ));
+        }
+      }
+      
+      // Check points if not found in regions or paths
+      if (!item) {
+        item = points.find(p => p.id === itemId);
+        if (item && 'coordinate' in item) {
+          const point = item as Point;
+          // Points don't have vnum, so always create new or update by ID
+          if (points.some(p => p.id === point.id && !p.isDirty)) {
+            // Update existing point
+            await apiClient.updatePoint(point.id!, point);
+            console.log('[Save] Point updated successfully:', itemId);
+          } else {
+            // Create new point
+            await apiClient.createPoint(point);
+            console.log('[Save] Point created successfully:', itemId);
+          }
+          
+          // Mark as clean
+          setPoints(prev => prev.map(p => 
+            p.id === itemId ? { ...p, isDirty: false } : p
+          ));
+        }
+      }
+      
+      if (!item) {
+        console.error('[Save] Item not found:', itemId);
+        setError('Item not found for saving');
+        return;
+      }
+      
+      // Remove from unsaved items
+      setUnsavedItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+      
+      // Update selected item if it's the one we just saved
+      if (state.selectedItem && 
+          ((state.selectedItem.id === itemId) || 
+           ('vnum' in state.selectedItem && state.selectedItem.vnum?.toString() === itemId))) {
+        setState(prev => ({ 
+          ...prev, 
+          selectedItem: prev.selectedItem ? { ...prev.selectedItem, isDirty: false } : null 
+        }));
+      }
+      
+    } catch (err: any) {
+      console.error('[Save] Failed to save item:', {
+        error: err,
+        itemId,
+        message: err.message || 'Unknown error'
+      });
+      setError('Failed to save item: ' + (err.message || 'Unknown error'));
+    } finally {
+      setSavingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+    }
+  }, [authDisabled, session, savingItems, regions, paths, points, state.selectedItem]);
+
+  // Save all unsaved items
+  const saveAllUnsaved = useCallback(async () => {
+    if (unsavedItems.size === 0) {
+      console.log('[Save] No unsaved items to save');
+      return;
+    }
+
+    console.log('[Save] Saving all unsaved items:', Array.from(unsavedItems));
+    
+    for (const itemId of unsavedItems) {
+      await saveItem(itemId);
+    }
+  }, [unsavedItems, saveItem]);
 
   const centerOnItem = useCallback((item: Region | Path | Point) => {
     let coordinate: Coordinate;
@@ -604,6 +666,11 @@ export const useEditor = () => {
     toggleItemVisibility,
     hiddenFolders,
     toggleFolderVisibility,
-    isItemHiddenByFolder
+    isItemHiddenByFolder,
+    // New save functionality
+    unsavedItems,
+    savingItems,
+    saveItem,
+    saveAllUnsaved
   };
 };

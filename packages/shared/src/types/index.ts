@@ -10,6 +10,7 @@ export interface Point {
   
   // Frontend-only properties
   id?: string;          // Optional frontend ID for compatibility
+  isDirty?: boolean;    // Indicates unsaved changes
 }
 
 export interface Region {
@@ -28,6 +29,7 @@ export interface Region {
   id?: string;           // Optional frontend ID for compatibility
   props?: string;        // Optional JSON string for compatibility
   color?: string;        // Optional for frontend display
+  isDirty?: boolean;     // Indicates unsaved changes
 }
 
 export interface Path {
@@ -44,6 +46,7 @@ export interface Path {
   type?: 0 | 1 | 2 | 3 | 4 | 5; // Optional compatibility mapping
   props?: string;        // Optional JSON string for compatibility
   color?: string;        // Optional for frontend display
+  isDirty?: boolean;     // Indicates unsaved changes
 }
 
 export type DrawingTool = 'select' | 'point' | 'polygon' | 'linestring';

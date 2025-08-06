@@ -40,7 +40,12 @@ function App() {
     toggleItemVisibility,
     hiddenFolders,
     toggleFolderVisibility,
-    isItemHiddenByFolder
+    isItemHiddenByFolder,
+    // New save functionality
+    unsavedItems,
+    savingItems,
+    saveItem,
+    saveAllUnsaved
   } = useEditor();
 
   // Keyboard shortcuts
@@ -148,6 +153,7 @@ function App() {
                   onToggleItemVisibility={toggleItemVisibility}
                   hiddenFolders={hiddenFolders}
                   onToggleFolderVisibility={toggleFolderVisibility}
+                  unsavedItems={unsavedItems}
                 />
               </div>
             </div>
@@ -172,6 +178,13 @@ function App() {
                 onUpdate={updateSelectedItem}
                 onFinishDrawing={finishDrawing}
                 isDrawing={state.isDrawing}
+                onSave={saveItem}
+                isSaving={state.selectedItem ? savingItems.has(
+                  ('vnum' in state.selectedItem && state.selectedItem.vnum) 
+                    ? state.selectedItem.vnum.toString() 
+                    : state.selectedItem.id || ''
+                ) : false}
+                hasUnsavedChanges={state.selectedItem ? state.selectedItem.isDirty || false : false}
               />
             </div>
           }
@@ -186,6 +199,9 @@ function App() {
           pathCount={paths.length}
           loading={loading}
           error={error}
+          unsavedCount={unsavedItems.size}
+          onSaveAll={saveAllUnsaved}
+          isSaving={savingItems.size > 0}
         />
       </div>
       
