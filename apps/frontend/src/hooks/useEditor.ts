@@ -720,6 +720,23 @@ export const useEditor = () => {
       return newSet;
     });
     
+    // If we're discarding the currently selected item and it's being removed entirely,
+    // make sure the selected item state is updated to reflect the clean state
+    if (state.selectedItem && 
+        ((state.selectedItem.id === itemId) || 
+         ('vnum' in state.selectedItem && state.selectedItem.vnum?.toString() === itemId))) {
+      
+      // If the item was removed entirely, selection is already cleared above
+      // If the item was just cleaned, update the selected item to reflect clean state
+      if (item && !state.selectedItem.isDirty) {
+        // This handles the case where we marked an existing item as clean
+        setState(prev => ({ 
+          ...prev, 
+          selectedItem: prev.selectedItem ? { ...prev.selectedItem, isDirty: false } : null 
+        }));
+      }
+    }
+    
     console.log('[Discard] Item changes discarded successfully:', itemId);
   }, [regions, paths, points, state.selectedItem]);
 

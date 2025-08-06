@@ -187,7 +187,14 @@ function App() {
                     ? state.selectedItem.vnum.toString() 
                     : state.selectedItem.id || ''
                 ) : false}
-                hasUnsavedChanges={state.selectedItem ? state.selectedItem.isDirty || false : false}
+                hasUnsavedChanges={state.selectedItem ? (
+                  state.selectedItem.isDirty || false ||
+                  unsavedItems.has(
+                    ('vnum' in state.selectedItem && state.selectedItem.vnum) 
+                      ? state.selectedItem.vnum.toString() 
+                      : state.selectedItem.id || ''
+                  )
+                ) : false}
               />
             </div>
           }
