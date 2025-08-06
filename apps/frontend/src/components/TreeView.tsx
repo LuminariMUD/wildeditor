@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, FC, MouseEvent } from 'react';
 import { ChevronDown, ChevronRight, Folder, FolderOpen, Map, Route, MapPin, Eye, EyeOff } from 'lucide-react';
 import { Region, Path, Point } from '../types';
 
@@ -23,7 +23,7 @@ interface TreeNode {
   count?: number;
 }
 
-export const TreeView: React.FC<TreeViewProps> = ({
+export const TreeView: FC<TreeViewProps> = ({
   regions,
   paths,
   points,
@@ -173,7 +173,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
     });
   }, []);
 
-  const handleItemClick = useCallback((node: TreeNode, event: React.MouseEvent) => {
+  const handleItemClick = useCallback((node: TreeNode, event: MouseEvent) => {
     event.stopPropagation();
     
     if (node.type === 'folder') {

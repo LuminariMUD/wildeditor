@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { AuthCallback } from './components/AuthCallback';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { MapCanvas } from './components/MapCanvas';
+import { SimpleMapCanvas } from './components/SimpleMapCanvas2';
 import { ToolPalette } from './components/ToolPalette';
 import { LayerControls } from './components/LayerControls';
 import { TreeView } from './components/TreeView';
@@ -142,7 +142,7 @@ function App() {
             </div>
           }
           centerPane={
-            <MapCanvas
+            <SimpleMapCanvas
               state={state}
               regions={regions}
               paths={paths}
