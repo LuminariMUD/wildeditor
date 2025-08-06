@@ -847,10 +847,9 @@ export const useEditor = () => {
         item = points.find(p => p.id === itemId);
         if (item && 'coordinate' in item) {
           itemType = 'point';
-          const point = item as Point;
           
           // Points don't have vnums yet, so just remove from local state
-          // await apiClient.deletePoint(point.id); // Uncomment when point API is ready
+          // await apiClient.deletePoint(item.id); // Uncomment when point API is ready
           
           // Remove from local state
           setPoints(prev => prev.filter(p => p.id !== itemId));
