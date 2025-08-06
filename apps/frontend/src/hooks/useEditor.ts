@@ -493,8 +493,8 @@ export const useEditor = () => {
             await apiClient.getRegion(region.vnum.toString());
             existsInDatabase = true;
             console.log('[Save] Region exists in database, will update:', region.vnum);
-          } catch (error: any) {
-            if (error.message?.includes('404') || error.message?.includes('not found')) {
+          } catch (error) {
+            if (error instanceof Error && (error.message.includes('404') || error.message.includes('not found'))) {
               existsInDatabase = false;
               console.log('[Save] Region not found in database, will create:', region.vnum);
             } else {
@@ -544,8 +544,8 @@ export const useEditor = () => {
               await apiClient.getPath(path.vnum.toString());
               existsInDatabase = true;
               console.log('[Save] Path exists in database, will update:', path.vnum);
-            } catch (error: any) {
-              if (error.message?.includes('404') || error.message?.includes('not found')) {
+            } catch (error) {
+              if (error instanceof Error && (error.message.includes('404') || error.message.includes('not found'))) {
                 existsInDatabase = false;
                 console.log('[Save] Path not found in database, will create:', path.vnum);
               } else {
