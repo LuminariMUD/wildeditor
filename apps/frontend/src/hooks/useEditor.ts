@@ -233,7 +233,7 @@ export const useEditor = () => {
         currentDrawing: [...prev.currentDrawing, coordinate]
       }));
     }
-  }, [state.tool, state.isDrawing, state.currentDrawing.length, points.length, selectItem, session?.access_token, authDisabled]);
+  }, [state.tool, state.isDrawing, state.currentDrawing.length, points.length, selectItem, session?.access_token]);
 
   const cancelDrawing = useCallback(() => {
     console.log('[Drawing] Canceling drawing:', {
@@ -381,7 +381,7 @@ export const useEditor = () => {
     // Always clean up drawing state after processing
     console.log('[Drawing] Cleaning up drawing state');
     setState(prev => ({ ...prev, isDrawing: false, currentDrawing: [] }));
-  }, [state.isDrawing, state.currentDrawing, state.tool, regions.length, paths.length, selectItem, session?.access_token, authDisabled]);
+  }, [state.isDrawing, state.currentDrawing, state.tool, regions, paths, selectItem, session?.access_token]);
 
   const updateSelectedItem = useCallback((updates: Partial<Region | Path | Point>) => {
     if (!state.selectedItem) {
@@ -483,7 +483,7 @@ export const useEditor = () => {
     }
     
     setState(prev => ({ ...prev, selectedItem: { ...prev.selectedItem!, ...updates } as Region | Path | Point }));
-  }, [state.selectedItem, session, regions, authDisabled]);
+  }, [state.selectedItem, session]);
 
   const centerOnItem = useCallback((item: Region | Path | Point) => {
     let coordinate: Coordinate;

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { ChevronDown, ChevronRight, Folder, FolderOpen, Map, Route, MapPin, Eye, EyeOff } from 'lucide-react';
-import { Region, Path, Point, Coordinate } from '../types';
+import { Region, Path, Point } from '../types';
 
 interface TreeViewProps {
   regions: Region[];
@@ -36,26 +36,6 @@ export const TreeView: React.FC<TreeViewProps> = ({
 }) => {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['regions', 'paths']));
 
-  // Helper function to calculate bounding box center for regions/paths
-  const calculateCenter = useCallback((coordinates: Coordinate[]): Coordinate => {
-    if (coordinates.length === 0) return { x: 0, y: 0 };
-    
-    const bounds = coordinates.reduce(
-      (acc, coord) => ({
-        minX: Math.min(acc.minX, coord.x),
-        maxX: Math.max(acc.maxX, coord.x),
-        minY: Math.min(acc.minY, coord.y),
-        maxY: Math.max(acc.maxY, coord.y)
-      }),
-      { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity }
-    );
-
-    return {
-      x: (bounds.minX + bounds.maxX) / 2,
-      y: (bounds.minY + bounds.maxY) / 2
-    };
-  }, []);
-
   // Group regions by type
   const regionsByType = useMemo(() => {
     const typeMap: Record<number, { name: string; regions: Region[] }> = {
@@ -73,7 +53,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
     });
 
     return Object.entries(typeMap)
-      .filter(([_, data]) => data.regions.length > 0)
+      .filter(([, data]) => data.regions.length > 0)
       .map(([type, data]) => ({
         type: parseInt(type),
         ...data
@@ -98,7 +78,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
     });
 
     return Object.entries(typeMap)
-      .filter(([_, data]) => data.paths.length > 0)
+      .filter(([, data]) => data.paths.length > 0)
       .map(([type, data]) => ({
         type: parseInt(type),
         ...data
@@ -213,7 +193,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
         onCenterOnItem(node.data);
       }
     }
-  }, [toggleExpanded, onSelectItem, onCenterOnItem, calculateCenter]);
+  }, [toggleExpanded, onSelectItem, onCenterOnItem]);
 
   const getIcon = (node: TreeNode, isExpanded: boolean) => {
     switch (node.type) {
