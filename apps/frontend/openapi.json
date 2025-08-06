@@ -1,0 +1,1590 @@
+﻿{
+    "openapi":  "3.1.0",
+    "info":  {
+                 "title":  "Wildeditor Backend API",
+                 "description":  "Backend API for the Luminari Wilderness Editor",
+                 "version":  "1.0.0"
+             },
+    "paths":  {
+                  "/api/regions/":  {
+                                        "get":  {
+                                                    "tags":  [
+                                                                 "Regions"
+                                                             ],
+                                                    "summary":  "Get Regions",
+                                                    "description":  "Get all regions, optionally filtered by type or zone.\n\nRegions are polygonal areas that modify terrain properties:\n\n- **REGION_GEOGRAPHIC (1)**: Named areas (forests, mountains) - Provides descriptive names without modifying terrain\n- **REGION_ENCOUNTER (2)**: Special encounter zones - Enables encounter spawning with reset timers  \n- **REGION_SECTOR_TRANSFORM (3)**: Terrain modification - Adds region_props to elevation then recalculates sector\n- **REGION_SECTOR (4)**: Complete terrain override - Replaces terrain with region_props sector type (0-36)\n\nEach region is stored as POLYGON geometry in MySQL and converted to coordinate arrays for the API.\nRegions are processed in database order during terrain generation, with later regions overriding earlier ones.",
+                                                    "operationId":  "get_regions_api_regions__get",
+                                                    "parameters":  [
+                                                                       {
+                                                                           "name":  "region_type",
+                                                                           "in":  "query",
+                                                                           "required":  false,
+                                                                           "schema":  {
+                                                                                          "anyOf":  [
+                                                                                                        {
+                                                                                                            "type":  "integer"
+                                                                                                        },
+                                                                                                        {
+                                                                                                            "type":  "null"
+                                                                                                        }
+                                                                                                    ],
+                                                                                          "description":  "Filter by region type (1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override)",
+                                                                                          "title":  "Region Type"
+                                                                                      },
+                                                                           "description":  "Filter by region type (1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override)"
+                                                                       },
+                                                                       {
+                                                                           "name":  "zone_vnum",
+                                                                           "in":  "query",
+                                                                           "required":  false,
+                                                                           "schema":  {
+                                                                                          "anyOf":  [
+                                                                                                        {
+                                                                                                            "type":  "integer"
+                                                                                                        },
+                                                                                                        {
+                                                                                                            "type":  "null"
+                                                                                                        }
+                                                                                                    ],
+                                                                                          "description":  "Filter by zone vnum",
+                                                                                          "title":  "Zone Vnum"
+                                                                                      },
+                                                                           "description":  "Filter by zone vnum"
+                                                                       }
+                                                                   ],
+                                                    "responses":  {
+                                                                      "200":  {
+                                                                                  "description":  "Successful Response",
+                                                                                  "content":  {
+                                                                                                  "application/json":  {
+                                                                                                                           "schema":  {
+                                                                                                                                          "type":  "array",
+                                                                                                                                          "items":  {
+                                                                                                                                                        "$ref":  "#/components/schemas/RegionResponse"
+                                                                                                                                                    },
+                                                                                                                                          "title":  "Response Get Regions Api Regions  Get"
+                                                                                                                                      }
+                                                                                                                       }
+                                                                                              }
+                                                                              },
+                                                                      "422":  {
+                                                                                  "description":  "Validation Error",
+                                                                                  "content":  {
+                                                                                                  "application/json":  {
+                                                                                                                           "schema":  {
+                                                                                                                                          "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                      }
+                                                                                                                       }
+                                                                                              }
+                                                                              }
+                                                                  }
+                                                },
+                                        "post":  {
+                                                     "tags":  [
+                                                                  "Regions"
+                                                              ],
+                                                     "summary":  "Create Region",
+                                                     "description":  "Create a new region.\n\nRegions define how the wilderness system modifies terrain:\n\n**REGION_GEOGRAPHIC (1)**: Named geographic areas and landmarks\n- Provides contextual information for the dynamic description engine without modifying terrain\n- region_props value is ignored by the game\n- Used for naming existing terrain areas, defining geo-political boundaries, and creating landmarks\n- Examples: \"Whispering Wood\" (area naming), \"Kingdom of Thay\" (geo-political), \"The North Gate of Ashenport\" (landmark)\n\n**REGION_ENCOUNTER (2)**: Special encounter zones  \n- Enables encounter spawning with optional reset timers\n- region_props value is ignored by the game\n- Uses region_reset_data and region_reset_time for encounter management\n- Examples: \"Dragon Lair Territory\", \"Bandit Ambush Zone\"\n\n**REGION_SECTOR_TRANSFORM (3)**: Terrain modification\n- Adds region_props value to existing elevation, then recalculates sector type\n- region_props: Elevation adjustment (positive or negative integer)\n- Examples: Magical uplift (+50), Cursed depression (-30), Earthquake damage (-20)\n\n**REGION_SECTOR (4)**: Complete terrain override\n- Completely replaces calculated terrain type with specified sector\n- region_props: Sector type ID (0-36) from the complete sector types list\n- Examples: Road through forest (sector 11), Lake in desert (sector 6), City district (sector 1)\n\nThe coordinate array is automatically converted to MySQL POLYGON geometry for efficient spatial queries.",
+                                                     "operationId":  "create_region_api_regions__post",
+                                                     "security":  [
+                                                                      {
+                                                                          "HTTPBearer":  [
+
+                                                                                         ]
+                                                                      }
+                                                                  ],
+                                                     "requestBody":  {
+                                                                         "required":  true,
+                                                                         "content":  {
+                                                                                         "application/json":  {
+                                                                                                                  "schema":  {
+                                                                                                                                 "$ref":  "#/components/schemas/RegionCreate"
+                                                                                                                             }
+                                                                                                              }
+                                                                                     }
+                                                                     },
+                                                     "responses":  {
+                                                                       "201":  {
+                                                                                   "description":  "Successful Response",
+                                                                                   "content":  {
+                                                                                                   "application/json":  {
+                                                                                                                            "schema":  {
+                                                                                                                                           "$ref":  "#/components/schemas/RegionResponse"
+                                                                                                                                       }
+                                                                                                                        }
+                                                                                               }
+                                                                               },
+                                                                       "422":  {
+                                                                                   "description":  "Validation Error",
+                                                                                   "content":  {
+                                                                                                   "application/json":  {
+                                                                                                                            "schema":  {
+                                                                                                                                           "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                       }
+                                                                                                                        }
+                                                                                               }
+                                                                               }
+                                                                   }
+                                                 }
+                                    },
+                  "/api/regions":  {
+                                       "get":  {
+                                                   "tags":  [
+                                                                "Regions"
+                                                            ],
+                                                   "summary":  "Get Regions",
+                                                   "description":  "Get all regions, optionally filtered by type or zone.\n\nRegions are polygonal areas that modify terrain properties:\n\n- **REGION_GEOGRAPHIC (1)**: Named areas (forests, mountains) - Provides descriptive names without modifying terrain\n- **REGION_ENCOUNTER (2)**: Special encounter zones - Enables encounter spawning with reset timers  \n- **REGION_SECTOR_TRANSFORM (3)**: Terrain modification - Adds region_props to elevation then recalculates sector\n- **REGION_SECTOR (4)**: Complete terrain override - Replaces terrain with region_props sector type (0-36)\n\nEach region is stored as POLYGON geometry in MySQL and converted to coordinate arrays for the API.\nRegions are processed in database order during terrain generation, with later regions overriding earlier ones.",
+                                                   "operationId":  "get_regions_api_regions_get",
+                                                   "parameters":  [
+                                                                      {
+                                                                          "name":  "region_type",
+                                                                          "in":  "query",
+                                                                          "required":  false,
+                                                                          "schema":  {
+                                                                                         "anyOf":  [
+                                                                                                       {
+                                                                                                           "type":  "integer"
+                                                                                                       },
+                                                                                                       {
+                                                                                                           "type":  "null"
+                                                                                                       }
+                                                                                                   ],
+                                                                                         "description":  "Filter by region type (1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override)",
+                                                                                         "title":  "Region Type"
+                                                                                     },
+                                                                          "description":  "Filter by region type (1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override)"
+                                                                      },
+                                                                      {
+                                                                          "name":  "zone_vnum",
+                                                                          "in":  "query",
+                                                                          "required":  false,
+                                                                          "schema":  {
+                                                                                         "anyOf":  [
+                                                                                                       {
+                                                                                                           "type":  "integer"
+                                                                                                       },
+                                                                                                       {
+                                                                                                           "type":  "null"
+                                                                                                       }
+                                                                                                   ],
+                                                                                         "description":  "Filter by zone vnum",
+                                                                                         "title":  "Zone Vnum"
+                                                                                     },
+                                                                          "description":  "Filter by zone vnum"
+                                                                      }
+                                                                  ],
+                                                   "responses":  {
+                                                                     "200":  {
+                                                                                 "description":  "Successful Response",
+                                                                                 "content":  {
+                                                                                                 "application/json":  {
+                                                                                                                          "schema":  {
+                                                                                                                                         "type":  "array",
+                                                                                                                                         "items":  {
+                                                                                                                                                       "$ref":  "#/components/schemas/RegionResponse"
+                                                                                                                                                   },
+                                                                                                                                         "title":  "Response Get Regions Api Regions Get"
+                                                                                                                                     }
+                                                                                                                      }
+                                                                                             }
+                                                                             },
+                                                                     "422":  {
+                                                                                 "description":  "Validation Error",
+                                                                                 "content":  {
+                                                                                                 "application/json":  {
+                                                                                                                          "schema":  {
+                                                                                                                                         "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                     }
+                                                                                                                      }
+                                                                                             }
+                                                                             }
+                                                                 }
+                                               }
+                                   },
+                  "/api/regions/types":  {
+                                             "get":  {
+                                                         "tags":  [
+                                                                      "Regions"
+                                                                  ],
+                                                         "summary":  "Get Region Types",
+                                                         "description":  "Get all available region types and sector types for the wilderness system.\n\nReturns complete information about how each region type affects terrain generation\nand the valid sector types for REGION_SECTOR regions.",
+                                                         "operationId":  "get_region_types_api_regions_types_get",
+                                                         "responses":  {
+                                                                           "200":  {
+                                                                                       "description":  "Successful Response",
+                                                                                       "content":  {
+                                                                                                       "application/json":  {
+                                                                                                                                "schema":  {
+                                                                                                                                               "additionalProperties":  true,
+                                                                                                                                               "type":  "object",
+                                                                                                                                               "title":  "Response Get Region Types Api Regions Types Get"
+                                                                                                                                           }
+                                                                                                                            }
+                                                                                                   }
+                                                                                   }
+                                                                       }
+                                                     }
+                                         },
+                  "/api/regions/{vnum}":  {
+                                              "get":  {
+                                                          "tags":  [
+                                                                       "Regions"
+                                                                   ],
+                                                          "summary":  "Get Region",
+                                                          "description":  "Get a specific region by vnum",
+                                                          "operationId":  "get_region_api_regions__vnum__get",
+                                                          "parameters":  [
+                                                                             {
+                                                                                 "name":  "vnum",
+                                                                                 "in":  "path",
+                                                                                 "required":  true,
+                                                                                 "schema":  {
+                                                                                                "type":  "integer",
+                                                                                                "title":  "Vnum"
+                                                                                            }
+                                                                             }
+                                                                         ],
+                                                          "responses":  {
+                                                                            "200":  {
+                                                                                        "description":  "Successful Response",
+                                                                                        "content":  {
+                                                                                                        "application/json":  {
+                                                                                                                                 "schema":  {
+                                                                                                                                                "$ref":  "#/components/schemas/RegionResponse"
+                                                                                                                                            }
+                                                                                                                             }
+                                                                                                    }
+                                                                                    },
+                                                                            "422":  {
+                                                                                        "description":  "Validation Error",
+                                                                                        "content":  {
+                                                                                                        "application/json":  {
+                                                                                                                                 "schema":  {
+                                                                                                                                                "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                            }
+                                                                                                                             }
+                                                                                                    }
+                                                                                    }
+                                                                        }
+                                                      },
+                                              "put":  {
+                                                          "tags":  [
+                                                                       "Regions"
+                                                                   ],
+                                                          "summary":  "Update Region",
+                                                          "description":  "Update an existing region",
+                                                          "operationId":  "update_region_api_regions__vnum__put",
+                                                          "security":  [
+                                                                           {
+                                                                               "HTTPBearer":  [
+
+                                                                                              ]
+                                                                           }
+                                                                       ],
+                                                          "parameters":  [
+                                                                             {
+                                                                                 "name":  "vnum",
+                                                                                 "in":  "path",
+                                                                                 "required":  true,
+                                                                                 "schema":  {
+                                                                                                "type":  "integer",
+                                                                                                "title":  "Vnum"
+                                                                                            }
+                                                                             }
+                                                                         ],
+                                                          "requestBody":  {
+                                                                              "required":  true,
+                                                                              "content":  {
+                                                                                              "application/json":  {
+                                                                                                                       "schema":  {
+                                                                                                                                      "$ref":  "#/components/schemas/RegionUpdate"
+                                                                                                                                  }
+                                                                                                                   }
+                                                                                          }
+                                                                          },
+                                                          "responses":  {
+                                                                            "200":  {
+                                                                                        "description":  "Successful Response",
+                                                                                        "content":  {
+                                                                                                        "application/json":  {
+                                                                                                                                 "schema":  {
+                                                                                                                                                "$ref":  "#/components/schemas/RegionResponse"
+                                                                                                                                            }
+                                                                                                                             }
+                                                                                                    }
+                                                                                    },
+                                                                            "422":  {
+                                                                                        "description":  "Validation Error",
+                                                                                        "content":  {
+                                                                                                        "application/json":  {
+                                                                                                                                 "schema":  {
+                                                                                                                                                "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                            }
+                                                                                                                             }
+                                                                                                    }
+                                                                                    }
+                                                                        }
+                                                      },
+                                              "delete":  {
+                                                             "tags":  [
+                                                                          "Regions"
+                                                                      ],
+                                                             "summary":  "Delete Region",
+                                                             "description":  "Delete a region",
+                                                             "operationId":  "delete_region_api_regions__vnum__delete",
+                                                             "security":  [
+                                                                              {
+                                                                                  "HTTPBearer":  [
+
+                                                                                                 ]
+                                                                              }
+                                                                          ],
+                                                             "parameters":  [
+                                                                                {
+                                                                                    "name":  "vnum",
+                                                                                    "in":  "path",
+                                                                                    "required":  true,
+                                                                                    "schema":  {
+                                                                                                   "type":  "integer",
+                                                                                                   "title":  "Vnum"
+                                                                                               }
+                                                                                }
+                                                                            ],
+                                                             "responses":  {
+                                                                               "204":  {
+                                                                                           "description":  "Successful Response"
+                                                                                       },
+                                                                               "422":  {
+                                                                                           "description":  "Validation Error",
+                                                                                           "content":  {
+                                                                                                           "application/json":  {
+                                                                                                                                    "schema":  {
+                                                                                                                                                   "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                               }
+                                                                                                                                }
+                                                                                                       }
+                                                                                       }
+                                                                           }
+                                                         }
+                                          },
+                  "/api/regions/landmarks":  {
+                                                 "post":  {
+                                                              "tags":  [
+                                                                           "Regions"
+                                                                       ],
+                                                              "summary":  "Create Landmark",
+                                                              "description":  "Create a landmark/point as a small geographic region.\n\nLandmarks are single-point geographic regions used by the dynamic description \nengine to provide contextual references for room descriptions. Common examples\ninclude city gates, notable buildings, geographical features, and other points\nof interest that help generate more immersive wilderness descriptions.\n\nThis creates a small square polygon around the specified coordinate.",
+                                                              "operationId":  "create_landmark_api_regions_landmarks_post",
+                                                              "security":  [
+                                                                               {
+                                                                                   "HTTPBearer":  [
+
+                                                                                                  ]
+                                                                               }
+                                                                           ],
+                                                              "parameters":  [
+                                                                                 {
+                                                                                     "name":  "x",
+                                                                                     "in":  "query",
+                                                                                     "required":  true,
+                                                                                     "schema":  {
+                                                                                                    "type":  "number",
+                                                                                                    "description":  "X coordinate for the landmark",
+                                                                                                    "title":  "X"
+                                                                                                },
+                                                                                     "description":  "X coordinate for the landmark"
+                                                                                 },
+                                                                                 {
+                                                                                     "name":  "y",
+                                                                                     "in":  "query",
+                                                                                     "required":  true,
+                                                                                     "schema":  {
+                                                                                                    "type":  "number",
+                                                                                                    "description":  "Y coordinate for the landmark",
+                                                                                                    "title":  "Y"
+                                                                                                },
+                                                                                     "description":  "Y coordinate for the landmark"
+                                                                                 },
+                                                                                 {
+                                                                                     "name":  "name",
+                                                                                     "in":  "query",
+                                                                                     "required":  true,
+                                                                                     "schema":  {
+                                                                                                    "type":  "string",
+                                                                                                    "description":  "Name of the landmark",
+                                                                                                    "title":  "Name"
+                                                                                                },
+                                                                                     "description":  "Name of the landmark"
+                                                                                 },
+                                                                                 {
+                                                                                     "name":  "vnum",
+                                                                                     "in":  "query",
+                                                                                     "required":  true,
+                                                                                     "schema":  {
+                                                                                                    "type":  "integer",
+                                                                                                    "description":  "Unique vnum for the landmark",
+                                                                                                    "title":  "Vnum"
+                                                                                                },
+                                                                                     "description":  "Unique vnum for the landmark"
+                                                                                 },
+                                                                                 {
+                                                                                     "name":  "zone_vnum",
+                                                                                     "in":  "query",
+                                                                                     "required":  true,
+                                                                                     "schema":  {
+                                                                                                    "type":  "integer",
+                                                                                                    "description":  "Zone vnum for the landmark",
+                                                                                                    "title":  "Zone Vnum"
+                                                                                                },
+                                                                                     "description":  "Zone vnum for the landmark"
+                                                                                 },
+                                                                                 {
+                                                                                     "name":  "radius",
+                                                                                     "in":  "query",
+                                                                                     "required":  false,
+                                                                                     "schema":  {
+                                                                                                    "anyOf":  [
+                                                                                                                  {
+                                                                                                                      "type":  "number"
+                                                                                                                  },
+                                                                                                                  {
+                                                                                                                      "type":  "null"
+                                                                                                                  }
+                                                                                                              ],
+                                                                                                    "description":  "Radius around the point (default 0.2)",
+                                                                                                    "default":  0.2,
+                                                                                                    "title":  "Radius"
+                                                                                                },
+                                                                                     "description":  "Radius around the point (default 0.2)"
+                                                                                 }
+                                                                             ],
+                                                              "responses":  {
+                                                                                "201":  {
+                                                                                            "description":  "Successful Response",
+                                                                                            "content":  {
+                                                                                                            "application/json":  {
+                                                                                                                                     "schema":  {
+                                                                                                                                                    "$ref":  "#/components/schemas/RegionResponse"
+                                                                                                                                                }
+                                                                                                                                 }
+                                                                                                        }
+                                                                                        },
+                                                                                "422":  {
+                                                                                            "description":  "Validation Error",
+                                                                                            "content":  {
+                                                                                                            "application/json":  {
+                                                                                                                                     "schema":  {
+                                                                                                                                                    "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                                }
+                                                                                                                                 }
+                                                                                                        }
+                                                                                        }
+                                                                            }
+                                                          }
+                                             },
+                  "/api/paths/":  {
+                                      "get":  {
+                                                  "tags":  [
+                                                               "Paths"
+                                                           ],
+                                                  "summary":  "Get Paths",
+                                                  "description":  "Get all paths, optionally filtered by type or zone.\n\nPaths are linear features that override terrain and provide navigation routes:\n\n- **PATH_ROAD (1)**: Paved roads - High-speed travel routes, typically use road sectors (11,12,13)\n- **PATH_DIRT_ROAD (2)**: Dirt roads - Standard travel routes, typically use dirt road sectors (26,27,28)\n- **PATH_GEOGRAPHIC (3)**: Geographic features - Natural linear formations like ridges or valleys\n- **PATH_RIVER (5)**: Rivers - Major waterways, typically use water sectors (6,7,36)\n- **PATH_STREAM (6)**: Streams - Minor waterways, typically use shallow water sectors (6,36)\n\n**Processing Order**: Paths are processed AFTER regions during terrain generation and can override region effects.\nEach path applies its path_props sector type along the linestring route, replacing the underlying terrain.\n\n**Visual System**: Paths use orientation-based glyphs (NS, EW, Intersection) for wilderness map display.",
+                                                  "operationId":  "get_paths_api_paths__get",
+                                                  "parameters":  [
+                                                                     {
+                                                                         "name":  "path_type",
+                                                                         "in":  "query",
+                                                                         "required":  false,
+                                                                         "schema":  {
+                                                                                        "anyOf":  [
+                                                                                                      {
+                                                                                                          "type":  "integer"
+                                                                                                      },
+                                                                                                      {
+                                                                                                          "type":  "null"
+                                                                                                      }
+                                                                                                  ],
+                                                                                        "description":  "Filter by path type (1=Road, 2=Dirt Road, 3=Geographic, 5=River, 6=Stream)",
+                                                                                        "title":  "Path Type"
+                                                                                    },
+                                                                         "description":  "Filter by path type (1=Road, 2=Dirt Road, 3=Geographic, 5=River, 6=Stream)"
+                                                                     },
+                                                                     {
+                                                                         "name":  "zone_vnum",
+                                                                         "in":  "query",
+                                                                         "required":  false,
+                                                                         "schema":  {
+                                                                                        "anyOf":  [
+                                                                                                      {
+                                                                                                          "type":  "integer"
+                                                                                                      },
+                                                                                                      {
+                                                                                                          "type":  "null"
+                                                                                                      }
+                                                                                                  ],
+                                                                                        "description":  "Filter by zone vnum",
+                                                                                        "title":  "Zone Vnum"
+                                                                                    },
+                                                                         "description":  "Filter by zone vnum"
+                                                                     }
+                                                                 ],
+                                                  "responses":  {
+                                                                    "200":  {
+                                                                                "description":  "Successful Response",
+                                                                                "content":  {
+                                                                                                "application/json":  {
+                                                                                                                         "schema":  {
+                                                                                                                                        "type":  "array",
+                                                                                                                                        "items":  {
+                                                                                                                                                      "$ref":  "#/components/schemas/PathResponse"
+                                                                                                                                                  },
+                                                                                                                                        "title":  "Response Get Paths Api Paths  Get"
+                                                                                                                                    }
+                                                                                                                     }
+                                                                                            }
+                                                                            },
+                                                                    "422":  {
+                                                                                "description":  "Validation Error",
+                                                                                "content":  {
+                                                                                                "application/json":  {
+                                                                                                                         "schema":  {
+                                                                                                                                        "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                    }
+                                                                                                                     }
+                                                                                            }
+                                                                            }
+                                                                }
+                                              },
+                                      "post":  {
+                                                   "tags":  [
+                                                                "Paths"
+                                                            ],
+                                                   "summary":  "Create Path",
+                                                   "description":  "Create a new path.\n\nPaths represent linear features that override terrain during wilderness generation:\n\n**PATH_ROAD (1)**: Paved roads for fast travel\n- path_props: Road sector type (typically 11=NS, 12=EW, 13=Intersection)\n- Examples: \"King\u0027s Highway\", \"Trade Route\", \"Military Road\"\n\n**PATH_DIRT_ROAD (2)**: Unpaved roads for rural areas  \n- path_props: Dirt road sector type (typically 26=NS, 27=EW, 28=Intersection)\n- Examples: \"Village Path\", \"Farm Road\", \"Logging Trail\"\n\n**PATH_GEOGRAPHIC (3)**: Natural linear features\n- path_props: Appropriate terrain sector for the feature\n- Examples: \"Mountain Ridge\", \"Valley Floor\", \"Cliff Edge\"\n\n**PATH_RIVER (5)**: Major waterways\n- path_props: Water sector type (typically 6=Swim, 7=Deep, 36=River)\n- Examples: \"Great River\", \"Rapids\", \"Mighty Current\"\n\n**PATH_STREAM (6)**: Minor waterways\n- path_props: Shallow water sector (typically 6=Swim, 36=River)\n- Examples: \"Mountain Stream\", \"Creek\", \"Brook\"\n\n**Game Integration**: Paths are processed after regions and override their effects.\nThe linestring geometry is used for efficient spatial queries to determine path intersections.\nVisual glyphs are automatically selected based on path orientation at each coordinate.",
+                                                   "operationId":  "create_path_api_paths__post",
+                                                   "security":  [
+                                                                    {
+                                                                        "HTTPBearer":  [
+
+                                                                                       ]
+                                                                    }
+                                                                ],
+                                                   "requestBody":  {
+                                                                       "required":  true,
+                                                                       "content":  {
+                                                                                       "application/json":  {
+                                                                                                                "schema":  {
+                                                                                                                               "$ref":  "#/components/schemas/PathCreate"
+                                                                                                                           }
+                                                                                                            }
+                                                                                   }
+                                                                   },
+                                                   "responses":  {
+                                                                     "201":  {
+                                                                                 "description":  "Successful Response",
+                                                                                 "content":  {
+                                                                                                 "application/json":  {
+                                                                                                                          "schema":  {
+                                                                                                                                         "$ref":  "#/components/schemas/PathResponse"
+                                                                                                                                     }
+                                                                                                                      }
+                                                                                             }
+                                                                             },
+                                                                     "422":  {
+                                                                                 "description":  "Validation Error",
+                                                                                 "content":  {
+                                                                                                 "application/json":  {
+                                                                                                                          "schema":  {
+                                                                                                                                         "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                     }
+                                                                                                                      }
+                                                                                             }
+                                                                             }
+                                                                 }
+                                               }
+                                  },
+                  "/api/paths":  {
+                                     "get":  {
+                                                 "tags":  [
+                                                              "Paths"
+                                                          ],
+                                                 "summary":  "Get Paths",
+                                                 "description":  "Get all paths, optionally filtered by type or zone.\n\nPaths are linear features that override terrain and provide navigation routes:\n\n- **PATH_ROAD (1)**: Paved roads - High-speed travel routes, typically use road sectors (11,12,13)\n- **PATH_DIRT_ROAD (2)**: Dirt roads - Standard travel routes, typically use dirt road sectors (26,27,28)\n- **PATH_GEOGRAPHIC (3)**: Geographic features - Natural linear formations like ridges or valleys\n- **PATH_RIVER (5)**: Rivers - Major waterways, typically use water sectors (6,7,36)\n- **PATH_STREAM (6)**: Streams - Minor waterways, typically use shallow water sectors (6,36)\n\n**Processing Order**: Paths are processed AFTER regions during terrain generation and can override region effects.\nEach path applies its path_props sector type along the linestring route, replacing the underlying terrain.\n\n**Visual System**: Paths use orientation-based glyphs (NS, EW, Intersection) for wilderness map display.",
+                                                 "operationId":  "get_paths_api_paths_get",
+                                                 "parameters":  [
+                                                                    {
+                                                                        "name":  "path_type",
+                                                                        "in":  "query",
+                                                                        "required":  false,
+                                                                        "schema":  {
+                                                                                       "anyOf":  [
+                                                                                                     {
+                                                                                                         "type":  "integer"
+                                                                                                     },
+                                                                                                     {
+                                                                                                         "type":  "null"
+                                                                                                     }
+                                                                                                 ],
+                                                                                       "description":  "Filter by path type (1=Road, 2=Dirt Road, 3=Geographic, 5=River, 6=Stream)",
+                                                                                       "title":  "Path Type"
+                                                                                   },
+                                                                        "description":  "Filter by path type (1=Road, 2=Dirt Road, 3=Geographic, 5=River, 6=Stream)"
+                                                                    },
+                                                                    {
+                                                                        "name":  "zone_vnum",
+                                                                        "in":  "query",
+                                                                        "required":  false,
+                                                                        "schema":  {
+                                                                                       "anyOf":  [
+                                                                                                     {
+                                                                                                         "type":  "integer"
+                                                                                                     },
+                                                                                                     {
+                                                                                                         "type":  "null"
+                                                                                                     }
+                                                                                                 ],
+                                                                                       "description":  "Filter by zone vnum",
+                                                                                       "title":  "Zone Vnum"
+                                                                                   },
+                                                                        "description":  "Filter by zone vnum"
+                                                                    }
+                                                                ],
+                                                 "responses":  {
+                                                                   "200":  {
+                                                                               "description":  "Successful Response",
+                                                                               "content":  {
+                                                                                               "application/json":  {
+                                                                                                                        "schema":  {
+                                                                                                                                       "type":  "array",
+                                                                                                                                       "items":  {
+                                                                                                                                                     "$ref":  "#/components/schemas/PathResponse"
+                                                                                                                                                 },
+                                                                                                                                       "title":  "Response Get Paths Api Paths Get"
+                                                                                                                                   }
+                                                                                                                    }
+                                                                                           }
+                                                                           },
+                                                                   "422":  {
+                                                                               "description":  "Validation Error",
+                                                                               "content":  {
+                                                                                               "application/json":  {
+                                                                                                                        "schema":  {
+                                                                                                                                       "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                   }
+                                                                                                                    }
+                                                                                           }
+                                                                           }
+                                                               }
+                                             }
+                                 },
+                  "/api/paths/types":  {
+                                           "get":  {
+                                                       "tags":  [
+                                                                    "Paths"
+                                                                ],
+                                                       "summary":  "Get Path Types",
+                                                       "description":  "Get all available path types and sector mappings for the wilderness system.\n\nReturns complete information about path types, their typical sector usage,\nand how they integrate with the terrain generation system.",
+                                                       "operationId":  "get_path_types_api_paths_types_get",
+                                                       "responses":  {
+                                                                         "200":  {
+                                                                                     "description":  "Successful Response",
+                                                                                     "content":  {
+                                                                                                     "application/json":  {
+                                                                                                                              "schema":  {
+                                                                                                                                             "additionalProperties":  true,
+                                                                                                                                             "type":  "object",
+                                                                                                                                             "title":  "Response Get Path Types Api Paths Types Get"
+                                                                                                                                         }
+                                                                                                                          }
+                                                                                                 }
+                                                                                 }
+                                                                     }
+                                                   }
+                                       },
+                  "/api/paths/{vnum}":  {
+                                            "get":  {
+                                                        "tags":  [
+                                                                     "Paths"
+                                                                 ],
+                                                        "summary":  "Get Path",
+                                                        "description":  "Get a specific path by vnum.\n\nArgs:\n    vnum: Unique path identifier (primary key)",
+                                                        "operationId":  "get_path_api_paths__vnum__get",
+                                                        "parameters":  [
+                                                                           {
+                                                                               "name":  "vnum",
+                                                                               "in":  "path",
+                                                                               "required":  true,
+                                                                               "schema":  {
+                                                                                              "type":  "integer",
+                                                                                              "title":  "Vnum"
+                                                                                          }
+                                                                           }
+                                                                       ],
+                                                        "responses":  {
+                                                                          "200":  {
+                                                                                      "description":  "Successful Response",
+                                                                                      "content":  {
+                                                                                                      "application/json":  {
+                                                                                                                               "schema":  {
+                                                                                                                                              "$ref":  "#/components/schemas/PathResponse"
+                                                                                                                                          }
+                                                                                                                           }
+                                                                                                  }
+                                                                                  },
+                                                                          "422":  {
+                                                                                      "description":  "Validation Error",
+                                                                                      "content":  {
+                                                                                                      "application/json":  {
+                                                                                                                               "schema":  {
+                                                                                                                                              "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                          }
+                                                                                                                           }
+                                                                                                  }
+                                                                                  }
+                                                                      }
+                                                    },
+                                            "put":  {
+                                                        "tags":  [
+                                                                     "Paths"
+                                                                 ],
+                                                        "summary":  "Update Path",
+                                                        "description":  "Update an existing path.\n\nSupports partial updates - only provided fields will be modified.\nCoordinate updates will regenerate the spatial LINESTRING geometry.",
+                                                        "operationId":  "update_path_api_paths__vnum__put",
+                                                        "security":  [
+                                                                         {
+                                                                             "HTTPBearer":  [
+
+                                                                                            ]
+                                                                         }
+                                                                     ],
+                                                        "parameters":  [
+                                                                           {
+                                                                               "name":  "vnum",
+                                                                               "in":  "path",
+                                                                               "required":  true,
+                                                                               "schema":  {
+                                                                                              "type":  "integer",
+                                                                                              "title":  "Vnum"
+                                                                                          }
+                                                                           }
+                                                                       ],
+                                                        "requestBody":  {
+                                                                            "required":  true,
+                                                                            "content":  {
+                                                                                            "application/json":  {
+                                                                                                                     "schema":  {
+                                                                                                                                    "$ref":  "#/components/schemas/PathUpdate"
+                                                                                                                                }
+                                                                                                                 }
+                                                                                        }
+                                                                        },
+                                                        "responses":  {
+                                                                          "200":  {
+                                                                                      "description":  "Successful Response",
+                                                                                      "content":  {
+                                                                                                      "application/json":  {
+                                                                                                                               "schema":  {
+                                                                                                                                              "$ref":  "#/components/schemas/PathResponse"
+                                                                                                                                          }
+                                                                                                                           }
+                                                                                                  }
+                                                                                  },
+                                                                          "422":  {
+                                                                                      "description":  "Validation Error",
+                                                                                      "content":  {
+                                                                                                      "application/json":  {
+                                                                                                                               "schema":  {
+                                                                                                                                              "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                          }
+                                                                                                                           }
+                                                                                                  }
+                                                                                  }
+                                                                      }
+                                                    },
+                                            "delete":  {
+                                                           "tags":  [
+                                                                        "Paths"
+                                                                    ],
+                                                           "summary":  "Delete Path",
+                                                           "description":  "Delete a path.\n\nWarning: This will permanently remove the path from the wilderness system.\nAny references to this path in the game world will need to be updated separately.",
+                                                           "operationId":  "delete_path_api_paths__vnum__delete",
+                                                           "security":  [
+                                                                            {
+                                                                                "HTTPBearer":  [
+
+                                                                                               ]
+                                                                            }
+                                                                        ],
+                                                           "parameters":  [
+                                                                              {
+                                                                                  "name":  "vnum",
+                                                                                  "in":  "path",
+                                                                                  "required":  true,
+                                                                                  "schema":  {
+                                                                                                 "type":  "integer",
+                                                                                                 "title":  "Vnum"
+                                                                                             }
+                                                                              }
+                                                                          ],
+                                                           "responses":  {
+                                                                             "204":  {
+                                                                                         "description":  "Successful Response"
+                                                                                     },
+                                                                             "422":  {
+                                                                                         "description":  "Validation Error",
+                                                                                         "content":  {
+                                                                                                         "application/json":  {
+                                                                                                                                  "schema":  {
+                                                                                                                                                 "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                             }
+                                                                                                                              }
+                                                                                                     }
+                                                                                     }
+                                                                         }
+                                                       }
+                                        },
+                  "/api/points/":  {
+                                       "get":  {
+                                                   "tags":  [
+                                                                "Points"
+                                                            ],
+                                                   "summary":  "Get Point Info",
+                                                   "description":  "Get information about what regions and paths exist at or near a specific coordinate point.\nThis is useful for finding what\u0027s at a specific location on the map.",
+                                                   "operationId":  "get_point_info_api_points__get",
+                                                   "parameters":  [
+                                                                      {
+                                                                          "name":  "x",
+                                                                          "in":  "query",
+                                                                          "required":  true,
+                                                                          "schema":  {
+                                                                                         "type":  "number",
+                                                                                         "description":  "X coordinate",
+                                                                                         "title":  "X"
+                                                                                     },
+                                                                          "description":  "X coordinate"
+                                                                      },
+                                                                      {
+                                                                          "name":  "y",
+                                                                          "in":  "query",
+                                                                          "required":  true,
+                                                                          "schema":  {
+                                                                                         "type":  "number",
+                                                                                         "description":  "Y coordinate",
+                                                                                         "title":  "Y"
+                                                                                     },
+                                                                          "description":  "Y coordinate"
+                                                                      },
+                                                                      {
+                                                                          "name":  "radius",
+                                                                          "in":  "query",
+                                                                          "required":  false,
+                                                                          "schema":  {
+                                                                                         "anyOf":  [
+                                                                                                       {
+                                                                                                           "type":  "number"
+                                                                                                       },
+                                                                                                       {
+                                                                                                           "type":  "null"
+                                                                                                       }
+                                                                                                   ],
+                                                                                         "description":  "Search radius around the point",
+                                                                                         "default":  0.1,
+                                                                                         "title":  "Radius"
+                                                                                     },
+                                                                          "description":  "Search radius around the point"
+                                                                      }
+                                                                  ],
+                                                   "responses":  {
+                                                                     "200":  {
+                                                                                 "description":  "Successful Response",
+                                                                                 "content":  {
+                                                                                                 "application/json":  {
+                                                                                                                          "schema":  {
+                                                                                                                                         "type":  "object",
+                                                                                                                                         "additionalProperties":  true,
+                                                                                                                                         "title":  "Response Get Point Info Api Points  Get"
+                                                                                                                                     }
+                                                                                                                      }
+                                                                                             }
+                                                                             },
+                                                                     "422":  {
+                                                                                 "description":  "Validation Error",
+                                                                                 "content":  {
+                                                                                                 "application/json":  {
+                                                                                                                          "schema":  {
+                                                                                                                                         "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                     }
+                                                                                                                      }
+                                                                                             }
+                                                                             }
+                                                                 }
+                                               }
+                                   },
+                  "/api/points":  {
+                                      "get":  {
+                                                  "tags":  [
+                                                               "Points"
+                                                           ],
+                                                  "summary":  "Get Point Info",
+                                                  "description":  "Get information about what regions and paths exist at or near a specific coordinate point.\nThis is useful for finding what\u0027s at a specific location on the map.",
+                                                  "operationId":  "get_point_info_api_points_get",
+                                                  "parameters":  [
+                                                                     {
+                                                                         "name":  "x",
+                                                                         "in":  "query",
+                                                                         "required":  true,
+                                                                         "schema":  {
+                                                                                        "type":  "number",
+                                                                                        "description":  "X coordinate",
+                                                                                        "title":  "X"
+                                                                                    },
+                                                                         "description":  "X coordinate"
+                                                                     },
+                                                                     {
+                                                                         "name":  "y",
+                                                                         "in":  "query",
+                                                                         "required":  true,
+                                                                         "schema":  {
+                                                                                        "type":  "number",
+                                                                                        "description":  "Y coordinate",
+                                                                                        "title":  "Y"
+                                                                                    },
+                                                                         "description":  "Y coordinate"
+                                                                     },
+                                                                     {
+                                                                         "name":  "radius",
+                                                                         "in":  "query",
+                                                                         "required":  false,
+                                                                         "schema":  {
+                                                                                        "anyOf":  [
+                                                                                                      {
+                                                                                                          "type":  "number"
+                                                                                                      },
+                                                                                                      {
+                                                                                                          "type":  "null"
+                                                                                                      }
+                                                                                                  ],
+                                                                                        "description":  "Search radius around the point",
+                                                                                        "default":  0.1,
+                                                                                        "title":  "Radius"
+                                                                                    },
+                                                                         "description":  "Search radius around the point"
+                                                                     }
+                                                                 ],
+                                                  "responses":  {
+                                                                    "200":  {
+                                                                                "description":  "Successful Response",
+                                                                                "content":  {
+                                                                                                "application/json":  {
+                                                                                                                         "schema":  {
+                                                                                                                                        "type":  "object",
+                                                                                                                                        "additionalProperties":  true,
+                                                                                                                                        "title":  "Response Get Point Info Api Points Get"
+                                                                                                                                    }
+                                                                                                                     }
+                                                                                            }
+                                                                            },
+                                                                    "422":  {
+                                                                                "description":  "Validation Error",
+                                                                                "content":  {
+                                                                                                "application/json":  {
+                                                                                                                         "schema":  {
+                                                                                                                                        "$ref":  "#/components/schemas/HTTPValidationError"
+                                                                                                                                    }
+                                                                                                                     }
+                                                                                            }
+                                                                            }
+                                                                }
+                                              }
+                                  },
+                  "/api/health":  {
+                                      "get":  {
+                                                  "summary":  "Health Check",
+                                                  "description":  "Health check endpoint",
+                                                  "operationId":  "health_check_api_health_get",
+                                                  "responses":  {
+                                                                    "200":  {
+                                                                                "description":  "Successful Response",
+                                                                                "content":  {
+                                                                                                "application/json":  {
+                                                                                                                         "schema":  {
+
+                                                                                                                                    }
+                                                                                                                     }
+                                                                                            }
+                                                                            }
+                                                                }
+                                              }
+                                  },
+                  "/api/auth/status":  {
+                                           "get":  {
+                                                       "summary":  "Auth Status",
+                                                       "description":  "Check authentication status",
+                                                       "operationId":  "auth_status_api_auth_status_get",
+                                                       "responses":  {
+                                                                         "200":  {
+                                                                                     "description":  "Successful Response",
+                                                                                     "content":  {
+                                                                                                     "application/json":  {
+                                                                                                                              "schema":  {
+
+                                                                                                                                         }
+                                                                                                                          }
+                                                                                                 }
+                                                                                 }
+                                                                     },
+                                                       "security":  [
+                                                                        {
+                                                                            "HTTPBearer":  [
+
+                                                                                           ]
+                                                                        }
+                                                                    ]
+                                                   }
+                                       },
+                  "/":  {
+                            "get":  {
+                                        "summary":  "Root",
+                                        "description":  "Root endpoint",
+                                        "operationId":  "root__get",
+                                        "responses":  {
+                                                          "200":  {
+                                                                      "description":  "Successful Response",
+                                                                      "content":  {
+                                                                                      "application/json":  {
+                                                                                                               "schema":  {
+
+                                                                                                                          }
+                                                                                                           }
+                                                                                  }
+                                                                  }
+                                                      }
+                                    }
+                        }
+              },
+    "components":  {
+                       "schemas":  {
+                                       "HTTPValidationError":  {
+                                                                   "properties":  {
+                                                                                      "detail":  {
+                                                                                                     "items":  {
+                                                                                                                   "$ref":  "#/components/schemas/ValidationError"
+                                                                                                               },
+                                                                                                     "type":  "array",
+                                                                                                     "title":  "Detail"
+                                                                                                 }
+                                                                                  },
+                                                                   "type":  "object",
+                                                                   "title":  "HTTPValidationError"
+                                                               },
+                                       "PathCreate":  {
+                                                          "properties":  {
+                                                                             "vnum":  {
+                                                                                          "type":  "integer",
+                                                                                          "title":  "Vnum"
+                                                                                      },
+                                                                             "zone_vnum":  {
+                                                                                               "type":  "integer",
+                                                                                               "title":  "Zone Vnum"
+                                                                                           },
+                                                                             "name":  {
+                                                                                          "type":  "string",
+                                                                                          "title":  "Name"
+                                                                                      },
+                                                                             "path_type":  {
+                                                                                               "type":  "integer",
+                                                                                               "title":  "Path Type"
+                                                                                           },
+                                                                             "coordinates":  {
+                                                                                                 "items":  {
+                                                                                                               "additionalProperties":  {
+                                                                                                                                            "type":  "number"
+                                                                                                                                        },
+                                                                                                               "type":  "object"
+                                                                                                           },
+                                                                                                 "type":  "array",
+                                                                                                 "title":  "Coordinates"
+                                                                                             },
+                                                                             "path_props":  {
+                                                                                                "anyOf":  [
+                                                                                                              {
+                                                                                                                  "type":  "integer"
+                                                                                                              },
+                                                                                                              {
+                                                                                                                  "type":  "null"
+                                                                                                              }
+                                                                                                          ],
+                                                                                                "title":  "Path Props",
+                                                                                                "default":  0
+                                                                                            }
+                                                                         },
+                                                          "type":  "object",
+                                                          "required":  [
+                                                                           "vnum",
+                                                                           "zone_vnum",
+                                                                           "name",
+                                                                           "path_type",
+                                                                           "coordinates"
+                                                                       ],
+                                                          "title":  "PathCreate",
+                                                          "description":  "Schema for creating new paths"
+                                                      },
+                                       "PathResponse":  {
+                                                            "properties":  {
+                                                                               "vnum":  {
+                                                                                            "type":  "integer",
+                                                                                            "title":  "Vnum"
+                                                                                        },
+                                                                               "zone_vnum":  {
+                                                                                                 "type":  "integer",
+                                                                                                 "title":  "Zone Vnum"
+                                                                                             },
+                                                                               "name":  {
+                                                                                            "type":  "string",
+                                                                                            "title":  "Name"
+                                                                                        },
+                                                                               "path_type":  {
+                                                                                                 "type":  "integer",
+                                                                                                 "title":  "Path Type"
+                                                                                             },
+                                                                               "coordinates":  {
+                                                                                                   "items":  {
+                                                                                                                 "additionalProperties":  {
+                                                                                                                                              "type":  "number"
+                                                                                                                                          },
+                                                                                                                 "type":  "object"
+                                                                                                             },
+                                                                                                   "type":  "array",
+                                                                                                   "title":  "Coordinates"
+                                                                                               },
+                                                                               "path_props":  {
+                                                                                                  "anyOf":  [
+                                                                                                                {
+                                                                                                                    "type":  "integer"
+                                                                                                                },
+                                                                                                                {
+                                                                                                                    "type":  "null"
+                                                                                                                }
+                                                                                                            ],
+                                                                                                  "title":  "Path Props",
+                                                                                                  "default":  0
+                                                                                              },
+                                                                               "path_type_name":  {
+                                                                                                      "anyOf":  [
+                                                                                                                    {
+                                                                                                                        "type":  "string"
+                                                                                                                    },
+                                                                                                                    {
+                                                                                                                        "type":  "null"
+                                                                                                                    }
+                                                                                                                ],
+                                                                                                      "title":  "Path Type Name"
+                                                                                                  }
+                                                                           },
+                                                            "type":  "object",
+                                                            "required":  [
+                                                                             "vnum",
+                                                                             "zone_vnum",
+                                                                             "name",
+                                                                             "path_type",
+                                                                             "coordinates"
+                                                                         ],
+                                                            "title":  "PathResponse",
+                                                            "description":  "Response schema for path data with additional computed fields.\nIncludes human-readable type names for frontend display.\n\nNote: Real database doesn\u0027t have created_at/updated_at fields."
+                                                        },
+                                       "PathUpdate":  {
+                                                          "properties":  {
+                                                                             "vnum":  {
+                                                                                          "anyOf":  [
+                                                                                                        {
+                                                                                                            "type":  "integer"
+                                                                                                        },
+                                                                                                        {
+                                                                                                            "type":  "null"
+                                                                                                        }
+                                                                                                    ],
+                                                                                          "title":  "Vnum"
+                                                                                      },
+                                                                             "zone_vnum":  {
+                                                                                               "anyOf":  [
+                                                                                                             {
+                                                                                                                 "type":  "integer"
+                                                                                                             },
+                                                                                                             {
+                                                                                                                 "type":  "null"
+                                                                                                             }
+                                                                                                         ],
+                                                                                               "title":  "Zone Vnum"
+                                                                                           },
+                                                                             "name":  {
+                                                                                          "anyOf":  [
+                                                                                                        {
+                                                                                                            "type":  "string"
+                                                                                                        },
+                                                                                                        {
+                                                                                                            "type":  "null"
+                                                                                                        }
+                                                                                                    ],
+                                                                                          "title":  "Name"
+                                                                                      },
+                                                                             "path_type":  {
+                                                                                               "anyOf":  [
+                                                                                                             {
+                                                                                                                 "type":  "integer"
+                                                                                                             },
+                                                                                                             {
+                                                                                                                 "type":  "null"
+                                                                                                             }
+                                                                                                         ],
+                                                                                               "title":  "Path Type"
+                                                                                           },
+                                                                             "coordinates":  {
+                                                                                                 "anyOf":  [
+                                                                                                               {
+                                                                                                                   "items":  {
+                                                                                                                                 "additionalProperties":  {
+                                                                                                                                                              "type":  "number"
+                                                                                                                                                          },
+                                                                                                                                 "type":  "object"
+                                                                                                                             },
+                                                                                                                   "type":  "array"
+                                                                                                               },
+                                                                                                               {
+                                                                                                                   "type":  "null"
+                                                                                                               }
+                                                                                                           ],
+                                                                                                 "title":  "Coordinates"
+                                                                                             },
+                                                                             "path_props":  {
+                                                                                                "anyOf":  [
+                                                                                                              {
+                                                                                                                  "type":  "integer"
+                                                                                                              },
+                                                                                                              {
+                                                                                                                  "type":  "null"
+                                                                                                              }
+                                                                                                          ],
+                                                                                                "title":  "Path Props"
+                                                                                            }
+                                                                         },
+                                                          "type":  "object",
+                                                          "title":  "PathUpdate",
+                                                          "description":  "Schema for updating existing paths.\nAll fields are optional to support partial updates."
+                                                      },
+                                       "RegionCreate":  {
+                                                            "properties":  {
+                                                                               "vnum":  {
+                                                                                            "type":  "integer",
+                                                                                            "title":  "Vnum"
+                                                                                        },
+                                                                               "zone_vnum":  {
+                                                                                                 "type":  "integer",
+                                                                                                 "title":  "Zone Vnum"
+                                                                                             },
+                                                                               "name":  {
+                                                                                            "type":  "string",
+                                                                                            "title":  "Name"
+                                                                                        },
+                                                                               "region_type":  {
+                                                                                                   "type":  "integer",
+                                                                                                   "title":  "Region Type"
+                                                                                               },
+                                                                               "coordinates":  {
+                                                                                                   "anyOf":  [
+                                                                                                                 {
+                                                                                                                     "items":  {
+                                                                                                                                   "additionalProperties":  {
+                                                                                                                                                                "type":  "number"
+                                                                                                                                                            },
+                                                                                                                                   "type":  "object"
+                                                                                                                               },
+                                                                                                                     "type":  "array"
+                                                                                                                 },
+                                                                                                                 {
+                                                                                                                     "type":  "null"
+                                                                                                                 }
+                                                                                                             ],
+                                                                                                   "title":  "Coordinates",
+                                                                                                   "default":  [
+
+                                                                                                               ]
+                                                                                               },
+                                                                               "region_props":  {
+                                                                                                    "anyOf":  [
+                                                                                                                  {
+                                                                                                                      "type":  "integer"
+                                                                                                                  },
+                                                                                                                  {
+                                                                                                                      "type":  "null"
+                                                                                                                  }
+                                                                                                              ],
+                                                                                                    "title":  "Region Props"
+                                                                                                },
+                                                                               "region_reset_data":  {
+                                                                                                         "type":  "string",
+                                                                                                         "title":  "Region Reset Data",
+                                                                                                         "default":  ""
+                                                                                                     },
+                                                                               "region_reset_time":  {
+                                                                                                         "anyOf":  [
+                                                                                                                       {
+                                                                                                                           "type":  "string",
+                                                                                                                           "format":  "date-time"
+                                                                                                                       },
+                                                                                                                       {
+                                                                                                                           "type":  "null"
+                                                                                                                       }
+                                                                                                                   ],
+                                                                                                         "title":  "Region Reset Time"
+                                                                                                     }
+                                                                           },
+                                                            "type":  "object",
+                                                            "required":  [
+                                                                             "vnum",
+                                                                             "zone_vnum",
+                                                                             "name",
+                                                                             "region_type"
+                                                                         ],
+                                                            "title":  "RegionCreate"
+                                                        },
+                                       "RegionResponse":  {
+                                                              "properties":  {
+                                                                                 "vnum":  {
+                                                                                              "type":  "integer",
+                                                                                              "title":  "Vnum"
+                                                                                          },
+                                                                                 "zone_vnum":  {
+                                                                                                   "type":  "integer",
+                                                                                                   "title":  "Zone Vnum"
+                                                                                               },
+                                                                                 "name":  {
+                                                                                              "type":  "string",
+                                                                                              "title":  "Name"
+                                                                                          },
+                                                                                 "region_type":  {
+                                                                                                     "type":  "integer",
+                                                                                                     "title":  "Region Type"
+                                                                                                 },
+                                                                                 "coordinates":  {
+                                                                                                     "anyOf":  [
+                                                                                                                   {
+                                                                                                                       "items":  {
+                                                                                                                                     "additionalProperties":  {
+                                                                                                                                                                  "type":  "number"
+                                                                                                                                                              },
+                                                                                                                                     "type":  "object"
+                                                                                                                                 },
+                                                                                                                       "type":  "array"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "type":  "null"
+                                                                                                                   }
+                                                                                                               ],
+                                                                                                     "title":  "Coordinates",
+                                                                                                     "default":  [
+
+                                                                                                                 ]
+                                                                                                 },
+                                                                                 "region_props":  {
+                                                                                                      "anyOf":  [
+                                                                                                                    {
+                                                                                                                        "type":  "integer"
+                                                                                                                    },
+                                                                                                                    {
+                                                                                                                        "type":  "null"
+                                                                                                                    }
+                                                                                                                ],
+                                                                                                      "title":  "Region Props"
+                                                                                                  },
+                                                                                 "region_reset_data":  {
+                                                                                                           "type":  "string",
+                                                                                                           "title":  "Region Reset Data",
+                                                                                                           "default":  ""
+                                                                                                       },
+                                                                                 "region_reset_time":  {
+                                                                                                           "anyOf":  [
+                                                                                                                         {
+                                                                                                                             "type":  "string",
+                                                                                                                             "format":  "date-time"
+                                                                                                                         },
+                                                                                                                         {
+                                                                                                                             "type":  "null"
+                                                                                                                         }
+                                                                                                                     ],
+                                                                                                           "title":  "Region Reset Time"
+                                                                                                       },
+                                                                                 "region_type_name":  {
+                                                                                                          "anyOf":  [
+                                                                                                                        {
+                                                                                                                            "type":  "string"
+                                                                                                                        },
+                                                                                                                        {
+                                                                                                                            "type":  "null"
+                                                                                                                        }
+                                                                                                                    ],
+                                                                                                          "title":  "Region Type Name"
+                                                                                                      },
+                                                                                 "sector_type_name":  {
+                                                                                                          "anyOf":  [
+                                                                                                                        {
+                                                                                                                            "type":  "string"
+                                                                                                                        },
+                                                                                                                        {
+                                                                                                                            "type":  "null"
+                                                                                                                        }
+                                                                                                                    ],
+                                                                                                          "title":  "Sector Type Name"
+                                                                                                      }
+                                                                             },
+                                                              "type":  "object",
+                                                              "required":  [
+                                                                               "vnum",
+                                                                               "zone_vnum",
+                                                                               "name",
+                                                                               "region_type"
+                                                                           ],
+                                                              "title":  "RegionResponse"
+                                                          },
+                                       "RegionUpdate":  {
+                                                            "properties":  {
+                                                                               "vnum":  {
+                                                                                            "anyOf":  [
+                                                                                                          {
+                                                                                                              "type":  "integer"
+                                                                                                          },
+                                                                                                          {
+                                                                                                              "type":  "null"
+                                                                                                          }
+                                                                                                      ],
+                                                                                            "title":  "Vnum"
+                                                                                        },
+                                                                               "zone_vnum":  {
+                                                                                                 "anyOf":  [
+                                                                                                               {
+                                                                                                                   "type":  "integer"
+                                                                                                               },
+                                                                                                               {
+                                                                                                                   "type":  "null"
+                                                                                                               }
+                                                                                                           ],
+                                                                                                 "title":  "Zone Vnum"
+                                                                                             },
+                                                                               "name":  {
+                                                                                            "anyOf":  [
+                                                                                                          {
+                                                                                                              "type":  "string"
+                                                                                                          },
+                                                                                                          {
+                                                                                                              "type":  "null"
+                                                                                                          }
+                                                                                                      ],
+                                                                                            "title":  "Name"
+                                                                                        },
+                                                                               "region_type":  {
+                                                                                                   "anyOf":  [
+                                                                                                                 {
+                                                                                                                     "type":  "integer"
+                                                                                                                 },
+                                                                                                                 {
+                                                                                                                     "type":  "null"
+                                                                                                                 }
+                                                                                                             ],
+                                                                                                   "title":  "Region Type"
+                                                                                               },
+                                                                               "coordinates":  {
+                                                                                                   "anyOf":  [
+                                                                                                                 {
+                                                                                                                     "items":  {
+                                                                                                                                   "additionalProperties":  {
+                                                                                                                                                                "type":  "number"
+                                                                                                                                                            },
+                                                                                                                                   "type":  "object"
+                                                                                                                               },
+                                                                                                                     "type":  "array"
+                                                                                                                 },
+                                                                                                                 {
+                                                                                                                     "type":  "null"
+                                                                                                                 }
+                                                                                                             ],
+                                                                                                   "title":  "Coordinates"
+                                                                                               },
+                                                                               "region_props":  {
+                                                                                                    "anyOf":  [
+                                                                                                                  {
+                                                                                                                      "type":  "integer"
+                                                                                                                  },
+                                                                                                                  {
+                                                                                                                      "type":  "null"
+                                                                                                                  }
+                                                                                                              ],
+                                                                                                    "title":  "Region Props"
+                                                                                                },
+                                                                               "region_reset_data":  {
+                                                                                                         "anyOf":  [
+                                                                                                                       {
+                                                                                                                           "type":  "string"
+                                                                                                                       },
+                                                                                                                       {
+                                                                                                                           "type":  "null"
+                                                                                                                       }
+                                                                                                                   ],
+                                                                                                         "title":  "Region Reset Data"
+                                                                                                     },
+                                                                               "region_reset_time":  {
+                                                                                                         "anyOf":  [
+                                                                                                                       {
+                                                                                                                           "type":  "string",
+                                                                                                                           "format":  "date-time"
+                                                                                                                       },
+                                                                                                                       {
+                                                                                                                           "type":  "null"
+                                                                                                                       }
+                                                                                                                   ],
+                                                                                                         "title":  "Region Reset Time"
+                                                                                                     }
+                                                                           },
+                                                            "type":  "object",
+                                                            "title":  "RegionUpdate"
+                                                        },
+                                       "ValidationError":  {
+                                                               "properties":  {
+                                                                                  "loc":  {
+                                                                                              "items":  {
+                                                                                                            "anyOf":  [
+                                                                                                                          {
+                                                                                                                              "type":  "string"
+                                                                                                                          },
+                                                                                                                          {
+                                                                                                                              "type":  "integer"
+                                                                                                                          }
+                                                                                                                      ]
+                                                                                                        },
+                                                                                              "type":  "array",
+                                                                                              "title":  "Location"
+                                                                                          },
+                                                                                  "msg":  {
+                                                                                              "type":  "string",
+                                                                                              "title":  "Message"
+                                                                                          },
+                                                                                  "type":  {
+                                                                                               "type":  "string",
+                                                                                               "title":  "Error Type"
+                                                                                           }
+                                                                              },
+                                                               "type":  "object",
+                                                               "required":  [
+                                                                                "loc",
+                                                                                "msg",
+                                                                                "type"
+                                                                            ],
+                                                               "title":  "ValidationError"
+                                                           }
+                                   },
+                       "securitySchemes":  {
+                                               "HTTPBearer":  {
+                                                                  "type":  "http",
+                                                                  "scheme":  "bearer"
+                                                              }
+                                           }
+                   }
+}

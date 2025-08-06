@@ -11,7 +11,7 @@ The API accurately reflects the LuminariMUD wilderness system behavior, includin
 - Path system (0-5) with spatial LINESTRING geometry and sector overrides  
 - All 37 sector types used in the game (0-36)
 - Proper coordinate system bounds (-1024 to +1024)
-- Game-accurate processing order (regions by type priority, then paths)
+- Game-accurate processing order (regions by type priority, then paths) 
 
 ## Base URL
 
