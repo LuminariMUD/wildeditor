@@ -384,6 +384,9 @@ def create_region(region: RegionCreate, db: Session = Depends(get_db), authentic
         polygon_wkt = coordinates_to_polygon_wkt(region.coordinates)
         
         # Create region with MySQL POLYGON
+        # Handle region_reset_time - use current timestamp if NULL since column is NOT NULL
+        reset_time = region.region_reset_time if region.region_reset_time is not None else datetime.now()
+        
         db.execute(text("""
             INSERT INTO region_data (vnum, zone_vnum, name, region_type, region_polygon, region_props, region_reset_data, region_reset_time)
             VALUES (:vnum, :zone_vnum, :name, :region_type, ST_GeomFromText(:polygon), :region_props, :region_reset_data, :region_reset_time)
@@ -395,7 +398,7 @@ def create_region(region: RegionCreate, db: Session = Depends(get_db), authentic
             "polygon": polygon_wkt,
             "region_props": region.region_props,
             "region_reset_data": region.region_reset_data,
-            "region_reset_time": region.region_reset_time
+            "region_reset_time": reset_time
         })
         
         db.commit()
