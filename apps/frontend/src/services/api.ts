@@ -90,7 +90,7 @@ const frontendRegionToApi = (region: Omit<Region, 'id'>): Omit<ApiRegionResponse
   region_props: region.region_props,
   region_reset_data: region.region_reset_data || "",
   region_reset_time: region.region_reset_time,
-});
+}); 
 
 const apiPathToFrontend = (apiPath: ApiPathResponse): Path => ({
   ...apiPath,
