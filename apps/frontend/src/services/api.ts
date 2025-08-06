@@ -1,6 +1,16 @@
 import { Region, Path } from '@wildeditor/shared/types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+// Smart API URL detection - use HTTPS if frontend is served over HTTPS
+const getDefaultApiUrl = (): string => {
+  // If we're in a browser environment and served over HTTPS, default to HTTPS API
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    return 'https://api.wildedit.luminarimud.com/api';
+  }
+  // Default to localhost for development
+  return 'http://localhost:8000/api';
+};
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || getDefaultApiUrl();
 const API_KEY = import.meta.env.VITE_WILDEDITOR_API_KEY || '';
 
 // Debug environment variable loading (remove in production)
