@@ -256,19 +256,10 @@ export const TreeView: FC<TreeViewProps> = ({
           
           {!hasChildren && <div className="w-4" />} {/* Spacer for alignment */}
           
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className={isHidden ? 'opacity-50' : ''}>
-              {getIcon(node, isExpanded)}
-            </div>
-            <span className={`truncate ${isHidden ? 'italic opacity-75' : ''}`} title={node.name}>
-              {node.name}
-            </span>
-          </div>
-
-          {/* Individual item visibility toggle */}
+          {/* Individual item visibility toggle - moved to left side */}
           {(node.type === 'region' || node.type === 'path') && node.data && 'vnum' in node.data && (
             <button
-              className="p-1 hover:bg-gray-700 rounded transition-colors opacity-70 hover:opacity-100"
+              className="p-1 hover:bg-gray-700 rounded transition-colors opacity-70 hover:opacity-100 flex-shrink-0"
               onClick={(e) => {
                 e.stopPropagation();
                 if (node.data && 'vnum' in node.data) {
@@ -287,6 +278,15 @@ export const TreeView: FC<TreeViewProps> = ({
               }
             </button>
           )}
+          
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className={isHidden ? 'opacity-50' : ''}>
+              {getIcon(node, isExpanded)}
+            </div>
+            <span className={`truncate ${isHidden ? 'italic opacity-75' : ''}`} title={node.name}>
+              {node.name}
+            </span>
+          </div>
 
           {/* Layer visibility toggle for root folders */}
           {node.id === 'regions' && (
