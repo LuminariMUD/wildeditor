@@ -39,6 +39,9 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
+  // Track last zoom to detect external changes
+  const isInternalZoomRef = useRef(false);
+
   // Constants
   const CANVAS_SIZE = 1000; // Fixed canvas size
   const GAME_COORDINATE_RANGE = 1024; // Game coordinates go from -1024 to +1024
@@ -58,10 +61,39 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
 
   // Update transform when zoom changes
   useEffect(() => {
-    setTransform(prev => ({
-      ...prev,
-      scale: state.zoom / 100
-    }));
+    const newScale = state.zoom / 100;
+    
+    setTransform(prev => {
+      // Only adjust transform for external zoom changes (status bar, not mouse wheel)
+      // Mouse wheel zoom handles its own transform updates
+      if (!isInternalZoomRef.current && prev.scale !== newScale) {
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const rect = canvas.getBoundingClientRect();
+          const centerX = rect.width / 2;
+          const centerY = rect.height / 2;
+          
+          // Calculate the scaling ratio
+          const scaleRatio = newScale / prev.scale;
+          
+          // Adjust transform to keep the center point fixed
+          return {
+            x: centerX - (centerX - prev.x) * scaleRatio,
+            y: centerY - (centerY - prev.y) * scaleRatio,
+            scale: newScale
+          };
+        }
+      }
+      
+      // Reset the internal zoom flag
+      isInternalZoomRef.current = false;
+      
+      // If scale hasn't changed or canvas unavailable, just update scale
+      return {
+        ...prev,
+        scale: newScale
+      };
+    });
   }, [state.zoom]);
 
   // Convert game coordinates (-1024 to +1024) to canvas coordinates (0 to CANVAS_SIZE)
@@ -143,6 +175,9 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
       scale: newScale
     };
 
+    // Set flag to indicate this is an internal zoom change
+    isInternalZoomRef.current = true;
+    
     setTransform(newTransform);
     onZoomChange(newZoom);
   }, [state.zoom, transform, onZoomChange]);
