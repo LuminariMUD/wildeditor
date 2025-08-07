@@ -250,7 +250,8 @@ export const TreeView: FC<TreeViewProps> = ({
        ('vnum' in node.data && 'vnum' in selectedItem && node.data.vnum === selectedItem.vnum));
     
     // Check if this item is unsaved (draft)
-    const itemId = node.data?.id || ('vnum' in (node.data || {}) ? (node.data as Region | Path)?.vnum?.toString() : '');
+    // Always use vnum.toString() for consistency with useEditor's unsavedItems tracking
+    const itemId = ('vnum' in (node.data || {}) ? (node.data as Region | Path)?.vnum?.toString() : '') || node.data?.id || '';
     const isUnsaved = itemId && unsavedItems.has(itemId);
     
     // Check if the item is hidden individually or by folder
@@ -339,7 +340,8 @@ export const TreeView: FC<TreeViewProps> = ({
             {/* Unsaved indicator */}
             {node.data && (
               (() => {
-                const itemId = node.data.id || ('vnum' in node.data ? node.data.vnum?.toString() : '');
+                // Always use vnum.toString() for consistency with useEditor's unsavedItems tracking
+                const itemId = ('vnum' in node.data ? node.data.vnum?.toString() : '') || node.data.id || '';
                 return itemId && unsavedItems.has(itemId) ? (
                   <div className="flex items-center gap-1">
                     <span className="text-amber-400 font-bold text-xs bg-amber-900/40 px-1.5 py-0.5 rounded" title="Unsaved draft - not saved to database">
