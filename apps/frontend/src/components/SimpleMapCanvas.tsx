@@ -494,13 +494,21 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
         area?: number;
       }> = [];
 
+      console.log('[Selection Debug] Click at:', gameCoord, 'Available regions:', regions.length, 'Region names:', regions.map(r => r.name));
+
       // Check ONLY visible regions (regions array is already filtered by App.tsx)
       // Iterate in reverse order so smaller regions drawn later are prioritized
       for (let i = regions.length - 1; i >= 0; i--) {
         const region = regions[i];
         
+        console.log(`[Selection Debug] Checking region ${region.name} (vnum: ${region.vnum}, type: ${region.region_type})`);
+        console.log(`[Selection Debug] Region coords:`, region.coordinates);
+        
         // Skip if region is hidden (double-check even though regions array should be filtered)
-        if (hiddenRegions.has(region.vnum)) continue;
+        if (hiddenRegions.has(region.vnum)) {
+          console.log('[Selection Debug] Skipping hidden region:', region.name, region.vnum);
+          continue;
+        }
         
         if (region.coordinates.length >= 3) {
           // Point-in-polygon test
@@ -512,6 +520,7 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
               inside = !inside;
             }
           }
+          console.log(`[Selection Debug] Point-in-polygon test for ${region.name}: ${inside}`);
           if (inside) {
             // Calculate area for sorting preference (smaller areas preferred)
             let area = 0;
@@ -522,12 +531,15 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
             }
             area = Math.abs(area) / 2;
             
+            console.log(`[Selection Debug] Adding region ${region.name} as candidate with area ${area}`);
             candidates.push({
               item: region,
               type: 'region',
               area
             });
           }
+        } else {
+          console.log(`[Selection Debug] Region ${region.name} has insufficient coordinates:`, region.coordinates.length);
         }
       }
 
@@ -574,12 +586,17 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
         }
       }
 
+      console.log(`[Selection Debug] Found ${candidates.length} candidates:`, candidates.map(c => `${c.type}: ${c.item.name}`));
+
       // Handle selection based on candidates
       if (candidates.length === 0) {
+        console.log('[Selection Debug] No candidates - clearing selection');
         onSelectItem(null);
       } else if (candidates.length === 1) {
+        console.log('[Selection Debug] Single candidate - selecting:', candidates[0].item.name);
         onSelectItem(candidates[0].item);
       } else {
+        console.log('[Selection Debug] Multiple candidates - showing context menu');
         // Multiple candidates - show context menu for user choice
         setSelectionCandidates(candidates.map(c => ({
           item: c.item,
