@@ -64,6 +64,31 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     setSelectionCandidates([]);
   }, []);
 
+  // Close context menu when clicking elsewhere or pressing escape
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (contextMenuPosition) {
+        closeContextMenu();
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && contextMenuPosition) {
+        closeContextMenu();
+      }
+    };
+
+    if (contextMenuPosition) {
+      document.addEventListener('click', handleClickOutside);
+      document.addEventListener('keydown', handleEscape);
+      
+      return () => {
+        document.removeEventListener('click', handleClickOutside);
+        document.removeEventListener('keydown', handleEscape);
+      };
+    }
+  }, [contextMenuPosition, closeContextMenu]);
+
   // Constants
   const CANVAS_SIZE = 1000; // Fixed canvas size
   const GAME_COORDINATE_RANGE = 1024; // Game coordinates go from -1024 to +1024
@@ -460,7 +485,8 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     const gameCoord = screenToGame(e.clientX, e.clientY);
     
     if (state.tool === 'select') {
-      // Enhanced selection - find ALL overlapping items, but only use the simpler approach for now
+      // Enhanced selection - find ALL overlapping VISIBLE items only
+      // Hidden items should be completely click-through
       const candidates: Array<{
         item: Region | Path;
         type: 'region' | 'path';
@@ -468,9 +494,14 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
         area?: number;
       }> = [];
 
-      // Check visible regions first, but in reverse order (smaller regions drawn last should be selected first)
+      // Check ONLY visible regions (regions array is already filtered by App.tsx)
+      // Iterate in reverse order so smaller regions drawn later are prioritized
       for (let i = regions.length - 1; i >= 0; i--) {
         const region = regions[i];
+        
+        // Skip if region is hidden (double-check even though regions array should be filtered)
+        if (hiddenRegions.has(region.vnum)) continue;
+        
         if (region.coordinates.length >= 3) {
           // Point-in-polygon test
           let inside = false;
@@ -500,8 +531,11 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
         }
       }
 
-      // Check visible paths
+      // Check ONLY visible paths (paths array is already filtered by App.tsx)
       for (const path of paths) {
+        // Skip if path is hidden (double-check even though paths array should be filtered)
+        if (hiddenPaths.has(path.vnum)) continue;
+        
         if (path.coordinates.length >= 2) {
           // Check distance to path segments
           let minDistance = Infinity;
@@ -591,8 +625,6 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
             closeContextMenu();
           }}
           onClose={closeContextMenu}
-          hiddenRegions={hiddenRegions}
-          hiddenPaths={hiddenPaths}
           onToggleVisibility={onToggleItemVisibility}
         />
       )}

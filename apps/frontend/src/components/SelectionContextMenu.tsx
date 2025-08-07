@@ -1,6 +1,6 @@
 import React from 'react';
 import { Region, Path } from '@wildeditor/shared/types';
-import { MapPin, Square, Minus, Eye, EyeOff } from 'lucide-react';
+import { MapPin, Square, Minus, Eye } from 'lucide-react';
 
 interface SelectionCandidate {
   item: Region | Path;
@@ -13,8 +13,6 @@ interface SelectionContextMenuProps {
   position: { x: number; y: number };
   onSelect: (item: Region | Path) => void;
   onClose: () => void;
-  hiddenRegions: Set<number>;
-  hiddenPaths: Set<number>;
   onToggleVisibility: (type: 'region' | 'path', vnum: number) => void;
 }
 
@@ -23,8 +21,6 @@ export const SelectionContextMenu: React.FC<SelectionContextMenuProps> = ({
   position,
   onSelect,
   onClose,
-  hiddenRegions,
-  hiddenPaths,
   onToggleVisibility
 }) => {
   if (candidates.length === 0) return null;
@@ -34,14 +30,6 @@ export const SelectionContextMenu: React.FC<SelectionContextMenuProps> = ({
       case 'region': return Square;
       case 'path': return Minus;
       default: return MapPin;
-    }
-  };
-
-  const isItemHidden = (candidate: SelectionCandidate) => {
-    if (candidate.type === 'region') {
-      return hiddenRegions.has((candidate.item as Region).vnum);
-    } else {
-      return hiddenPaths.has((candidate.item as Path).vnum);
     }
   };
 
@@ -55,17 +43,10 @@ export const SelectionContextMenu: React.FC<SelectionContextMenuProps> = ({
     }
   };
 
-  // Sort candidates: visible items first, then by distance (for paths) or area (for regions)
+  // Sort candidates by distance (for paths) or area (for regions)
+  // All candidates should be visible items only now
   const sortedCandidates = [...candidates].sort((a, b) => {
-    const aHidden = isItemHidden(a);
-    const bHidden = isItemHidden(b);
-    
-    // Visible items first
-    if (aHidden !== bHidden) {
-      return aHidden ? 1 : -1;
-    }
-    
-    // For paths, sort by distance
+    // For paths, sort by distance (closer first)
     if (a.type === 'path' && b.type === 'path' && a.distance !== undefined && b.distance !== undefined) {
       return a.distance - b.distance;
     }
@@ -92,23 +73,22 @@ export const SelectionContextMenu: React.FC<SelectionContextMenuProps> = ({
     >
       <div className="p-2 border-b border-gray-600">
         <div className="text-xs text-gray-400 font-medium">
-          {candidates.length} overlapping item{candidates.length > 1 ? 's' : ''}
+          Select from {candidates.length} overlapping item{candidates.length > 1 ? 's' : ''}
+        </div>
+        <div className="text-xs text-gray-500 mt-0.5">
+          All items are visible • Click to select
         </div>
       </div>
       
       <div className="py-1 max-h-64 overflow-y-auto">
         {sortedCandidates.map((candidate, index) => {
           const Icon = getItemIcon(candidate.type);
-          const hidden = isItemHidden(candidate);
           const item = candidate.item;
           
           return (
             <div
               key={`${candidate.type}-${item.vnum}-${index}`}
-              className={`
-                flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-700 cursor-pointer
-                ${hidden ? 'text-gray-500' : 'text-gray-200'}
-              `}
+              className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-700 cursor-pointer text-gray-200"
               onClick={() => {
                 onSelect(item);
                 onClose();
@@ -136,9 +116,9 @@ export const SelectionContextMenu: React.FC<SelectionContextMenuProps> = ({
                   e.stopPropagation();
                   onToggleVisibility(candidate.type, item.vnum);
                 }}
-                title={hidden ? 'Show' : 'Hide'}
+                title="Hide item"
               >
-                {hidden ? <EyeOff size={12} /> : <Eye size={12} />}
+                <Eye size={12} />
               </button>
             </div>
           );
