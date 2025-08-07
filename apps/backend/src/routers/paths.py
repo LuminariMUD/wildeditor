@@ -43,7 +43,7 @@ def linestring_wkt_to_coordinates(wkt: str) -> List[dict]:
     """
     if not wkt:
         return []
-    
+     
     try:
         # Remove LINESTRING( and )
         coords_str = wkt.replace("LINESTRING(", "").replace(")", "")
