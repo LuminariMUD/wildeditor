@@ -361,9 +361,55 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     const canvasCoords = region.coordinates.map(gameToCanvas);
     const isSelected = state.selectedItem?.id === region.id;
 
-    // Fill
-    ctx.globalAlpha = 0.3;
-    ctx.fillStyle = region.color || '#3B82F6';
+    // Get appropriate color based on region type and sector
+    const getRegionColor = () => {
+      if (isSelected) return '#22C55E'; // Bright green when selected
+      if (region.color) return region.color; // Use custom color if set
+      
+      // Color based on region type and sector properties
+      switch (region.region_type) {
+        case 1: // Geographic
+          return '#10B981'; // Emerald green
+        case 2: // Encounter
+          return '#EF4444'; // Red
+        case 3: // Sector Transform
+          return '#8B5CF6'; // Purple
+        case 4: // Sector Override - color based on sector type
+          const sectorType = region.region_props;
+          // Underdark sectors - different shades of purple
+          if (sectorType === 19) return '#8B5CF6'; // Underdark Wild - medium purple
+          if (sectorType === 20) return '#7C3AED'; // Underdark City - darker purple
+          if (sectorType === 21) return '#6D28D9'; // Underdark Inside - dark purple
+          if (sectorType === 22) return '#A855F7'; // Underdark Water Swim - light purple
+          if (sectorType === 23) return '#9333EA'; // Underdark Water No Swim - purple
+          if (sectorType === 24) return '#C084FC'; // Underdark In Flight - pale purple
+          
+          // Other sector types
+          if (sectorType === 0 || sectorType === 1) return '#6B7280'; // Inside/City - gray
+          if (sectorType === 2) return '#22C55E'; // Field - green
+          if (sectorType === 3) return '#059669'; // Forest - dark green
+          if (sectorType === 4 || sectorType === 5 || sectorType === 17) return '#92400E'; // Hills/Mountains - brown
+          if (sectorType === 6 || sectorType === 7 || sectorType === 36) return '#1D4ED8'; // Water - blue
+          if (sectorType === 14) return '#F59E0B'; // Desert - amber
+          if (sectorType === 15) return '#0284C7'; // Ocean - blue
+          if (sectorType === 16) return '#16A34A'; // Marshland - dark green
+          if (sectorType === 25) return '#DC2626'; // Lava - red
+          if (sectorType === 29) return '#374151'; // Cave - dark gray
+          if (sectorType === 30) return '#15803D'; // Jungle - dark green
+          if (sectorType === 31) return '#0891B2'; // Tundra - cyan
+          if (sectorType === 32) return '#047857'; // Taiga - dark green
+          if (sectorType === 33) return '#F59E0B'; // Beach - amber
+          return '#6B7280'; // Default gray
+        default:
+          return '#6B7280'; // Unknown - gray
+      }
+    };
+
+    const regionColor = getRegionColor();
+
+    // Fill with more transparency to see terrain underneath
+    ctx.globalAlpha = 0.15; // Reduced from 0.3 to 0.15 for better terrain visibility
+    ctx.fillStyle = regionColor;
     ctx.beginPath();
     ctx.moveTo(canvasCoords[0].x, canvasCoords[0].y);
     for (let i = 1; i < canvasCoords.length; i++) {
@@ -372,11 +418,9 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     ctx.closePath();
     ctx.fill();
 
-    // Outline - line width scales WITH zoom at same rate as background image pixels
-    // 1 canvas pixel scales with transform automatically, just like background image
-    ctx.globalAlpha = 1.0;
-    // Region color - brighter when selected for visibility without changing width
-    ctx.strokeStyle = isSelected ? '#22C55E' : (region.color || '#3B82F6');
+    // Outline with same transparency as fill for consistency
+    ctx.globalAlpha = 0.15; // Same transparency as fill
+    ctx.strokeStyle = regionColor;
     // 1 canvas pixel width - scales with transform automatically, adjusted for high-DPI
     const pixelRatio = window.devicePixelRatio || 1;
     ctx.lineWidth = 1 / pixelRatio;
