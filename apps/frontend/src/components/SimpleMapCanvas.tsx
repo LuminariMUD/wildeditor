@@ -372,19 +372,18 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     ctx.closePath();
     ctx.fill();
 
-    // Outline - line width scales WITH zoom: 100%=1px, 200%=2px, 1780%=17.8px
-    // We want the line to get thicker as we zoom in, but need to account for canvas scaling
+    // Outline - always exactly 1 background-image-pixel width (1 room boundary)
+    // This maintains the same room-width relationship regardless of zoom level
     ctx.globalAlpha = 1.0;
     // Region color - brighter when selected for visibility without changing width
     ctx.strokeStyle = isSelected ? '#22C55E' : (region.color || '#3B82F6');
     // Account for device pixel ratio scaling
     const pixelRatio = window.devicePixelRatio || 1;
-    const desiredPixelWidth = state.zoom / 100;
-    ctx.lineWidth = desiredPixelWidth / (transform.scale * pixelRatio);
+    ctx.lineWidth = 1 / (transform.scale * pixelRatio);
     
     // Debug log to verify deployment (remove after testing)
     if (isSelected) {
-      console.log(`[Region Rendering] Selected region "${region.name || 'Unnamed'}" - Color: ${ctx.strokeStyle}, Width: ${ctx.lineWidth}, DesiredPixels: ${desiredPixelWidth}, Scale: ${transform.scale}, PixelRatio: ${pixelRatio}, Zoom: ${state.zoom}%`);
+      console.log(`[Region Rendering] Selected region "${region.name || 'Unnamed'}" - Color: ${ctx.strokeStyle}, Width: ${ctx.lineWidth}, Scale: ${transform.scale}, PixelRatio: ${pixelRatio}, Zoom: ${state.zoom}%`);
     }
     
     ctx.lineCap = 'square'; // Remove anti-aliasing on line caps
@@ -400,15 +399,14 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
 
     // Path color - brighter when selected for visibility without changing width
     ctx.strokeStyle = isSelected ? '#22C55E' : (path.color || '#10B981');
-    // Line width scales WITH zoom: 100%=1px, 200%=2px, 1780%=17.8px
-    // We want the line to get thicker as we zoom in, but need to account for canvas scaling
+    // Line width: Always exactly 1 background-image-pixel width (1 room width)
+    // This maintains the same room-width relationship regardless of zoom level
     const pixelRatio = window.devicePixelRatio || 1;
-    const desiredPixelWidth = state.zoom / 100;
-    ctx.lineWidth = desiredPixelWidth / (transform.scale * pixelRatio);
+    ctx.lineWidth = 1 / (transform.scale * pixelRatio);
     
     // Debug log to verify deployment (remove after testing)
     if (isSelected) {
-      console.log(`[Path Rendering] Selected path "${path.name || 'Unnamed'}" - Color: ${ctx.strokeStyle}, Width: ${ctx.lineWidth}, DesiredPixels: ${desiredPixelWidth}, Scale: ${transform.scale}, PixelRatio: ${pixelRatio}, Zoom: ${state.zoom}%`);
+      console.log(`[Path Rendering] Selected path "${path.name || 'Unnamed'}" - Color: ${ctx.strokeStyle}, Width: ${ctx.lineWidth}, Scale: ${transform.scale}, PixelRatio: ${pixelRatio}, Zoom: ${state.zoom}%`);
     }
     
     ctx.lineCap = 'square'; // Remove anti-aliasing on line caps  
