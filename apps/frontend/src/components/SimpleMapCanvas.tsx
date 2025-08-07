@@ -372,14 +372,14 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     ctx.closePath();
     ctx.fill();
 
-    // Outline - always exactly 1 background-image-pixel width (1 room boundary)
-    // This maintains the same room-width relationship regardless of zoom level
+    // Outline - line width scales WITH zoom at same rate as background image pixels
+    // 1 canvas pixel scales with transform automatically, just like background image
     ctx.globalAlpha = 1.0;
     // Region color - brighter when selected for visibility without changing width
     ctx.strokeStyle = isSelected ? '#22C55E' : (region.color || '#3B82F6');
-    // Account for device pixel ratio scaling
+    // 1 canvas pixel width - scales with transform automatically, adjusted for high-DPI
     const pixelRatio = window.devicePixelRatio || 1;
-    ctx.lineWidth = 1 / (transform.scale * pixelRatio);
+    ctx.lineWidth = 1 / pixelRatio;
     
     // Debug log to verify deployment (remove after testing)
     if (isSelected) {
@@ -399,10 +399,10 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
 
     // Path color - brighter when selected for visibility without changing width
     ctx.strokeStyle = isSelected ? '#22C55E' : (path.color || '#10B981');
-    // Line width: Always exactly 1 background-image-pixel width (1 room width)
-    // This maintains the same room-width relationship regardless of zoom level
+    // Line width scales WITH zoom at same rate as background image pixels
+    // 1 canvas pixel scales with transform automatically, just like background image
     const pixelRatio = window.devicePixelRatio || 1;
-    ctx.lineWidth = 1 / (transform.scale * pixelRatio);
+    ctx.lineWidth = 1 / pixelRatio;
     
     // Debug log to verify deployment (remove after testing)
     if (isSelected) {
