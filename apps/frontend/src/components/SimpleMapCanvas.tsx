@@ -599,7 +599,9 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     paths,
     screenToGame,
     onSelectItem,
-    onClick
+    onClick,
+    hiddenRegions,
+    hiddenPaths
   ]);
 
   return (
