@@ -11,7 +11,13 @@ interface SelectionCandidate {
 interface SimpleMapCanvasProps {
   state: EditorState;
   regions: Region[];
-  paths: Path[];
+  paths: P    // Debug log to verify deployment (remove after testing)
+    if (isSelected) {
+      console.log(`[Path Rendering] Selected path "${path.name || 'Unnamed'}" - Color: ${ctx.strokeStyle}, Width: ${ctx.lineWidth}, Scale: ${transform.scale}, Zoom: ${state.zoom}%`);
+    }
+    
+    ctx.lineCap = 'square'; // Remove anti-aliasing on line caps  
+    ctx.lineJoin = 'miter'; // Sharp corners for pixel-perfect rendering;
   onMouseMove: (coordinate: Coordinate) => void;
   onClick: (coordinate: Coordinate) => void;
   onSelectItem: (item: Region | Path | null) => void;
@@ -282,12 +288,11 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     if (!state.showGrid) return;
 
     ctx.strokeStyle = '#374151';
-    const pixelRatio = window.devicePixelRatio || 1;
-    const baseLineWidth = (1 / transform.scale) / pixelRatio;
-    ctx.lineWidth = Math.max((0.25 / transform.scale) / pixelRatio, baseLineWidth); // Thinner grid lines but still visible
+    const baseLineWidth = 1 / transform.scale;
+    ctx.lineWidth = Math.max(0.25 / transform.scale, baseLineWidth); // Thinner grid lines but still visible
     ctx.lineCap = 'square'; // Pixel-perfect line caps
     ctx.lineJoin = 'miter'; // Sharp corners
-    ctx.setLineDash([(2 / transform.scale) / pixelRatio, (2 / transform.scale) / pixelRatio]);
+    ctx.setLineDash([2 / transform.scale, 2 / transform.scale]);
 
     const gridSize = 50;
     for (let gameX = -GAME_COORDINATE_RANGE; gameX <= GAME_COORDINATE_RANGE; gameX += gridSize) {
@@ -313,9 +318,8 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     if (!state.showAxes) return;
 
     ctx.strokeStyle = '#6B7280';
-    const pixelRatio = window.devicePixelRatio || 1;
-    const baseLineWidth = (2 / transform.scale) / pixelRatio;
-    ctx.lineWidth = Math.max((1 / transform.scale) / pixelRatio, baseLineWidth); // 2 pixels at 100% zoom for better visibility
+    const baseLineWidth = 2 / transform.scale;
+    ctx.lineWidth = Math.max(1 / transform.scale, baseLineWidth); // 2 pixels at 100% zoom for better visibility
     ctx.lineCap = 'square'; // Pixel-perfect line caps
     ctx.lineJoin = 'miter'; // Sharp corners
 
@@ -374,18 +378,18 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     ctx.closePath();
     ctx.fill();
 
-    // Outline - exactly 1 pixel at 100% zoom, represents room boundary
-    // Scales proportionally: 100%=1px, 200%=2px, 400%=4px, 2000%=20px
+    // Outline - line width scales WITH zoom: 100%=1px, 200%=2px, 1280%=12.8px
+    // This represents the visual thickness scaling with zoom level
     ctx.globalAlpha = 1.0;
     // Region color - brighter when selected for visibility without changing width
     ctx.strokeStyle = isSelected ? '#22C55E' : (region.color || '#3B82F6');
     // Account for device pixel ratio scaling
     const pixelRatio = window.devicePixelRatio || 1;
-    ctx.lineWidth = (1 / transform.scale) / pixelRatio;
+    ctx.lineWidth = (state.zoom / 100) / pixelRatio;
     
     // Debug log to verify deployment (remove after testing)
     if (isSelected) {
-      console.log(`[Region Rendering] Selected region "${region.name || 'Unnamed'}" - Color: ${ctx.strokeStyle}, Width: ${ctx.lineWidth}, Scale: ${transform.scale}, PixelRatio: ${pixelRatio}`);
+      console.log(`[Region Rendering] Selected region "${region.name || 'Unnamed'}" - Color: ${ctx.strokeStyle}, Width: ${ctx.lineWidth}, Scale: ${transform.scale}, PixelRatio: ${pixelRatio}, Zoom: ${state.zoom}%`);
     }
     
     ctx.lineCap = 'square'; // Remove anti-aliasing on line caps
@@ -401,11 +405,10 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
 
     // Path color - brighter when selected for visibility without changing width
     ctx.strokeStyle = isSelected ? '#22C55E' : (path.color || '#10B981');
-    // Always exactly 1 pixel at 100% zoom - represents 1 room width in game
-    // Scales proportionally: 100%=1px, 200%=2px, 400%=4px, 2000%=20px
-    // Account for device pixel ratio scaling
+    // Line width scales WITH zoom: 100%=1px, 200%=2px, 1280%=12.8px, 1300%=13px
+    // This represents the visual thickness scaling with zoom level
     const pixelRatio = window.devicePixelRatio || 1;
-    ctx.lineWidth = (1 / transform.scale) / pixelRatio;
+    ctx.lineWidth = (state.zoom / 100) / pixelRatio;
     
     // Debug log to verify deployment (remove after testing)
     if (isSelected) {
