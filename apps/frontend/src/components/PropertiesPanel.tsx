@@ -178,17 +178,168 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         </div>
       )}
 
-      {/* Properties for regions and paths */}
-      {(isRegion || isPath) && (
+      {/* Region Properties - type-specific numeric values */}
+      {isRegion && (
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Properties (JSON)</label>
-          <textarea
-            value={(selectedItem as Region | Path).props}
-            onChange={(e) => onUpdate({ props: e.target.value })}
-            rows={3}
-            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-            placeholder='{"description": "Custom properties"}'
-          />
+          {(() => {
+            const region = selectedItem as Region;
+            const regionType = region.region_type;
+            
+            if (regionType === 1 || regionType === 2) {
+              // Geographic and Encounter - value ignored by game
+              return (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Properties {regionType === 1 ? '(Geographic - value ignored)' : '(Encounter - value ignored)'}
+                  </label>
+                  <input
+                    type="number"
+                    value={region.region_props || 0}
+                    onChange={(e) => onUpdate({ region_props: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Any value (ignored by game)"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    {regionType === 1 
+                      ? "Geographic regions use this for area naming and landmarks. Value is ignored by terrain generation."
+                      : "Encounter regions use this for spawning zones. Value is ignored by terrain generation."
+                    }
+                  </p>
+                </div>
+              );
+            } else if (regionType === 3) {
+              // Sector Transform - elevation adjustment
+              return (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Elevation Adjustment
+                  </label>
+                  <input
+                    type="number"
+                    value={region.region_props || 0}
+                    onChange={(e) => onUpdate({ region_props: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g., +50 for uplift, -30 for depression"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Positive values raise elevation, negative values lower it. This affects terrain type calculation.
+                  </p>
+                </div>
+              );
+            } else if (regionType === 4) {
+              // Sector Override - specific sector type
+              return (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Sector Type Override
+                  </label>
+                  <select
+                    value={region.region_props || 0}
+                    onChange={(e) => onUpdate({ region_props: parseInt(e.target.value) })}
+                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value={0}>Inside</option>
+                    <option value={1}>City</option>
+                    <option value={2}>Field</option>
+                    <option value={3}>Forest</option>
+                    <option value={4}>Hills</option>
+                    <option value={5}>Low Mountains</option>
+                    <option value={6}>Water (Swim)</option>
+                    <option value={7}>Water (No Swim)</option>
+                    <option value={8}>In Flight</option>
+                    <option value={9}>Underwater</option>
+                    <option value={10}>Zone Entrance</option>
+                    <option value={11}>Road North-South</option>
+                    <option value={12}>Road East-West</option>
+                    <option value={13}>Road Intersection</option>
+                    <option value={14}>Desert</option>
+                    <option value={15}>Ocean</option>
+                    <option value={16}>Marshland</option>
+                    <option value={17}>High Mountains</option>
+                    <option value={18}>Outer Planes</option>
+                    <option value={19}>Underdark - Wild</option>
+                    <option value={20}>Underdark - City</option>
+                    <option value={21}>Underdark - Inside</option>
+                    <option value={22}>Underdark - Water (Swim)</option>
+                    <option value={23}>Underdark - Water (No Swim)</option>
+                    <option value={24}>Underdark - In Flight</option>
+                    <option value={25}>Lava</option>
+                    <option value={26}>Dirt Road North-South</option>
+                    <option value={27}>Dirt Road East-West</option>
+                    <option value={28}>Dirt Road Intersection</option>
+                    <option value={29}>Cave</option>
+                    <option value={30}>Jungle</option>
+                    <option value={31}>Tundra</option>
+                    <option value={32}>Taiga</option>
+                    <option value={33}>Beach</option>
+                    <option value={34}>Sea Port</option>
+                    <option value={35}>Inside Room</option>
+                    <option value={36}>River</option>
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">
+                    This sector type will completely override the calculated terrain for this region.
+                  </p>
+                </div>
+              );
+            }
+            
+            return null;
+          })()}
+        </div>
+      )}
+
+      {/* Path Properties - sector type override */}
+      {isPath && (
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Path Sector Override
+          </label>
+          <select
+            value={(selectedItem as Path).path_props || 0}
+            onChange={(e) => onUpdate({ path_props: parseInt(e.target.value) })}
+            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value={0}>Inside</option>
+            <option value={1}>City</option>
+            <option value={2}>Field</option>
+            <option value={3}>Forest</option>
+            <option value={4}>Hills</option>
+            <option value={5}>Low Mountains</option>
+            <option value={6}>Water (Swim)</option>
+            <option value={7}>Water (No Swim)</option>
+            <option value={8}>In Flight</option>
+            <option value={9}>Underwater</option>
+            <option value={10}>Zone Entrance</option>
+            <option value={11}>Road North-South</option>
+            <option value={12}>Road East-West</option>
+            <option value={13}>Road Intersection</option>
+            <option value={14}>Desert</option>
+            <option value={15}>Ocean</option>
+            <option value={16}>Marshland</option>
+            <option value={17}>High Mountains</option>
+            <option value={18}>Outer Planes</option>
+            <option value={19}>Underdark - Wild</option>
+            <option value={20}>Underdark - City</option>
+            <option value={21}>Underdark - Inside</option>
+            <option value={22}>Underdark - Water (Swim)</option>
+            <option value={23}>Underdark - Water (No Swim)</option>
+            <option value={24}>Underdark - In Flight</option>
+            <option value={25}>Lava</option>
+            <option value={26}>Dirt Road North-South</option>
+            <option value={27}>Dirt Road East-West</option>
+            <option value={28}>Dirt Road Intersection</option>
+            <option value={29}>Cave</option>
+            <option value={30}>Jungle</option>
+            <option value={31}>Tundra</option>
+            <option value={32}>Taiga</option>
+            <option value={33}>Beach</option>
+            <option value={34}>Sea Port</option>
+            <option value={35}>Inside Room</option>
+            <option value={36}>River</option>
+          </select>
+          <p className="text-xs text-gray-400 mt-1">
+            This sector type will override terrain along the path route.
+          </p>
         </div>
       )}
 

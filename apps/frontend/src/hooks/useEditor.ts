@@ -249,7 +249,7 @@ export const useEditor = () => {
           { x: coordinate.x + 0.2, y: coordinate.y + 0.2 },
           { x: coordinate.x - 0.2, y: coordinate.y + 0.2 }
         ],
-        region_props: 0,
+        region_props: 0, // Geographic regions ignore this value
         id: `region-${Date.now()}`,
         props: '{}',
         color: '#3B82F6', // Geographic blue
@@ -341,7 +341,7 @@ export const useEditor = () => {
         name: `New Region ${regions.length + 1}`,
         region_type: 1, // Geographic region
         coordinates: [...state.currentDrawing], // Create a copy to avoid reference issues
-        region_props: null,
+        region_props: 0, // Geographic regions ignore this value
         region_reset_data: "",
         region_reset_time: null,
         
@@ -374,7 +374,7 @@ export const useEditor = () => {
         name: `New Path ${paths.length + 1}`,
         path_type: 1, // Paved Road
         coordinates: [...state.currentDrawing], // Create a copy to avoid reference issues
-        path_props: 0,
+        path_props: 11, // Default to Road North-South sector
         
         // Frontend compatibility fields
         id: Date.now().toString(),
