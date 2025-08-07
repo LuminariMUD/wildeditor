@@ -378,6 +378,12 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     // Region color - brighter when selected for visibility without changing width
     ctx.strokeStyle = isSelected ? '#22C55E' : (region.color || '#3B82F6');
     ctx.lineWidth = 1 / transform.scale;
+    
+    // Debug log to verify deployment (remove after testing)
+    if (isSelected) {
+      console.log(`[Region Rendering] Selected region "${region.name || 'Unnamed'}" - Color: ${ctx.strokeStyle}, Width: ${ctx.lineWidth}, Scale: ${transform.scale}`);
+    }
+    
     ctx.lineCap = 'square'; // Remove anti-aliasing on line caps
     ctx.lineJoin = 'miter'; // Sharp corners for pixel-perfect rendering
     ctx.stroke();
@@ -394,6 +400,12 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     // Always exactly 1 pixel at 100% zoom - represents 1 room width in game
     // Scales proportionally: 100%=1px, 200%=2px, 400%=4px, 2000%=20px
     ctx.lineWidth = 1 / transform.scale;
+    
+    // Debug log to verify deployment (remove after testing)
+    if (isSelected) {
+      console.log(`[Path Rendering] Selected path "${path.name || 'Unnamed'}" - Color: ${ctx.strokeStyle}, Width: ${ctx.lineWidth}, Scale: ${transform.scale}`);
+    }
+    
     ctx.lineCap = 'square'; // Remove anti-aliasing on line caps  
     ctx.lineJoin = 'miter'; // Sharp corners for pixel-perfect rendering
 
