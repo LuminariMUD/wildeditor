@@ -101,11 +101,16 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 || ('id' in selectedItem && selectedItem.id) 
                 || null;
               if (itemId) {
-                onDelete(itemId.toString());
+                const itemType = isRegion ? 'region' : 'path';
+                const itemName = selectedItem.name || `${itemType} ${itemId}`;
+                if (confirm(`Are you sure you want to delete this ${itemType}?\n\n"${itemName}"\n\nThis action cannot be undone.`)) {
+                  onDelete(itemId.toString());
+                }
               }
             }
           }}
           className="text-red-400 hover:text-red-300 p-1"
+          title="Delete this item"
         >
           <Trash2 size={16} />
         </button>
