@@ -364,7 +364,7 @@ export const useEditor = () => {
       selectItem(newRegion);
       
       // Mark as unsaved
-      setUnsavedItems(prev => new Set(prev).add(newRegion.id!));
+      setUnsavedItems(prev => new Set(prev).add(newRegion.vnum.toString()));
       
       console.log('[Drawing] Region created locally, marked as unsaved');
     } else if (state.tool === 'path' && state.currentDrawing.length >= 2) {
@@ -396,7 +396,7 @@ export const useEditor = () => {
       selectItem(newPath);
       
       // Mark as unsaved
-      setUnsavedItems(prev => new Set(prev).add(newPath.id!));
+      setUnsavedItems(prev => new Set(prev).add(newPath.vnum.toString()));
       
       console.log('[Drawing] Path created locally, marked as unsaved');
     }
