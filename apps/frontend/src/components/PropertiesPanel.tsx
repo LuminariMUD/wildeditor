@@ -186,41 +186,58 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             const regionType = region.region_type;
             
             if (regionType === 1) {
-              // Geographic - value ignored by game but required
+              // Geographic - value ignored by game but can be any integer
               return (
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
                     Properties (Geographic - value ignored by game)
                   </label>
                   <input
-                    type="text"
-                    value={region.region_props || "0"}
-                    onChange={(e) => onUpdate({ region_props: e.target.value || "0" })}
+                    type="number"
+                    value={region.region_props || 0}
+                    onChange={(e) => onUpdate({ region_props: parseInt(e.target.value) || 0 })}
                     className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="0 (any value, ignored by game)"
                   />
                   <p className="text-xs text-gray-400 mt-1">
-                    This value is ignored by the game but required to be non-empty.
+                    This value is ignored by the game.
                   </p>
                 </div>
               );
             } else if (regionType === 2) {
-              // Encounter - comma-separated mob vnums
+              // Encounter - mob vnums go in region_reset_data, not region_props
               return (
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Mob VNums (Encounter spawning)
-                  </label>
-                  <input
-                    type="text"
-                    value={region.region_props || "0"}
-                    onChange={(e) => onUpdate({ region_props: e.target.value || "0" })}
-                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="1001,1002,1003 or 0 for no encounters"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Comma-separated list of mob VNums that can spawn in this region (e.g., "1001,1002,1003"). Use "0" for no encounters.
-                  </p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Properties (Encounter - value ignored by game)
+                    </label>
+                    <input
+                      type="number"
+                      value={region.region_props || 0}
+                      onChange={(e) => onUpdate({ region_props: parseInt(e.target.value) || 0 })}
+                      className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="0 (any value, ignored by game)"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      This value is ignored by the game.
+                    </p>
+                  </div>
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Mob VNums (Encounter spawning)
+                    </label>
+                    <input
+                      type="text"
+                      value={region.region_reset_data || ""}
+                      onChange={(e) => onUpdate({ region_reset_data: e.target.value })}
+                      className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="1001,1002,1003 or empty for no encounters"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Comma-separated list of mob VNums that can spawn in this region (e.g., "1001,1002,1003"). Leave empty for no encounters.
+                    </p>
+                  </div>
                 </div>
               );
             } else if (regionType === 3) {
@@ -232,8 +249,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   </label>
                   <input
                     type="number"
-                    value={region.region_props || "0"}
-                    onChange={(e) => onUpdate({ region_props: e.target.value || "0" })}
+                    value={region.region_props || 0}
+                    onChange={(e) => onUpdate({ region_props: parseInt(e.target.value) || 0 })}
                     className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Elevation change (e.g., 50 or -30)"
                   />
@@ -250,8 +267,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     Sector Type (Override)
                   </label>
                   <select
-                    value={region.region_props || "0"}
-                    onChange={(e) => onUpdate({ region_props: e.target.value })}
+                    value={region.region_props || 0}
+                    onChange={(e) => onUpdate({ region_props: parseInt(e.target.value) })}
                     className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value={0}>Inside</option>
@@ -298,16 +315,16 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 </div>
               );
             } else {
-              // Unknown region type - generic text input
+              // Unknown region type - generic number input
               return (
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
                     Properties (Unknown region type {regionType})
                   </label>
                   <input
-                    type="text"
-                    value={region.region_props || "0"}
-                    onChange={(e) => onUpdate({ region_props: e.target.value || "0" })}
+                    type="number"
+                    value={region.region_props || 0}
+                    onChange={(e) => onUpdate({ region_props: parseInt(e.target.value) || 0 })}
                     className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="0"
                   />

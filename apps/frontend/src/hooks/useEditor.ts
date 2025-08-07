@@ -249,7 +249,7 @@ export const useEditor = () => {
           { x: coordinate.x + 0.2, y: coordinate.y + 0.2 },
           { x: coordinate.x - 0.2, y: coordinate.y + 0.2 }
         ],
-        region_props: "0", // Geographic regions ignore this value but require non-empty string
+        region_props: 0, // Geographic regions ignore this value
         id: `region-${Date.now()}`,
         props: '{}',
         color: '#3B82F6', // Geographic blue
@@ -341,7 +341,7 @@ export const useEditor = () => {
         name: `New Region ${regions.length + 1}`,
         region_type: 1, // Geographic region
         coordinates: [...state.currentDrawing], // Create a copy to avoid reference issues
-        region_props: "0", // Geographic regions ignore this value but require non-empty string
+        region_props: 0, // Geographic regions ignore this value
         region_reset_data: "",
         region_reset_time: null,
         

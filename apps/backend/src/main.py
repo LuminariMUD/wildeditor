@@ -15,7 +15,11 @@ app = FastAPI(
 )
 
 # Get CORS origins from environment variable or use defaults
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,https://wildedit.luminarimud.com,https://wildeditor.luminari.com").split(",")
+# CORS configuration
+cors_origins = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:5173,https://wildedit.luminarimud.com,https://wildeditor.luminari.com"
+).split(",")
 
 # Configure CORS
 app.add_middleware(
@@ -31,6 +35,7 @@ app.include_router(regions_router, prefix="/api/regions", tags=["Regions"])
 app.include_router(paths_router, prefix="/api/paths", tags=["Paths"])
 app.include_router(points_router, prefix="/api/points", tags=["Points"])
 
+
 @app.get("/api/health")
 def health_check():
     """Health check endpoint"""
@@ -39,6 +44,7 @@ def health_check():
         "service": "wildeditor-backend",
         "version": "1.0.0"
     }
+
 
 @app.get("/api/auth/status")
 def auth_status(authenticated: bool = Depends(verify_api_key)):
