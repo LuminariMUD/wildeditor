@@ -11,13 +11,7 @@ interface SelectionCandidate {
 interface SimpleMapCanvasProps {
   state: EditorState;
   regions: Region[];
-  paths: P    // Debug log to verify deployment (remove after testing)
-    if (isSelected) {
-      console.log(`[Path Rendering] Selected path "${path.name || 'Unnamed'}" - Color: ${ctx.strokeStyle}, Width: ${ctx.lineWidth}, Scale: ${transform.scale}, Zoom: ${state.zoom}%`);
-    }
-    
-    ctx.lineCap = 'square'; // Remove anti-aliasing on line caps  
-    ctx.lineJoin = 'miter'; // Sharp corners for pixel-perfect rendering;
+  paths: Path[];
   onMouseMove: (coordinate: Coordinate) => void;
   onClick: (coordinate: Coordinate) => void;
   onSelectItem: (item: Region | Path | null) => void;
@@ -395,7 +389,7 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     ctx.lineCap = 'square'; // Remove anti-aliasing on line caps
     ctx.lineJoin = 'miter'; // Sharp corners for pixel-perfect rendering
     ctx.stroke();
-  }, [state.showRegions, state.selectedItem, gameToCanvas, transform.scale]);
+  }, [state.showRegions, state.selectedItem, gameToCanvas, transform.scale, state.zoom]);
 
   const drawPath = useCallback((ctx: CanvasRenderingContext2D, path: Path) => {
     if (!state.showPaths || path.coordinates.length < 2) return;
