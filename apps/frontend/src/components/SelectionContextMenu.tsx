@@ -70,6 +70,7 @@ export const SelectionContextMenu: React.FC<SelectionContextMenuProps> = ({
     <div 
       className="fixed bg-gray-800 border border-gray-600 rounded-lg shadow-lg z-50 min-w-48"
       style={{ left: position.x, top: position.y }}
+      onClick={(e) => e.stopPropagation()} // Prevent event propagation
     >
       <div className="p-2 border-b border-gray-600">
         <div className="text-xs text-gray-400 font-medium">

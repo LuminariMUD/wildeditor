@@ -66,8 +66,22 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
 
   // Close context menu when clicking elsewhere or pressing escape
   useEffect(() => {
-    const handleClickOutside = () => {
+    const handleClickOutside = (event: MouseEvent) => {
       if (contextMenuPosition) {
+        // Only close if the click is NOT on the canvas or context menu
+        const canvas = canvasRef.current;
+        const target = event.target as Element;
+        
+        // Don't close if clicking on canvas (let canvas handle it)
+        if (canvas && canvas.contains(target)) {
+          return;
+        }
+        
+        // Don't close if clicking inside context menu
+        if (target.closest('.fixed.bg-gray-800')) {
+          return;
+        }
+        
         closeContextMenu();
       }
     };
@@ -484,6 +498,19 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     
     const gameCoord = screenToGame(e.clientX, e.clientY);
     
+    console.log('[Selection Debug] HandleClick triggered:', {
+      tool: state.tool,
+      coordinate: gameCoord,
+      hasContextMenu: !!contextMenuPosition
+    });
+    
+    // Close any existing context menu first
+    if (contextMenuPosition) {
+      console.log('[Selection Debug] Closing existing context menu');
+      closeContextMenu();
+      return; // Don't process new selection on same click that closes menu
+    }
+    
     if (state.tool === 'select') {
       // Enhanced selection - find ALL overlapping VISIBLE items only
       // Hidden items should be completely click-through
@@ -618,7 +645,9 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     onSelectItem,
     onClick,
     hiddenRegions,
-    hiddenPaths
+    hiddenPaths,
+    contextMenuPosition,
+    closeContextMenu
   ]);
 
   return (
