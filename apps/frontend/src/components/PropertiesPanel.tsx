@@ -39,7 +39,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   }, []);
   
   const sanitizeText = useCallback((text: string): string => {
-    return text.trim().slice(0, 100); // Limit length and trim whitespace
+    return text.slice(0, 100); // Only limit length, don't trim during typing
   }, []);
   if (isDrawing) {
     return (
@@ -118,6 +118,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           type="text"
           value={selectedItem.name}
           onChange={(e) => onUpdate({ name: sanitizeText(e.target.value) })}
+          onBlur={(e) => onUpdate({ name: e.target.value.trim().slice(0, 100) })}
           className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           maxLength={100}
         />
