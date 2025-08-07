@@ -372,20 +372,18 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     ctx.closePath();
     ctx.fill();
 
-    // Outline - line width scales WITH zoom: 100%=1px, 200%=2px, 1280%=12.8px
-    // We want zoom/100 pixels on screen, but canvas is scaled by transform.scale
-    // So we need to set lineWidth = desiredPixels / transform.scale
+    // Outline - always exactly 1 pixel relative to background image (1 room boundary)
+    // This maintains constant visual thickness regardless of zoom level
     ctx.globalAlpha = 1.0;
     // Region color - brighter when selected for visibility without changing width
     ctx.strokeStyle = isSelected ? '#22C55E' : (region.color || '#3B82F6');
     // Account for device pixel ratio scaling
     const pixelRatio = window.devicePixelRatio || 1;
-    const desiredPixelWidth = state.zoom / 100;
-    ctx.lineWidth = desiredPixelWidth / (transform.scale * pixelRatio);
+    ctx.lineWidth = 1 / (transform.scale * pixelRatio);
     
     // Debug log to verify deployment (remove after testing)
     if (isSelected) {
-      console.log(`[Region Rendering] Selected region "${region.name || 'Unnamed'}" - Color: ${ctx.strokeStyle}, Width: ${ctx.lineWidth}, DesiredPixels: ${desiredPixelWidth}, Scale: ${transform.scale}, PixelRatio: ${pixelRatio}, Zoom: ${state.zoom}%`);
+      console.log(`[Region Rendering] Selected region "${region.name || 'Unnamed'}" - Color: ${ctx.strokeStyle}, Width: ${ctx.lineWidth}, Scale: ${transform.scale}, PixelRatio: ${pixelRatio}, Zoom: ${state.zoom}%`);
     }
     
     ctx.lineCap = 'square'; // Remove anti-aliasing on line caps
@@ -401,17 +399,14 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
 
     // Path color - brighter when selected for visibility without changing width
     ctx.strokeStyle = isSelected ? '#22C55E' : (path.color || '#10B981');
-    // Line width: We want zoom/100 pixels on screen, but canvas is scaled by transform.scale
-    // So we need to set lineWidth = desiredPixels / transform.scale
-    // At 1030% zoom: desiredPixels = 10.3, transform.scale = 10.3
-    // lineWidth = 10.3 / 10.3 = 1, which gets scaled to 10.3 pixels on screen
+    // Line width: Always exactly 1 pixel relative to background image (1 room width)
+    // This maintains constant visual thickness regardless of zoom level
     const pixelRatio = window.devicePixelRatio || 1;
-    const desiredPixelWidth = state.zoom / 100;
-    ctx.lineWidth = desiredPixelWidth / (transform.scale * pixelRatio);
+    ctx.lineWidth = 1 / (transform.scale * pixelRatio);
     
     // Debug log to verify deployment (remove after testing)
     if (isSelected) {
-      console.log(`[Path Rendering] Selected path "${path.name || 'Unnamed'}" - Color: ${ctx.strokeStyle}, Width: ${ctx.lineWidth}, DesiredPixels: ${desiredPixelWidth}, Scale: ${transform.scale}, PixelRatio: ${pixelRatio}, Zoom: ${state.zoom}%`);
+      console.log(`[Path Rendering] Selected path "${path.name || 'Unnamed'}" - Color: ${ctx.strokeStyle}, Width: ${ctx.lineWidth}, Scale: ${transform.scale}, PixelRatio: ${pixelRatio}, Zoom: ${state.zoom}%`);
     }
     
     ctx.lineCap = 'square'; // Remove anti-aliasing on line caps  
