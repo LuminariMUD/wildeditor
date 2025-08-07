@@ -375,31 +375,54 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
         case 3: // Sector Transform
           return '#8B5CF6'; // Purple
         case 4: // Sector Override - color based on sector type
-          const sectorType = region.region_props;
-          // Underdark sectors - different shades of purple
-          if (sectorType === 19) return '#8B5CF6'; // Underdark Wild - medium purple
-          if (sectorType === 20) return '#7C3AED'; // Underdark City - darker purple
-          if (sectorType === 21) return '#6D28D9'; // Underdark Inside - dark purple
-          if (sectorType === 22) return '#A855F7'; // Underdark Water Swim - light purple
-          if (sectorType === 23) return '#9333EA'; // Underdark Water No Swim - purple
-          if (sectorType === 24) return '#C084FC'; // Underdark In Flight - pale purple
-          
-          // Other sector types
-          if (sectorType === 0 || sectorType === 1) return '#6B7280'; // Inside/City - gray
-          if (sectorType === 2) return '#22C55E'; // Field - green
-          if (sectorType === 3) return '#059669'; // Forest - dark green
-          if (sectorType === 4 || sectorType === 5 || sectorType === 17) return '#92400E'; // Hills/Mountains - brown
-          if (sectorType === 6 || sectorType === 7 || sectorType === 36) return '#1D4ED8'; // Water - blue
-          if (sectorType === 14) return '#F59E0B'; // Desert - amber
-          if (sectorType === 15) return '#0284C7'; // Ocean - blue
-          if (sectorType === 16) return '#16A34A'; // Marshland - dark green
-          if (sectorType === 25) return '#DC2626'; // Lava - red
-          if (sectorType === 29) return '#374151'; // Cave - dark gray
-          if (sectorType === 30) return '#15803D'; // Jungle - dark green
-          if (sectorType === 31) return '#0891B2'; // Tundra - cyan
-          if (sectorType === 32) return '#047857'; // Taiga - dark green
-          if (sectorType === 33) return '#F59E0B'; // Beach - amber
-          return '#6B7280'; // Default gray
+          {
+            const sectorType = region.region_props;
+            // Underdark sectors - different shades of purple
+            if (sectorType === 19) return '#8B5CF6'; // Underdark Wild - medium purple
+            if (sectorType === 20) return '#7C3AED'; // Underdark City - darker purple
+            if (sectorType === 21) return '#6D28D9'; // Underdark Inside - dark purple
+            if (sectorType === 22) return '#A855F7'; // Underdark Water Swim - light purple
+            if (sectorType === 23) return '#9333EA'; // Underdark Water No Swim - purple
+            if (sectorType === 24) return '#C084FC'; // Underdark In Flight - pale purple
+            
+            // Indoor/Urban sectors
+            if (sectorType === 0 || sectorType === 1) return '#6B7280'; // Inside/City - gray
+            if (sectorType === 10) return '#374151'; // Zone Entrance - dark gray
+            
+            // Natural terrain
+            if (sectorType === 2) return '#22C55E'; // Field - green
+            if (sectorType === 3) return '#059669'; // Forest - dark green
+            if (sectorType === 4 || sectorType === 5 || sectorType === 17) return '#92400E'; // Hills/Mountains - brown
+            if (sectorType === 6 || sectorType === 7 || sectorType === 36) return '#1D4ED8'; // Water/River - blue
+            if (sectorType === 8) return '#0EA5E9'; // In Flight - sky blue
+            if (sectorType === 9) return '#0891B2'; // Underwater - cyan
+            if (sectorType === 14) return '#F59E0B'; // Desert - amber
+            if (sectorType === 15) return '#0284C7'; // Ocean - blue
+            if (sectorType === 16) return '#16A34A'; // Marshland - dark green
+            if (sectorType === 30) return '#15803D'; // Jungle - dark green
+            if (sectorType === 31) return '#0891B2'; // Tundra - cyan
+            if (sectorType === 32) return '#047857'; // Taiga - dark green
+            if (sectorType === 33) return '#F59E0B'; // Beach - amber
+            
+            // Transportation
+            if (sectorType === 11 || sectorType === 12 || sectorType === 13) return '#374151'; // Roads - dark gray
+            if (sectorType === 26 || sectorType === 27 || sectorType === 28) return '#92400E'; // Dirt roads - brown
+            
+            // Hazardous terrain
+            if (sectorType === 25) return '#DC2626'; // Lava - red
+            if (sectorType === 21) return '#F59E0B'; // Acid - amber
+            if (sectorType === 22) return '#D97706'; // Quicksand - amber-orange
+            if (sectorType === 23) return '#DC2626'; // Lava (alt) - red
+            if (sectorType === 24) return '#06B6D4'; // Ice - cyan
+            
+            // Environmental/Special
+            if (sectorType === 29) return '#374151'; // Cave - dark gray
+            if (sectorType === 18) return '#7C2D12'; // Outer Planes - very dark orange
+            if (sectorType === 34) return '#6366F1'; // Sea Port - indigo
+            if (sectorType === 35) return '#6B7280'; // Inside Room - gray
+            
+            return '#6B7280'; // Default gray
+          }
         default:
           return '#6B7280'; // Unknown - gray
       }
@@ -407,8 +430,8 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
 
     const regionColor = getRegionColor();
 
-    // Fill with more transparency to see terrain underneath
-    ctx.globalAlpha = 0.15; // Reduced from 0.3 to 0.15 for better terrain visibility
+    // Fill with high transparency to see terrain underneath clearly
+    ctx.globalAlpha = 0.08; // Much more transparent - reduced from 0.15 to 0.08
     ctx.fillStyle = regionColor;
     ctx.beginPath();
     ctx.moveTo(canvasCoords[0].x, canvasCoords[0].y);
@@ -418,8 +441,8 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     ctx.closePath();
     ctx.fill();
 
-    // Outline with same transparency as fill for consistency
-    ctx.globalAlpha = 0.15; // Same transparency as fill
+    // Outline with matching transparency for subtle visibility
+    ctx.globalAlpha = 0.08; // Same transparency as fill for subtle outline
     ctx.strokeStyle = regionColor;
     // 1 canvas pixel width - scales with transform automatically, adjusted for high-DPI
     const pixelRatio = window.devicePixelRatio || 1;
