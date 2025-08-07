@@ -37,7 +37,7 @@ interface ApiRegionResponse {
   name: string;
   region_type: 1 | 2 | 3 | 4;
   coordinates: { x: number; y: number }[];
-  region_props?: number | null;
+  region_props: string;
   region_reset_data?: string;
   region_reset_time?: string | null;
   region_type_name?: string;

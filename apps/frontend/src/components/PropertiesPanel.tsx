@@ -178,32 +178,48 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         </div>
       )}
 
-      {/* Region Properties - type-specific numeric values */}
+      {/* Region Properties - type-specific values */}
       {isRegion && (
         <div>
           {(() => {
             const region = selectedItem as Region;
             const regionType = region.region_type;
             
-            if (regionType === 1 || regionType === 2) {
-              // Geographic and Encounter - value ignored by game
+            if (regionType === 1) {
+              // Geographic - value ignored by game but required
               return (
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Properties {regionType === 1 ? '(Geographic - value ignored)' : '(Encounter - value ignored)'}
+                    Properties (Geographic - value ignored by game)
                   </label>
                   <input
-                    type="number"
-                    value={region.region_props || 0}
-                    onChange={(e) => onUpdate({ region_props: parseInt(e.target.value) || 0 })}
+                    type="text"
+                    value={region.region_props || "0"}
+                    onChange={(e) => onUpdate({ region_props: e.target.value || "0" })}
                     className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Any value (ignored by game)"
+                    placeholder="0 (any value, ignored by game)"
                   />
                   <p className="text-xs text-gray-400 mt-1">
-                    {regionType === 1 
-                      ? "Geographic regions use this for area naming and landmarks. Value is ignored by terrain generation."
-                      : "Encounter regions use this for spawning zones. Value is ignored by terrain generation."
-                    }
+                    This value is ignored by the game but required to be non-empty.
+                  </p>
+                </div>
+              );
+            } else if (regionType === 2) {
+              // Encounter - comma-separated mob vnums
+              return (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Mob VNums (Encounter spawning)
+                  </label>
+                  <input
+                    type="text"
+                    value={region.region_props || "0"}
+                    onChange={(e) => onUpdate({ region_props: e.target.value || "0" })}
+                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="1001,1002,1003 or 0 for no encounters"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Comma-separated list of mob VNums that can spawn in this region (e.g., "1001,1002,1003"). Use "0" for no encounters.
                   </p>
                 </div>
               );
@@ -212,30 +228,30 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               return (
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Elevation Adjustment
+                    Elevation Adjustment (Transform)
                   </label>
                   <input
                     type="number"
-                    value={region.region_props || 0}
-                    onChange={(e) => onUpdate({ region_props: parseInt(e.target.value) || 0 })}
+                    value={region.region_props || "0"}
+                    onChange={(e) => onUpdate({ region_props: e.target.value || "0" })}
                     className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., +50 for uplift, -30 for depression"
+                    placeholder="Elevation change (e.g., 50 or -30)"
                   />
                   <p className="text-xs text-gray-400 mt-1">
-                    Positive values raise elevation, negative values lower it. This affects terrain type calculation.
+                    Positive values raise elevation, negative values lower it. This affects calculated terrain type.
                   </p>
                 </div>
               );
             } else if (regionType === 4) {
-              // Sector Override - specific sector type
+              // Sector Override - dropdown for sector types
               return (
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Sector Type Override
+                    Sector Type (Override)
                   </label>
                   <select
-                    value={region.region_props || 0}
-                    onChange={(e) => onUpdate({ region_props: parseInt(e.target.value) })}
+                    value={region.region_props || "0"}
+                    onChange={(e) => onUpdate({ region_props: e.target.value })}
                     className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value={0}>Inside</option>
@@ -277,8 +293,24 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <option value={36}>River</option>
                   </select>
                   <p className="text-xs text-gray-400 mt-1">
-                    This sector type will completely override the calculated terrain for this region.
+                    Completely overrides the calculated terrain type for all coordinates in this region.
                   </p>
+                </div>
+              );
+            } else {
+              // Unknown region type - generic text input
+              return (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Properties (Unknown region type {regionType})
+                  </label>
+                  <input
+                    type="text"
+                    value={region.region_props || "0"}
+                    onChange={(e) => onUpdate({ region_props: e.target.value || "0" })}
+                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="0"
+                  />
                 </div>
               );
             }

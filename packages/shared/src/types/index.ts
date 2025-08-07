@@ -9,7 +9,7 @@ export interface Region {
   name: string;           // Region display name (max 50 chars)
   region_type: 1 | 2 | 3 | 4; // Region type: 1=Geographic, 2=Encounter, 3=Transform, 4=Sector
   coordinates: Coordinate[];  // Polygon boundary coordinates (min 3 points)
-  region_props?: number | null;     // Optional properties for game behavior  
+  region_props: string;     // String properties: mob vnums for encounters, elevation for transforms, sector ID for overrides
   region_reset_data?: string;       // Reset data string
   region_reset_time?: string | null; // Reset time as ISO string
   region_type_name?: string;        // Human-readable type name from API

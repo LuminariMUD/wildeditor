@@ -1,5 +1,5 @@
 from pydantic import BaseModel, validator
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 from datetime import datetime
 
 # Region type constants
@@ -25,7 +25,7 @@ class RegionBase(BaseModel):
     name: str  # Required in API even though nullable in DB
     region_type: int
     coordinates: Optional[List[Dict[str, float]]] = []  # Optional since region_polygon is nullable in DB
-    region_props: Optional[int] = None
+    region_props: str = "0"  # String to support both numeric and mob vnum lists, required by game
     region_reset_data: str = ""  # Allow empty string (common in existing data)
     region_reset_time: Optional[datetime] = None  # Optional to handle MySQL zero dates gracefully
     
@@ -48,23 +48,63 @@ class RegionBase(BaseModel):
         if 'region_type' in values:
             region_type = values['region_type']
             
-            # REGION_GEOGRAPHIC and REGION_ENCOUNTER: region_props ignored (any value allowed)
-            if region_type in [REGION_GEOGRAPHIC, REGION_ENCOUNTER]:
-                # Value is ignored by the game - allow any value including 0 or None
-                return v
+            # Ensure we have a non-empty string value (game requires this)
+            if not v or v.strip() == "":
+                v = "0"  # Default to "0" if empty
             
-            # REGION_SECTOR_TRANSFORM: elevation adjustment value (any integer)
+            # REGION_GEOGRAPHIC: region_props ignored by game but still required
+            if region_type == REGION_GEOGRAPHIC:
+                # Any value allowed - typically "0" but game ignores it
+                return str(v)
+            
+            # REGION_ENCOUNTER: comma-separated list of mob vnums
+            if region_type == REGION_ENCOUNTER:
+                # Validate format: numbers separated by commas (e.g., "1001,1002,1003")
+                v_str = str(v).strip()
+                if v_str == "0":
+                    return v_str  # Allow "0" for no encounters
+                
+                try:
+                    # Check if it's a comma-separated list of integers
+                    mob_vnums = [int(x.strip()) for x in v_str.split(',') if x.strip()]
+                    if not mob_vnums:
+                        return "0"  # Empty list defaults to "0"
+                    
+                    # Validate vnum ranges (typical MUD vnum range)
+                    for vnum in mob_vnums:
+                        if vnum < 1 or vnum > 999999:
+                            raise ValueError(f'Invalid mob vnum: {vnum}. Must be between 1 and 999999.')
+                    
+                    return ','.join(str(vnum) for vnum in mob_vnums)
+                except ValueError as e:
+                    if "invalid literal" in str(e):
+                        raise ValueError('REGION_ENCOUNTER region_props must be comma-separated mob vnums (e.g., "1001,1002,1003") or "0" for no encounters')
+                    raise e
+                
+            # REGION_SECTOR_TRANSFORM: elevation adjustment value (integer as string)
             if region_type == REGION_SECTOR_TRANSFORM:
-                # Any integer value allowed (positive or negative elevation adjustment)
-                return v
+                try:
+                    elevation_adj = int(v)
+                    # Allow any integer value (positive or negative elevation adjustment)
+                    return str(elevation_adj)
+                except ValueError:
+                    raise ValueError('REGION_SECTOR_TRANSFORM region_props must be a numeric elevation adjustment value (e.g., "50", "-30")')
                 
             # REGION_SECTOR: must be valid sector type (0-36)
             if region_type == REGION_SECTOR:
-                if v is not None and v not in SECTOR_TYPES:
-                    valid_sectors = ', '.join(f'{k}: {v}' for k, v in list(SECTOR_TYPES.items())[:10])
-                    raise ValueError(f'Invalid sector type for REGION_SECTOR. Valid values (0-36): {valid_sectors}...')
+                try:
+                    sector_id = int(v)
+                    if sector_id not in SECTOR_TYPES:
+                        valid_sectors = ', '.join(f'{k}: {v}' for k, v in list(SECTOR_TYPES.items())[:10])
+                        raise ValueError(f'Invalid sector type for REGION_SECTOR. Valid values (0-36): {valid_sectors}...')
+                    return str(sector_id)
+                except ValueError as e:
+                    if "invalid literal" in str(e):
+                        raise ValueError('REGION_SECTOR region_props must be a valid sector type number (0-36)')
+                    raise e
         
-        return v
+        # Default to "0" if no validation applies
+        return str(v) if v is not None else "0"
     
     @validator('coordinates')
     def validate_coordinates(cls, v):
@@ -96,7 +136,7 @@ class RegionUpdate(BaseModel):
     name: Optional[str] = None
     region_type: Optional[int] = None
     coordinates: Optional[List[Dict[str, float]]] = None
-    region_props: Optional[int] = None
+    region_props: Optional[str] = None
     region_reset_data: Optional[str] = None
     region_reset_time: Optional[datetime] = None
     
