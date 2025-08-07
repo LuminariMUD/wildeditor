@@ -372,11 +372,12 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     ctx.closePath();
     ctx.fill();
 
-    // Outline - exactly 1 pixel at 100% zoom, accounting for device pixel ratio
+    // Outline - exactly 1 pixel at 100% zoom, represents room boundary
+    // Scales proportionally: 100%=1px, 200%=2px, 400%=4px, 2000%=20px
     ctx.globalAlpha = 1.0;
-    ctx.strokeStyle = region.color || '#3B82F6';
-    const baseLineWidth = 1 / transform.scale;
-    ctx.lineWidth = isSelected ? (3 / transform.scale) : Math.max(0.5 / transform.scale, baseLineWidth);
+    // Region color - brighter when selected for visibility without changing width
+    ctx.strokeStyle = isSelected ? '#22C55E' : (region.color || '#3B82F6');
+    ctx.lineWidth = 1 / transform.scale;
     ctx.lineCap = 'square'; // Remove anti-aliasing on line caps
     ctx.lineJoin = 'miter'; // Sharp corners for pixel-perfect rendering
     ctx.stroke();
@@ -388,10 +389,11 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     const canvasCoords = path.coordinates.map(gameToCanvas);
     const isSelected = state.selectedItem?.id === path.id;
 
-    ctx.strokeStyle = path.color || '#10B981';
-    // Ensure exactly 1 pixel at 100% zoom, accounting for device pixel ratio
-    const baseLineWidth = 1 / transform.scale;
-    ctx.lineWidth = isSelected ? (3 / transform.scale) : Math.max(0.5 / transform.scale, baseLineWidth);
+    // Path color - brighter when selected for visibility without changing width
+    ctx.strokeStyle = isSelected ? '#22C55E' : (path.color || '#10B981');
+    // Always exactly 1 pixel at 100% zoom - represents 1 room width in game
+    // Scales proportionally: 100%=1px, 200%=2px, 400%=4px, 2000%=20px
+    ctx.lineWidth = 1 / transform.scale;
     ctx.lineCap = 'square'; // Remove anti-aliasing on line caps  
     ctx.lineJoin = 'miter'; // Sharp corners for pixel-perfect rendering
 
@@ -461,8 +463,8 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
       const canvasCoords = state.currentDrawing.map(gameToCanvas);
       
       ctx.strokeStyle = '#22C55E';
-      const baseLineWidth = 1 / transform.scale;
-      ctx.lineWidth = Math.max(0.5 / transform.scale, baseLineWidth);
+      // Drawing feedback also uses 1 pixel at 100% zoom for consistency
+      ctx.lineWidth = 1 / transform.scale;
       ctx.lineCap = 'square';
       ctx.lineJoin = 'miter';
       ctx.setLineDash([8 / transform.scale, 4 / transform.scale]);
