@@ -91,10 +91,10 @@ class RegionBase(BaseModel):
                     if not mob_vnums:
                         return ""  # Empty list defaults to empty string
                     
-                    # Validate vnum ranges (typical MUD vnum range)
+                    # Validate vnum ranges (LuminariMUD vnum range)
                     for vnum in mob_vnums:
-                        if vnum < 1 or vnum > 999999:
-                            raise ValueError(f'Invalid mob vnum: {vnum}. Must be between 1 and 999999.')
+                        if vnum < 1 or vnum > 99999999:
+                            raise ValueError(f'Invalid mob vnum: {vnum}. Must be between 1 and 99999999.')
                     
                     return ','.join(str(vnum) for vnum in mob_vnums)
                 except ValueError as e:
