@@ -514,12 +514,30 @@ export const useEditor = () => {
           const createdRegion = await apiClient.createRegion(region);
           console.log('[Save] Region created successfully:', itemId);
           
+          // Remove from unsaved items before updating state
+          setUnsavedItems(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(itemId);
+            return newSet;
+          });
+          
           // Update the local region with the server response (including new vnum)
           setRegions(prev => prev.map(r => 
             (r.id === itemId || r.vnum?.toString() === itemId) 
               ? { ...createdRegion, isDirty: false } 
               : r
           ));
+          
+          // Update selected item if it's the one we just saved
+          if (state.selectedItem && 
+              ((state.selectedItem.id === itemId) || 
+               ('vnum' in state.selectedItem && state.selectedItem.vnum?.toString() === itemId))) {
+            setState(prev => ({ 
+              ...prev, 
+              selectedItem: prev.selectedItem ? { ...prev.selectedItem, isDirty: false } : null 
+            }));
+          }
+          
           return; // Early return since we already updated the region state
         }
         
@@ -565,12 +583,30 @@ export const useEditor = () => {
             const createdPath = await apiClient.createPath(path);
             console.log('[Save] Path created successfully:', itemId);
             
+            // Remove from unsaved items before updating state
+            setUnsavedItems(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(itemId);
+              return newSet;
+            });
+            
             // Update the local path with the server response (including new vnum)
             setPaths(prev => prev.map(p => 
               (p.id === itemId || p.vnum?.toString() === itemId) 
                 ? { ...createdPath, isDirty: false } 
                 : p
             ));
+            
+            // Update selected item if it's the one we just saved
+            if (state.selectedItem && 
+                ((state.selectedItem.id === itemId) || 
+                 ('vnum' in state.selectedItem && state.selectedItem.vnum?.toString() === itemId))) {
+              setState(prev => ({ 
+                ...prev, 
+                selectedItem: prev.selectedItem ? { ...prev.selectedItem, isDirty: false } : null 
+              }));
+            }
+            
             return; // Early return since we already updated the path state
           }
           
