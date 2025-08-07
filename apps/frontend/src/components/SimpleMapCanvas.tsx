@@ -1,5 +1,12 @@
 import { useRef, useEffect, useCallback, useState, FC } from 'react';
 import { Coordinate, Region, Path, EditorState } from '../types';
+import { SelectionContextMenu } from './SelectionContextMenu';
+
+interface SelectionCandidate {
+  item: Region | Path;
+  type: 'region' | 'path';
+  distance?: number;
+}
 
 interface SimpleMapCanvasProps {
   state: EditorState;
@@ -10,6 +17,10 @@ interface SimpleMapCanvasProps {
   onSelectItem: (item: Region | Path | null) => void;
   onZoomChange: (zoom: number) => void;
   centerOnCoordinate?: Coordinate | null;
+  // Add these props for enhanced selection
+  hiddenRegions?: Set<number>;
+  hiddenPaths?: Set<number>;
+  onToggleItemVisibility?: (type: 'region' | 'path', vnum: number) => void;
 }
 
 export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
@@ -20,11 +31,18 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
   onClick,
   onSelectItem,
   onZoomChange,
-  centerOnCoordinate
+  centerOnCoordinate,
+  hiddenRegions = new Set(),
+  hiddenPaths = new Set(),
+  onToggleItemVisibility = () => {}
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
+  
+  // Selection context menu state
+  const [selectionCandidates, setSelectionCandidates] = useState<SelectionCandidate[]>([]);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   
   // Transform state - all in one place for reliability
   const [transform, setTransform] = useState({
@@ -39,6 +57,12 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
 
   // Track last zoom to detect external changes
   const isInternalZoomRef = useRef(false);
+
+  // Close context menu when clicking elsewhere
+  const closeContextMenu = useCallback(() => {
+    setContextMenuPosition(null);
+    setSelectionCandidates([]);
+  }, []);
 
   // Constants
   const CANVAS_SIZE = 1000; // Fixed canvas size
@@ -436,27 +460,47 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     const gameCoord = screenToGame(e.clientX, e.clientY);
     
     if (state.tool === 'select') {
-      // Simple selection - find the first item that contains the point
-      // Check regions
-      for (const region of regions) {
+      // Enhanced selection - find ALL overlapping items, but only use the simpler approach for now
+      const candidates: Array<{
+        item: Region | Path;
+        type: 'region' | 'path';
+        distance?: number;
+        area?: number;
+      }> = [];
+
+      // Check visible regions first, but in reverse order (smaller regions drawn last should be selected first)
+      for (let i = regions.length - 1; i >= 0; i--) {
+        const region = regions[i];
         if (region.coordinates.length >= 3) {
           // Point-in-polygon test
           let inside = false;
           const polygon = region.coordinates;
-          for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-            if (((polygon[i].y > gameCoord.y) !== (polygon[j].y > gameCoord.y)) &&
-                (gameCoord.x < (polygon[j].x - polygon[i].x) * (gameCoord.y - polygon[i].y) / (polygon[j].y - polygon[i].y) + polygon[i].x)) {
+          for (let j = 0, k = polygon.length - 1; j < polygon.length; k = j++) {
+            if (((polygon[j].y > gameCoord.y) !== (polygon[k].y > gameCoord.y)) &&
+                (gameCoord.x < (polygon[k].x - polygon[j].x) * (gameCoord.y - polygon[j].y) / (polygon[k].y - polygon[j].y) + polygon[j].x)) {
               inside = !inside;
             }
           }
           if (inside) {
-            onSelectItem(region);
-            return;
+            // Calculate area for sorting preference (smaller areas preferred)
+            let area = 0;
+            for (let j = 0; j < polygon.length; j++) {
+              const k = (j + 1) % polygon.length;
+              area += polygon[j].x * polygon[k].y;
+              area -= polygon[k].x * polygon[j].y;
+            }
+            area = Math.abs(area) / 2;
+            
+            candidates.push({
+              item: region,
+              type: 'region',
+              area
+            });
           }
         }
       }
 
-      // Check paths
+      // Check visible paths
       for (const path of paths) {
         if (path.coordinates.length >= 2) {
           // Check distance to path segments
@@ -487,14 +531,29 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
           }
           
           if (minDistance <= 15) {
-            onSelectItem(path);
-            return;
+            candidates.push({
+              item: path,
+              type: 'path',
+              distance: minDistance
+            });
           }
         }
       }
 
-      // No selection found
-      onSelectItem(null);
+      // Handle selection based on candidates
+      if (candidates.length === 0) {
+        onSelectItem(null);
+      } else if (candidates.length === 1) {
+        onSelectItem(candidates[0].item);
+      } else {
+        // Multiple candidates - show context menu for user choice
+        setSelectionCandidates(candidates.map(c => ({
+          item: c.item,
+          type: c.type,
+          distance: c.distance
+        })));
+        setContextMenuPosition({ x: e.clientX, y: e.clientY });
+      }
     } else {
       // Drawing tools
       onClick(gameCoord);
@@ -521,6 +580,22 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
         onClick={handleClick}
         onWheel={handleWheel}
       />
+      
+      {/* Context menu for overlapping selections */}
+      {contextMenuPosition && selectionCandidates.length > 0 && (
+        <SelectionContextMenu
+          candidates={selectionCandidates}
+          position={contextMenuPosition}
+          onSelect={(item) => {
+            onSelectItem(item);
+            closeContextMenu();
+          }}
+          onClose={closeContextMenu}
+          hiddenRegions={hiddenRegions}
+          hiddenPaths={hiddenPaths}
+          onToggleVisibility={onToggleItemVisibility}
+        />
+      )}
     </div>
   );
 };

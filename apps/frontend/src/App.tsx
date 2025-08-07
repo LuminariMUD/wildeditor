@@ -169,6 +169,9 @@ function App() {
               onSelectItem={selectItem}
               onZoomChange={setZoom}
               centerOnCoordinate={centerOnCoordinate}
+              hiddenRegions={hiddenRegions}
+              hiddenPaths={hiddenPaths}
+              onToggleItemVisibility={toggleItemVisibility}
             />
           }
           rightPane={
