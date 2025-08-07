@@ -7,12 +7,13 @@ export const useAuth = () => {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Check if auth is disabled for development
-  const authDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true'
-
   useEffect(() => {
-    if (authDisabled) {
-      // Create a mock user for development
+    // ONLY allow development mode if explicitly enabled AND not in production
+    const isProduction = import.meta.env.PROD;
+    const authExplicitlyDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
+    
+    if (authExplicitlyDisabled && !isProduction) {
+      // Create a mock user for development ONLY in non-production builds
       const mockUser = {
         id: 'dev-user',
         email: 'dev@localhost',
@@ -36,11 +37,12 @@ export const useAuth = () => {
       setUser(mockUser)
       setSession(mockSession)
       setLoading(false)
-      console.log('🔧 Development mode: Authentication bypassed')
+      console.log('🔧 Development mode: Authentication bypassed (dev build only)')
       return
     }
 
     if (!supabase) {
+      console.error('🔴 Supabase client not configured - check environment variables')
       setLoading(false)
       return
     }
@@ -65,7 +67,10 @@ export const useAuth = () => {
   }, [])
 
   const signUp = async (email: string, password: string) => {
-    if (authDisabled) {
+    const isProduction = import.meta.env.PROD;
+    const authExplicitlyDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
+    
+    if (authExplicitlyDisabled && !isProduction) {
       console.log('🔧 Development mode: Sign up bypassed')
       return { data: { user: user, session: session }, error: null }
     }
@@ -96,7 +101,10 @@ export const useAuth = () => {
   }
 
   const signIn = async (email: string, password: string) => {
-    if (authDisabled) {
+    const isProduction = import.meta.env.PROD;
+    const authExplicitlyDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
+    
+    if (authExplicitlyDisabled && !isProduction) {
       console.log('🔧 Development mode: Sign in bypassed')
       return { data: { user: user, session: session }, error: null }
     }
@@ -124,7 +132,10 @@ export const useAuth = () => {
   }
 
   const signOut = async () => {
-    if (authDisabled) {
+    const isProduction = import.meta.env.PROD;
+    const authExplicitlyDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
+    
+    if (authExplicitlyDisabled && !isProduction) {
       console.log('🔧 Development mode: Sign out bypassed')
       return { error: null }
     }
@@ -137,7 +148,10 @@ export const useAuth = () => {
   }
 
   const resetPassword = async (email: string) => {
-    if (authDisabled) {
+    const isProduction = import.meta.env.PROD;
+    const authExplicitlyDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
+    
+    if (authExplicitlyDisabled && !isProduction) {
       console.log('🔧 Development mode: Password reset bypassed')
       return { data: null, error: null }
     }
