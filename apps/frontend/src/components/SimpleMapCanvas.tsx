@@ -413,7 +413,6 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
 
     // Disable anti-aliasing for pixel-perfect rendering
     ctx.imageSmoothingEnabled = false;
-    // @ts-ignore - Vendor prefixes may not be in types but are needed for cross-browser support
     if ('webkitImageSmoothingEnabled' in ctx) ctx.webkitImageSmoothingEnabled = false;
     if ('mozImageSmoothingEnabled' in ctx) ctx.mozImageSmoothingEnabled = false;
     if ('msImageSmoothingEnabled' in ctx) ctx.msImageSmoothingEnabled = false;
