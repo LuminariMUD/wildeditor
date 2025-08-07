@@ -282,7 +282,8 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     if (!state.showGrid) return;
 
     ctx.strokeStyle = '#374151';
-    ctx.lineWidth = 1 / transform.scale; // Exactly 1 pixel at 100% zoom
+    const baseLineWidth = 1 / transform.scale;
+    ctx.lineWidth = Math.max(0.25 / transform.scale, baseLineWidth); // Thinner grid lines but still visible
     ctx.lineCap = 'square'; // Pixel-perfect line caps
     ctx.lineJoin = 'miter'; // Sharp corners
     ctx.setLineDash([2 / transform.scale, 2 / transform.scale]);
@@ -311,7 +312,8 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     if (!state.showAxes) return;
 
     ctx.strokeStyle = '#6B7280';
-    ctx.lineWidth = 2 / transform.scale; // 2 pixels at 100% zoom for better visibility
+    const baseLineWidth = 2 / transform.scale;
+    ctx.lineWidth = Math.max(1 / transform.scale, baseLineWidth); // 2 pixels at 100% zoom for better visibility
     ctx.lineCap = 'square'; // Pixel-perfect line caps
     ctx.lineJoin = 'miter'; // Sharp corners
 
@@ -336,7 +338,8 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     const origin = gameToCanvas({ x: 0, y: 0 });
     ctx.fillStyle = '#EF4444';
     ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 2 / transform.scale; // 2 pixels at 100% zoom
+    const baseLineWidth = 2 / transform.scale;
+    ctx.lineWidth = Math.max(1 / transform.scale, baseLineWidth); // 2 pixels at 100% zoom
     ctx.lineCap = 'square'; // Pixel-perfect line caps
     ctx.lineJoin = 'miter'; // Sharp corners
 
@@ -369,10 +372,11 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     ctx.closePath();
     ctx.fill();
 
-    // Outline - exactly 1 pixel at 100% zoom, scale proportionally
+    // Outline - exactly 1 pixel at 100% zoom, accounting for device pixel ratio
     ctx.globalAlpha = 1.0;
     ctx.strokeStyle = region.color || '#3B82F6';
-    ctx.lineWidth = (isSelected ? 3 : 1) / transform.scale;
+    const baseLineWidth = 1 / transform.scale;
+    ctx.lineWidth = isSelected ? (3 / transform.scale) : Math.max(0.5 / transform.scale, baseLineWidth);
     ctx.lineCap = 'square'; // Remove anti-aliasing on line caps
     ctx.lineJoin = 'miter'; // Sharp corners for pixel-perfect rendering
     ctx.stroke();
@@ -385,7 +389,9 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     const isSelected = state.selectedItem?.id === path.id;
 
     ctx.strokeStyle = path.color || '#10B981';
-    ctx.lineWidth = (isSelected ? 3 : 1) / transform.scale; // Exactly 1 pixel at 100% zoom
+    // Ensure exactly 1 pixel at 100% zoom, accounting for device pixel ratio
+    const baseLineWidth = 1 / transform.scale;
+    ctx.lineWidth = isSelected ? (3 / transform.scale) : Math.max(0.5 / transform.scale, baseLineWidth);
     ctx.lineCap = 'square'; // Remove anti-aliasing on line caps  
     ctx.lineJoin = 'miter'; // Sharp corners for pixel-perfect rendering
 
@@ -406,10 +412,20 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size to fill container exactly
+    // Handle high-DPI displays properly
     const containerRect = container.getBoundingClientRect();
-    canvas.width = containerRect.width;
-    canvas.height = containerRect.height;
+    const pixelRatio = window.devicePixelRatio || 1;
+    
+    // Set canvas size accounting for device pixel ratio
+    canvas.width = containerRect.width * pixelRatio;
+    canvas.height = containerRect.height * pixelRatio;
+    
+    // Scale canvas back down for CSS display
+    canvas.style.width = `${containerRect.width}px`;
+    canvas.style.height = `${containerRect.height}px`;
+    
+    // Scale the context to match device pixel ratio
+    ctx.scale(pixelRatio, pixelRatio);
 
     // Disable anti-aliasing for pixel-perfect rendering
     ctx.imageSmoothingEnabled = false;
@@ -419,7 +435,7 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
 
     // Clear canvas
     ctx.fillStyle = '#1F2937';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, containerRect.width, containerRect.height);
 
     // Apply transform
     ctx.save();
@@ -445,7 +461,8 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
       const canvasCoords = state.currentDrawing.map(gameToCanvas);
       
       ctx.strokeStyle = '#22C55E';
-      ctx.lineWidth = 1 / transform.scale;
+      const baseLineWidth = 1 / transform.scale;
+      ctx.lineWidth = Math.max(0.5 / transform.scale, baseLineWidth);
       ctx.lineCap = 'square';
       ctx.lineJoin = 'miter';
       ctx.setLineDash([8 / transform.scale, 4 / transform.scale]);
