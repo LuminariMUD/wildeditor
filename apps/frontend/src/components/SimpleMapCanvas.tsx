@@ -282,7 +282,9 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     if (!state.showGrid) return;
 
     ctx.strokeStyle = '#374151';
-    ctx.lineWidth = 1 / transform.scale; // Scale line width
+    ctx.lineWidth = 1 / transform.scale; // Exactly 1 pixel at 100% zoom
+    ctx.lineCap = 'square'; // Pixel-perfect line caps
+    ctx.lineJoin = 'miter'; // Sharp corners
     ctx.setLineDash([2 / transform.scale, 2 / transform.scale]);
 
     const gridSize = 50;
@@ -309,7 +311,9 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     if (!state.showAxes) return;
 
     ctx.strokeStyle = '#6B7280';
-    ctx.lineWidth = 2 / transform.scale;
+    ctx.lineWidth = 2 / transform.scale; // 2 pixels at 100% zoom for better visibility
+    ctx.lineCap = 'square'; // Pixel-perfect line caps
+    ctx.lineJoin = 'miter'; // Sharp corners
 
     const origin = gameToCanvas({ x: 0, y: 0 });
     
@@ -332,7 +336,9 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     const origin = gameToCanvas({ x: 0, y: 0 });
     ctx.fillStyle = '#EF4444';
     ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 2 / transform.scale;
+    ctx.lineWidth = 2 / transform.scale; // 2 pixels at 100% zoom
+    ctx.lineCap = 'square'; // Pixel-perfect line caps
+    ctx.lineJoin = 'miter'; // Sharp corners
 
     ctx.beginPath();
     ctx.arc(origin.x, origin.y, 8 / transform.scale, 0, Math.PI * 2);
@@ -363,10 +369,12 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     ctx.closePath();
     ctx.fill();
 
-    // Outline
+    // Outline - exactly 1 pixel at 100% zoom, scale proportionally
     ctx.globalAlpha = 1.0;
     ctx.strokeStyle = region.color || '#3B82F6';
     ctx.lineWidth = (isSelected ? 3 : 1) / transform.scale;
+    ctx.lineCap = 'square'; // Remove anti-aliasing on line caps
+    ctx.lineJoin = 'miter'; // Sharp corners for pixel-perfect rendering
     ctx.stroke();
   }, [state.showRegions, state.selectedItem, gameToCanvas, transform.scale]);
 
@@ -377,9 +385,9 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     const isSelected = state.selectedItem?.id === path.id;
 
     ctx.strokeStyle = path.color || '#10B981';
-    ctx.lineWidth = (isSelected ? 3 : 1) / transform.scale;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    ctx.lineWidth = (isSelected ? 3 : 1) / transform.scale; // Exactly 1 pixel at 100% zoom
+    ctx.lineCap = 'square'; // Remove anti-aliasing on line caps  
+    ctx.lineJoin = 'miter'; // Sharp corners for pixel-perfect rendering
 
     ctx.beginPath();
     ctx.moveTo(canvasCoords[0].x, canvasCoords[0].y);
@@ -403,6 +411,13 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     canvas.width = containerRect.width;
     canvas.height = containerRect.height;
 
+    // Disable anti-aliasing for pixel-perfect rendering
+    ctx.imageSmoothingEnabled = false;
+    // @ts-ignore - Vendor prefixes may not be in types but are needed for cross-browser support
+    if ('webkitImageSmoothingEnabled' in ctx) ctx.webkitImageSmoothingEnabled = false;
+    if ('mozImageSmoothingEnabled' in ctx) ctx.mozImageSmoothingEnabled = false;
+    if ('msImageSmoothingEnabled' in ctx) ctx.msImageSmoothingEnabled = false;
+
     // Clear canvas
     ctx.fillStyle = '#1F2937';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -412,7 +427,7 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     ctx.translate(transform.x, transform.y);
     ctx.scale(transform.scale, transform.scale);
 
-    // Draw background image
+    // Draw background image with nearest-neighbor scaling
     if (state.showBackground && backgroundImage) {
       ctx.drawImage(backgroundImage, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
     }
@@ -431,7 +446,9 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
       const canvasCoords = state.currentDrawing.map(gameToCanvas);
       
       ctx.strokeStyle = '#22C55E';
-      ctx.lineWidth = 2 / transform.scale;
+      ctx.lineWidth = 1 / transform.scale;
+      ctx.lineCap = 'square';
+      ctx.lineJoin = 'miter';
       ctx.setLineDash([8 / transform.scale, 4 / transform.scale]);
 
       if (state.tool === 'region' && canvasCoords.length >= 3) {
