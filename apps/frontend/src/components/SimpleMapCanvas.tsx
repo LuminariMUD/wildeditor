@@ -430,8 +430,8 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
 
     const regionColor = getRegionColor();
 
-    // Fill with high transparency to see terrain underneath clearly
-    ctx.globalAlpha = 0.08; // Much more transparent - reduced from 0.15 to 0.08
+    // Fill with moderate transparency to see terrain underneath while remaining visible
+    ctx.globalAlpha = 0.25; // Increased from 0.08 to 0.25 for better visibility
     ctx.fillStyle = regionColor;
     ctx.beginPath();
     ctx.moveTo(canvasCoords[0].x, canvasCoords[0].y);
@@ -441,8 +441,8 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
     ctx.closePath();
     ctx.fill();
 
-    // Outline with matching transparency for subtle visibility
-    ctx.globalAlpha = 0.08; // Same transparency as fill for subtle outline
+    // Outline with higher opacity for clear visibility
+    ctx.globalAlpha = 0.25; // Higher opacity for borders to make them clearly visible
     ctx.strokeStyle = regionColor;
     // 1 canvas pixel width - scales with transform automatically, adjusted for high-DPI
     const pixelRatio = window.devicePixelRatio || 1;
