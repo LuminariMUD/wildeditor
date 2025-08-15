@@ -222,6 +222,7 @@ jobs:
       - name: Deploy MCP server to production
         env:
           WILDEDITOR_MCP_KEY: ${{ secrets.WILDEDITOR_MCP_KEY }}
+          WILDEDITOR_API_KEY: ${{ secrets.WILDEDITOR_API_KEY }}
         run: |
           # Check if MCP keys are provided
           if [ -z "$WILDEDITOR_MCP_KEY" ]; then
