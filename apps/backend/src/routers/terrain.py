@@ -35,7 +35,7 @@ async def terrain_health_check():
 async def get_terrain_at_coordinates(
     x: int = Query(..., ge=-1024, le=1024, description="X coordinate"),
     y: int = Query(..., ge=-1024, le=1024, description="Y coordinate"),
-    authenticated: bool = Depends(RequireAuth())
+    authenticated: bool = RequireAuth
 ):
     """
     Get terrain data for a specific coordinate
@@ -71,7 +71,7 @@ async def get_terrain_area(
     max_x: int = Query(..., ge=-1024, le=1024, description="Maximum X coordinate"),
     min_y: int = Query(..., ge=-1024, le=1024, description="Minimum Y coordinate"),
     max_y: int = Query(..., ge=-1024, le=1024, description="Maximum Y coordinate"),
-    authenticated: bool = Depends(RequireAuth())
+    authenticated: bool = RequireAuth
 ):
     """
     Get terrain data for a rectangular area
@@ -114,7 +114,7 @@ async def get_elevation_profile(
     from_y: int = Query(..., ge=-1024, le=1024, description="Starting Y coordinate"),
     to_x: int = Query(..., ge=-1024, le=1024, description="Ending X coordinate"),
     to_y: int = Query(..., ge=-1024, le=1024, description="Ending Y coordinate"),
-    authenticated: bool = Depends(RequireAuth())
+    authenticated: bool = RequireAuth
 ):
     """
     Get elevation profile along a line between two points
@@ -169,7 +169,7 @@ async def generate_map_data(
     center_x: int = Query(..., ge=-1024, le=1024, description="Center X coordinate"),
     center_y: int = Query(..., ge=-1024, le=1024, description="Center Y coordinate"),
     radius: int = Query(10, ge=1, le=31, description="Map radius (max 31)"),
-    authenticated: bool = Depends(RequireAuth())
+    authenticated: bool = RequireAuth
 ):
     """
     Generate map data for a circular area around a center point
@@ -225,7 +225,7 @@ async def generate_map_data(
 
 
 @router.get("/sector-types")
-async def get_sector_types(authenticated: bool = Depends(RequireAuth())):
+async def get_sector_types(authenticated: bool = RequireAuth):
     """
     Get the list of available sector types
     

@@ -18,7 +18,7 @@ router = APIRouter()
 @router.get("/rooms")
 async def list_wilderness_rooms(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of rooms to return"),
-    authenticated: bool = Depends(RequireAuth())
+    authenticated: bool = RequireAuth
 ):
     """
     Get list of static wilderness rooms
@@ -46,7 +46,7 @@ async def list_wilderness_rooms(
 @router.get("/rooms/{vnum}")
 async def get_room_details(
     vnum: int,
-    authenticated: bool = Depends(RequireAuth())
+    authenticated: bool = RequireAuth
 ):
     """
     Get detailed information for a specific wilderness room
@@ -75,7 +75,7 @@ async def get_room_details(
 async def get_room_at_coordinates(
     x: int = Query(..., ge=-1024, le=1024, description="X coordinate"),
     y: int = Query(..., ge=-1024, le=1024, description="Y coordinate"),
-    authenticated: bool = Depends(RequireAuth())
+    authenticated: bool = RequireAuth
 ):
     """
     Find wilderness room at specific coordinates
@@ -125,7 +125,7 @@ async def get_room_at_coordinates(
 
 @router.get("/navigation/entrances")
 async def get_zone_entrances(
-    authenticated: bool = Depends(RequireAuth())
+    authenticated: bool = RequireAuth
 ):
     """
     Get zone entrance information from wilderness rooms
@@ -193,7 +193,7 @@ async def find_route(
     from_y: int = Query(..., ge=-1024, le=1024, description="Starting Y coordinate"),
     to_x: int = Query(..., ge=-1024, le=1024, description="Destination X coordinate"),
     to_y: int = Query(..., ge=-1024, le=1024, description="Destination Y coordinate"),
-    authenticated: bool = Depends(RequireAuth())
+    authenticated: bool = RequireAuth
 ):
     """
     Calculate a route between two wilderness coordinates
@@ -275,7 +275,7 @@ async def find_route(
 
 
 @router.get("/config")
-async def get_wilderness_config(authenticated: bool = Depends(RequireAuth())):
+async def get_wilderness_config(authenticated: bool = RequireAuth):
     """
     Get wilderness system configuration information
     
