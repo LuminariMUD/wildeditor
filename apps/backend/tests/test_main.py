@@ -146,7 +146,7 @@ class TestDatabaseIntegration:
             "zone_vnum": 1
         }
         
-        response = test_client.post("/api/regions", json=region_data)
+        response = test_client.post("/api/regions/", json=region_data)
         # Will fail if database not connected, but structure should be correct
         assert response.status_code in [201, 500]
 
@@ -203,7 +203,7 @@ class TestDatabaseIntegration:
             "region_reset_data": ""
         }
         
-        response = test_client.post("/api/regions", json=region_data)
+        response = test_client.post("/api/regions/", json=region_data)
         # Will fail if database not connected, but structure should be correct
         assert response.status_code in [201, 500]
 

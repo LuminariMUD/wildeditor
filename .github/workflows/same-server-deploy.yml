@@ -121,6 +121,7 @@ jobs:
         env:
           MYSQL_DATABASE_URL: ${{ secrets.MYSQL_DATABASE_URL }}
           WILDEDITOR_API_KEY: ${{ secrets.WILDEDITOR_API_KEY }}
+          WILDEDITOR_MCP_KEY: ${{ secrets.WILDEDITOR_MCP_KEY }}
         run: |
           # Copy deployment files to server
           scp docker-compose.same-server.yml ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:/opt/wildeditor/
@@ -137,6 +138,7 @@ jobs:
           # Set environment variables
           export MYSQL_DATABASE_URL="${{ env.MYSQL_DATABASE_URL }}"
           export WILDEDITOR_API_KEY="${{ env.WILDEDITOR_API_KEY }}"
+          export WILDEDITOR_MCP_KEY="${{ env.WILDEDITOR_MCP_KEY }}"
           export NODE_ENV="production"
           export BACKEND_PORT="8000"
           export MCP_PORT="8001"
