@@ -1,0 +1,25 @@
+# Core dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+httpx>=0.25.0
+sqlalchemy>=2.0.0
+geoalchemy2>=0.14.0
+pymysql>=1.1.0
+cryptography>=41.0.0
+
+# Development dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+mypy>=1.5.0
+flake8>=6.0.0
+black>=23.0.0
+isort>=5.12.0
+
+# MCP dependencies (to be added in Phase 2)
+# mcp>=1.0.0
+
+# Production dependencies
+gunicorn>=21.0.0

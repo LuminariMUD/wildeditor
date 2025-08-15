@@ -1,0 +1,458 @@
+name: MCP Server CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'apps/mcp/**'
+      - 'packages/auth/**'
+      - '.github/workflows/mcp-deploy.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'apps/mcp/**'
+      - 'packages/auth/**'
+
+env:
+  PYTHON_VERSION: '3.11'
+  DOCKER_IMAGE: 'wildeditor-mcp'
+  REGISTRY: 'ghcr.io'
+
+jobs:
+  # Test MCP server
+  test-mcp:
+    name: Test MCP Server
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-mcp-${{ hashFiles('apps/mcp/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-mcp-
+            
+      - name: Install dependencies
+        run: |
+          cd apps/mcp
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Install auth package
+        run: |
+          pip install -e packages/auth
+          
+      - name: Lint with flake8
+        run: |
+          pip install flake8
+          flake8 apps/mcp/src --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 apps/mcp/src --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+          
+      - name: Type check with mypy
+        run: |
+          pip install mypy
+          mypy apps/mcp/src --ignore-missing-imports || true
+          
+      - name: Run tests
+        run: |
+          cd apps/mcp
+          
+          # Set test environment variables
+          export WILDEDITOR_MCP_KEY="test-mcp-key-for-github-actions"
+          export WILDEDITOR_API_KEY="test-backend-key-for-github-actions"
+          export WILDEDITOR_BACKEND_URL="http://localhost:8000"
+          export TESTING="1"
+          
+          # Run tests
+          PYTHONPATH=. pytest tests/ -v --tb=short
+          
+      - name: Test server startup
+        run: |
+          cd apps/mcp
+          
+          # Set environment variables for testing
+          export WILDEDITOR_MCP_KEY="test-startup-key"
+          export WILDEDITOR_API_KEY="test-startup-backend-key"
+          export WILDEDITOR_BACKEND_URL="http://localhost:8000"
+          export TESTING="1"
+          
+          # Run a basic smoke test to ensure the app can start
+          python -c "
+          import sys
+          import os
+          sys.path.insert(0, '.')
+          os.environ['WILDEDITOR_MCP_KEY'] = 'test-startup-key'
+          os.environ['WILDEDITOR_API_KEY'] = 'test-startup-backend-key'
+          os.environ['WILDEDITOR_BACKEND_URL'] = 'http://localhost:8000'
+          os.environ['TESTING'] = '1'
+          from src.main import app
+          from fastapi.testclient import TestClient
+          client = TestClient(app)
+          response = client.get('/health')
+          assert response.status_code == 200
+          print('✅ MCP server startup test passed')
+          "
+          
+      - name: Security check with bandit
+        run: |
+          pip install bandit
+          bandit -r apps/mcp/src -f json -o mcp-bandit-report.json || true
+          
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mcp-test-results
+          path: |
+            mcp-bandit-report.json
+          retention-days: 7
+
+  # Build Docker image
+  build-mcp-image:
+    name: Build MCP Docker Image
+    runs-on: ubuntu-latest
+    needs: test-mcp
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/luminarimud/wildeditor-mcp
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/mcp/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+      - name: Output image digest
+        run: echo ${{ steps.build.outputs.digest }}
+
+  # Deploy to production server
+  deploy-mcp-production:
+    name: Deploy MCP to Production
+    runs-on: ubuntu-latest
+    needs: [test-mcp, build-mcp-image]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    environment:
+      name: production
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          
+      - name: Test SSH connection
+        run: |
+          echo "Testing SSH connection to ${{ secrets.PRODUCTION_HOST }}..."
+          ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "echo 'SSH connection successful'"
+          
+      - name: Setup MCP server environment
+        run: |
+          echo "Setting up MCP server environment..."
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'SETUP_EOF'
+          
+          # Create MCP directories if they don't exist
+          sudo mkdir -p /opt/wildeditor-mcp
+          sudo mkdir -p /var/log/wildeditor-mcp
+          
+          # Set proper ownership
+          sudo chown $USER:$USER /opt/wildeditor-mcp
+          sudo chown $USER:$USER /var/log/wildeditor-mcp
+          
+          # Check if port 8001 is available
+          echo "🌐 Checking if port 8001 is available..."
+          if ss -tlnp | grep :8001; then
+            echo "⚠️  Port 8001 is already in use:"
+            ss -tlnp | grep :8001
+          else
+            echo "✅ Port 8001 is available"
+          fi
+          
+          echo "✅ MCP server environment setup complete"
+          SETUP_EOF
+          
+      - name: Deploy MCP server to production
+        env:
+          WILDEDITOR_MCP_KEY: ${{ secrets.WILDEDITOR_MCP_KEY }}
+        run: |
+          # Check if MCP keys are provided
+          if [ -z "$WILDEDITOR_MCP_KEY" ]; then
+            echo "❌ WILDEDITOR_MCP_KEY secret is not set in GitHub repository"
+            echo "Please add it in Settings → Secrets and variables → Actions"
+            echo "Generate using: PowerShell -Command \"\$bytes = New-Object byte[] 32; (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes(\$bytes); [Convert]::ToBase64String(\$bytes)\""
+            exit 1
+          fi
+          
+          if [ -z "$WILDEDITOR_API_KEY" ]; then
+            echo "❌ WILDEDITOR_API_KEY secret is not set in GitHub repository"
+            echo "Please add it in Settings → Secrets and variables → Actions"
+            echo "Generate using: PowerShell -Command \"\$bytes = New-Object byte[] 32; (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes(\$bytes); [Convert]::ToBase64String(\$bytes)\""
+            exit 1
+          fi
+          
+          echo "✅ MCP keys are configured"
+          
+          # Create MCP deployment script
+          cat > deploy-mcp.sh << EOF
+          #!/bin/bash
+          set -e
+          
+          echo "🚀 Starting MCP server deployment..."
+          
+          # Configuration
+          APP_DIR="/opt/wildeditor-mcp"
+          DOCKER_IMAGE="${{ env.REGISTRY }}/luminarimud/wildeditor-mcp:latest"
+          CONTAINER_NAME="wildeditor-mcp"
+          MCP_KEY="$WILDEDITOR_MCP_KEY"
+          MCP_BACKEND_KEY="$WILDEDITOR_API_KEY"
+          
+          # Validate keys are not empty
+          if [ -z "\$MCP_KEY" ]; then
+            echo "❌ MCP key not provided to deployment script"
+            exit 1
+          fi
+          
+          if [ -z "\$MCP_BACKEND_KEY" ]; then
+            echo "❌ MCP backend key not provided to deployment script"
+            exit 1
+          fi
+          
+          echo "✅ MCP key received: \${MCP_KEY:0:8}..."
+          echo "✅ MCP backend key received: \${MCP_BACKEND_KEY:0:8}..."
+          
+          # Check Docker access
+          if groups | grep -q docker; then
+            DOCKER_CMD="docker"
+            echo "✅ User is in docker group"
+          elif sudo -n true 2>/dev/null; then
+            DOCKER_CMD="sudo docker"
+            echo "✅ Passwordless sudo available"
+          else
+            echo "❌ Error: User needs to be in docker group or have passwordless sudo access"
+            exit 1
+          fi
+          
+          cd \$APP_DIR
+          
+          # Login to GitHub Container Registry
+          echo "${{ secrets.GITHUB_TOKEN }}" | \$DOCKER_CMD login ghcr.io -u ${{ github.actor }} --password-stdin
+          
+          # Pull latest MCP image
+          echo "📦 Pulling latest MCP Docker image..."
+          \$DOCKER_CMD pull \$DOCKER_IMAGE
+          
+          # Stop existing MCP container
+          echo "🛑 Stopping existing MCP container..."
+          \$DOCKER_CMD stop \$CONTAINER_NAME || true
+          \$DOCKER_CMD rm \$CONTAINER_NAME || true
+          
+          # Start new MCP container
+          echo "🏃 Starting new MCP container..."
+          \$DOCKER_CMD run -d \\
+            --name \$CONTAINER_NAME \\
+            --restart unless-stopped \\
+            -p 8001:8001 \\
+            -e WILDEDITOR_MCP_KEY="\$MCP_KEY" \\
+            -e WILDEDITOR_API_KEY="\$MCP_BACKEND_KEY" \\
+            -e WILDEDITOR_BACKEND_URL="http://localhost:8000" \\
+            -e ENVIRONMENT="production" \\
+            -e DEBUG="false" \\
+            -e PORT="8001" \\
+            -e LOG_LEVEL="INFO" \\
+            -v /var/log/wildeditor-mcp:/var/log/wildeditor-mcp \\
+            \$DOCKER_IMAGE
+          
+          # Wait for container to be healthy
+          echo "🏥 Waiting for health check..."
+          for i in {1..30}; do
+            if \$DOCKER_CMD exec \$CONTAINER_NAME python -c "import requests; requests.get('http://localhost:8001/health')" 2>/dev/null; then
+              echo "✅ MCP container is healthy!"
+              break
+            fi
+            if [ \$i -eq 30 ]; then
+              echo "❌ MCP container failed to become healthy"
+              echo "🔍 Container logs:"
+              \$DOCKER_CMD logs --tail 20 \$CONTAINER_NAME
+              exit 1
+            fi
+            echo "Waiting... (\$i/30)"
+            sleep 2
+          done
+          
+          # Test MCP endpoints
+          echo "🧪 Testing MCP endpoints..."
+          if curl -s --connect-timeout 5 --max-time 10 http://localhost:8001/health >/dev/null; then
+            echo "✅ Health endpoint working"
+          else
+            echo "❌ Health endpoint failed"
+            exit 1
+          fi
+          
+          # Test authenticated endpoint
+          if curl -s --connect-timeout 5 --max-time 10 -H "X-API-Key: \$MCP_KEY" http://localhost:8001/mcp/status >/dev/null; then
+            echo "✅ Authenticated endpoints working"
+          else
+            echo "⚠️  Authenticated endpoint test failed (but health check passed)"
+          fi
+          
+          # Cleanup old images
+          echo "🧹 Cleaning up old images..."
+          \$DOCKER_CMD image prune -f
+          
+          echo "🎉 MCP server deployment completed successfully!"
+          EOF
+          
+          # Copy and execute MCP deployment script
+          echo "Copying MCP deployment script to server..."
+          scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 deploy-mcp.sh ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:/tmp/
+          
+          echo "Executing MCP deployment script on server..."
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
+            chmod +x /tmp/deploy-mcp.sh
+            /tmp/deploy-mcp.sh
+          "
+          
+      - name: Verify MCP deployment
+        run: |
+          # Wait a moment for the service to be fully ready
+          sleep 10
+          
+          echo "🔍 Verifying MCP deployment..."
+          
+          # Test from within the server
+          echo "Testing MCP health endpoint from server..."
+          SERVER_HEALTH_CHECK=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
+            echo '🏥 Testing MCP health endpoint from server:'
+            if curl -s --connect-timeout 5 --max-time 10 http://localhost:8001/health; then
+              echo ''
+              echo '✅ MCP server-side health check PASSED'
+              
+              echo ''
+              echo '🔐 Testing MCP authentication endpoint:'
+              if curl -s --connect-timeout 5 --max-time 10 -H 'X-API-Key: $WILDEDITOR_MCP_KEY' http://localhost:8001/mcp/status | grep -q 'mcp_server'; then
+                echo '✅ MCP authentication endpoint PASSED'
+              else
+                echo '⚠️  MCP authentication endpoint test failed (but health check passed)'
+              fi
+              
+              exit 0
+            else
+              echo ''
+              echo '❌ MCP server-side health check FAILED'
+              echo 'Container logs:'
+              docker logs --tail 10 wildeditor-mcp || true
+              exit 1
+            fi
+          ")
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ MCP server-side health check passed!"
+          else
+            echo "❌ MCP server-side health check failed!"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ MCP deployment verification completed successfully!"
+          echo "The MCP server is running and responding to health checks on port 8001"
+          
+      - name: Create MCP deployment notification
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### 🤖 MCP Server Deployment Successful!\n
+            - **Environment**: Production
+            - **Version**: \`${{ github.sha }}\`
+            - **MCP API URL**: http://${{ secrets.PRODUCTION_HOST }}:8001
+            - **Health Check**: ✅ Passing
+            - **Authentication**: 🔐 MCP Key Required
+            - **Tools**: 5 Wilderness Management Tools
+            - **Resources**: 7 Knowledge Resources  
+            - **Prompts**: 5 AI Content Generation Templates
+            - **Deployed by**: @${{ github.actor }}
+            
+            The MCP server is now live and ready for AI agent integration!
+            
+            **For AI Agents:**
+            - Connect to: \`http://${{ secrets.PRODUCTION_HOST }}:8001\`
+            - Use the configured MCP key for authentication
+            - Test connection: \`curl -H "X-API-Key: YOUR_MCP_KEY" http://${{ secrets.PRODUCTION_HOST }}:8001/mcp/status\`
+            
+            **Available Tools:**
+            - \`analyze_region\` - Deep wilderness region analysis
+            - \`find_path\` - Pathfinding between regions
+            - \`search_regions\` - Advanced region search
+            - \`create_region\` - New region creation
+            - \`validate_connections\` - Connection consistency checking`;
+            
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: '${{ github.sha }}',
+              body: output
+            })
+
+  # Notify deployment status
+  notify-mcp:
+    name: Notify MCP Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy-mcp-production]
+    if: always() && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Log MCP deployment result
+        run: |
+          if [ "${{ needs.deploy-mcp-production.result }}" == "success" ]; then
+            echo "🚀 Wildeditor MCP Server deployed successfully!"
+          else
+            echo "❌ Wildeditor MCP Server deployment failed!"
+            exit 1
+          fi

@@ -1,0 +1,22 @@
+{
+  "name": "@wildeditor/auth",
+  "version": "1.0.0",
+  "description": "Shared authentication package for Wildeditor backend and MCP server",
+  "main": "src/index.py",
+  "private": true,
+  "scripts": {
+    "test": "pytest",
+    "lint": "flake8 src/ tests/",
+    "type-check": "mypy src/"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "keywords": [
+    "wildeditor",
+    "authentication",
+    "api-keys",
+    "fastapi"
+  ],
+  "author": "Wildeditor Team",
+  "license": "MIT"
+}
