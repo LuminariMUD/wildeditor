@@ -38,6 +38,7 @@ jobs:
           
       - name: Test Backend
         run: |
+          pip install -e packages/auth
           cd apps/backend/src
           pip install -r requirements.txt
           pip install pytest pytest-asyncio httpx
@@ -45,6 +46,7 @@ jobs:
           
       - name: Test MCP Server
         run: |
+          pip install -e packages/auth
           cd apps/mcp
           pip install -r requirements.txt
           pip install pytest pytest-asyncio

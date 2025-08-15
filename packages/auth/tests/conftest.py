@@ -17,10 +17,10 @@ def mock_env():
     """Mock environment variables for testing"""
     env_vars = {
         "WILDEDITOR_API_KEY": "test-backend-key",
-        "WILDEDITOR_MCP_KEY": "test-mcp-key", 
+        "WILDEDITOR_MCP_KEY": "test-mcp-key",
         "WILDEDITOR_MCP_BACKEND_KEY": "test-mcp-backend-key"
     }
-    
+
     with patch.dict(os.environ, env_vars, clear=False):
         yield env_vars
 
