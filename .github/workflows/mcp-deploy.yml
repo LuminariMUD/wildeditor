@@ -199,13 +199,9 @@ jobs:
           echo "Setting up MCP server environment..."
           ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'SETUP_EOF'
           
-          # Create MCP directories if they don't exist
-          sudo mkdir -p /opt/wildeditor-mcp
-          sudo mkdir -p /var/log/wildeditor-mcp
-          
-          # Set proper ownership
-          sudo chown $USER:$USER /opt/wildeditor-mcp
-          sudo chown $USER:$USER /var/log/wildeditor-mcp
+          # Create MCP directories in user's home directory (no sudo needed)
+          mkdir -p ~/wildeditor-mcp
+          mkdir -p ~/logs/wildeditor-mcp
           
           # Check if port 8001 is available
           echo "🌐 Checking if port 8001 is available..."
@@ -280,18 +276,19 @@ jobs:
           
           # Debug: Check if directory exists and show current working directory
           echo "🔍 Current working directory: $(pwd)"
-          echo "🔍 Target directory: /opt/wildeditor-mcp"
-          if [ -d "/opt/wildeditor-mcp" ]; then
+          echo "🔍 Target directory: ~/wildeditor-mcp"
+          if [ -d "$HOME/wildeditor-mcp" ]; then
             echo "✅ Target directory exists"
-            ls -la /opt/wildeditor-mcp
+            ls -la ~/wildeditor-mcp
           else
             echo "❌ Target directory does not exist, creating it..."
-            sudo mkdir -p /opt/wildeditor-mcp
-            sudo chown $USER:$USER /opt/wildeditor-mcp
+            mkdir -p ~/wildeditor-mcp
+            echo "✅ Directory created in home directory"
           fi
           
           echo "🔍 Changing to target directory..."
-          cd /opt/wildeditor-mcp
+          cd ~/wildeditor-mcp
+          echo "✅ Now in directory: $(pwd)"
           
           # Login to GitHub Container Registry  
           echo "GITHUB_TOKEN_PLACEHOLDER" | $DOCKER_CMD login ghcr.io -u GITHUB_ACTOR_PLACEHOLDER --password-stdin
@@ -318,7 +315,7 @@ jobs:
             -e DEBUG="false" \
             -e PORT="8001" \
             -e LOG_LEVEL="INFO" \
-            -v /var/log/wildeditor-mcp:/var/log/wildeditor-mcp \
+            -v $HOME/logs/wildeditor-mcp:/var/log/wildeditor-mcp \
             $DOCKER_IMAGE
           
           # Wait for container to be healthy
