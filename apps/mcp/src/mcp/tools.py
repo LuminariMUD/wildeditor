@@ -180,6 +180,95 @@ class ToolRegistry:
                 "required": ["region_id"]
             }
         )
+        
+        # Real-time terrain analysis tool
+        self.register_tool(
+            "analyze_terrain_at_coordinates",
+            self._analyze_terrain_at_coordinates,
+            "Get real-time terrain data at specific wilderness coordinates using the game engine",
+            {
+                "type": "object",
+                "properties": {
+                    "x": {
+                        "type": "integer",
+                        "description": "X coordinate (-1024 to +1024)"
+                    },
+                    "y": {
+                        "type": "integer",
+                        "description": "Y coordinate (-1024 to +1024)"
+                    }
+                },
+                "required": ["x", "y"]
+            }
+        )
+        
+        # Wilderness room finder tool
+        self.register_tool(
+            "find_wilderness_room",
+            self._find_wilderness_room,
+            "Find wilderness room at specific coordinates or get room details by VNUM",
+            {
+                "type": "object",
+                "properties": {
+                    "x": {
+                        "type": "integer",
+                        "description": "X coordinate (-1024 to +1024)"
+                    },
+                    "y": {
+                        "type": "integer",
+                        "description": "Y coordinate (-1024 to +1024)"
+                    },
+                    "vnum": {
+                        "type": "integer",
+                        "description": "Room VNUM to get details for (alternative to coordinates)"
+                    }
+                },
+                "anyOf": [
+                    {"required": ["x", "y"]},
+                    {"required": ["vnum"]}
+                ]
+            }
+        )
+        
+        # Zone entrance finder tool
+        self.register_tool(
+            "find_zone_entrances",
+            self._find_zone_entrances,
+            "Find all zone entrances in the wilderness that connect to other game areas",
+            {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        )
+        
+        # Generate wilderness map tool
+        self.register_tool(
+            "generate_wilderness_map",
+            self._generate_wilderness_map,
+            "Generate a detailed wilderness map for a specific area showing terrain types",
+            {
+                "type": "object",
+                "properties": {
+                    "center_x": {
+                        "type": "integer",
+                        "description": "Center X coordinate"
+                    },
+                    "center_y": {
+                        "type": "integer",
+                        "description": "Center Y coordinate"
+                    },
+                    "radius": {
+                        "type": "integer",
+                        "description": "Map radius (1-31)",
+                        "minimum": 1,
+                        "maximum": 31,
+                        "default": 10
+                    }
+                },
+                "required": ["center_x", "center_y"]
+            }
+        )
     
     async def _analyze_region(self, region_id: int, include_paths: bool = True) -> Dict[str, Any]:
         """Analyze a wilderness region"""
@@ -253,7 +342,7 @@ class ToolRegistry:
         async with httpx.AsyncClient() as client:
             try:
                 headers = {"X-API-Key": settings.api_key}
-                params = {"limit": limit}
+                params: Dict[str, Any] = {"limit": limit}
                 
                 if terrain_type:
                     params["terrain_type"] = terrain_type
@@ -282,7 +371,7 @@ class ToolRegistry:
         async with httpx.AsyncClient() as client:
             try:
                 headers = {"X-API-Key": settings.api_key}
-                data = {
+                data: Dict[str, Any] = {
                     "name": name,
                     "description": description,
                     "terrain_type": terrain_type
@@ -367,3 +456,87 @@ class ToolRegistry:
             "is_isolated": len(region_data.get("exits", [])) == 0,
             "connectivity_score": min(len(region_data.get("exits", [])), 10) / 10.0
         }
+    
+    async def _analyze_terrain_at_coordinates(self, x: int, y: int) -> Dict[str, Any]:
+        """Analyze real-time terrain at specific coordinates"""
+        async with httpx.AsyncClient() as client:
+            try:
+                headers = {"X-API-Key": settings.api_key}
+                response = await client.get(
+                    f"{settings.backend_base_url}/terrain/at-coordinates",
+                    params={"x": x, "y": y},
+                    headers=headers,
+                    timeout=30.0
+                )
+                
+                response.raise_for_status()
+                return response.json()
+                
+            except httpx.HTTPError as e:
+                return {"error": f"Failed to analyze terrain: {str(e)}"}
+    
+    async def _find_wilderness_room(self, x: Optional[int] = None, y: Optional[int] = None, 
+                                  vnum: Optional[int] = None) -> Dict[str, Any]:
+        """Find wilderness room by coordinates or VNUM"""
+        async with httpx.AsyncClient() as client:
+            try:
+                headers = {"X-API-Key": settings.api_key}
+                
+                if vnum is not None:
+                    # Get room by VNUM
+                    response = await client.get(
+                        f"{settings.backend_base_url}/wilderness/rooms/{vnum}",
+                        headers=headers,
+                        timeout=30.0
+                    )
+                elif x is not None and y is not None:
+                    # Get room by coordinates
+                    response = await client.get(
+                        f"{settings.backend_base_url}/wilderness/rooms/at-coordinates",
+                        params={"x": x, "y": y},
+                        headers=headers,
+                        timeout=30.0
+                    )
+                else:
+                    return {"error": "Must provide either coordinates (x,y) or vnum"}
+                
+                response.raise_for_status()
+                return response.json()
+                
+            except httpx.HTTPError as e:
+                return {"error": f"Failed to find wilderness room: {str(e)}"}
+    
+    async def _find_zone_entrances(self) -> Dict[str, Any]:
+        """Find all zone entrances in the wilderness"""
+        async with httpx.AsyncClient() as client:
+            try:
+                headers = {"X-API-Key": settings.api_key}
+                response = await client.get(
+                    f"{settings.backend_base_url}/wilderness/navigation/entrances",
+                    headers=headers,
+                    timeout=30.0
+                )
+                
+                response.raise_for_status()
+                return response.json()
+                
+            except httpx.HTTPError as e:
+                return {"error": f"Failed to find zone entrances: {str(e)}"}
+    
+    async def _generate_wilderness_map(self, center_x: int, center_y: int, radius: int = 10) -> Dict[str, Any]:
+        """Generate wilderness map for an area"""
+        async with httpx.AsyncClient() as client:
+            try:
+                headers = {"X-API-Key": settings.api_key}
+                response = await client.get(
+                    f"{settings.backend_base_url}/terrain/map-data",
+                    params={"center_x": center_x, "center_y": center_y, "radius": radius},
+                    headers=headers,
+                    timeout=30.0
+                )
+                
+                response.raise_for_status()
+                return response.json()
+                
+            except httpx.HTTPError as e:
+                return {"error": f"Failed to generate wilderness map: {str(e)}"}

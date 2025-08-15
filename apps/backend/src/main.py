@@ -3,7 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routers.regions import router as regions_router
 from .routers.paths import router as paths_router
 from .routers.points import router as points_router
+from .routers.terrain import router as terrain_router
+from .routers.wilderness import router as wilderness_router
 from .middleware.auth import verify_api_key
+from .services.terrain_bridge import is_terrain_bridge_available
 import os
 
 app = FastAPI(
@@ -34,15 +37,20 @@ app.add_middleware(
 app.include_router(regions_router, prefix="/api/regions", tags=["Regions"])
 app.include_router(paths_router, prefix="/api/paths", tags=["Paths"])
 app.include_router(points_router, prefix="/api/points", tags=["Points"])
+app.include_router(terrain_router, prefix="/api/terrain", tags=["Terrain"])
+app.include_router(wilderness_router, prefix="/api/wilderness", tags=["Wilderness"])
 
 
 @app.get("/api/health")
-def health_check():
+async def health_check():
     """Health check endpoint"""
+    terrain_available = await is_terrain_bridge_available()
+    
     return {
         "status": "healthy", 
         "service": "wildeditor-backend",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "terrain_bridge_available": terrain_available
     }
 
 
