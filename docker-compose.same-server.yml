@@ -32,10 +32,10 @@ services:
       - "${MCP_PORT:-8001}:8001"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
-      - MCP_PORT=8001
-      - MYSQL_DATABASE_URL=${MYSQL_DATABASE_URL}
+      - WILDEDITOR_MCP_PORT=8001
+      - WILDEDITOR_BACKEND_URL=http://wildeditor-backend:8000  # Internal container communication
       - WILDEDITOR_API_KEY=${WILDEDITOR_API_KEY}
-      - BACKEND_URL=http://wildeditor-backend:8000  # Internal container communication
+      - WILDEDITOR_MCP_KEY=${WILDEDITOR_MCP_KEY}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]

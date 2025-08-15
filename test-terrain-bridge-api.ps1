@@ -68,7 +68,6 @@ try {
 $terrainBody = @{
     x = 0
     y = 0
-    include_noise_layers = $true
 } | ConvertTo-Json
 
 Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/analyze_terrain_at_coordinates" `
