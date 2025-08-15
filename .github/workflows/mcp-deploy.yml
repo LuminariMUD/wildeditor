@@ -242,7 +242,7 @@ jobs:
           echo "✅ MCP keys are configured"
           
           # Create MCP deployment script
-          cat > deploy-mcp.sh << EOF
+          cat > deploy-mcp.sh << 'EOF'
           #!/bin/bash
           set -e
           
@@ -250,24 +250,22 @@ jobs:
           
           # Configuration
           APP_DIR="/opt/wildeditor-mcp"
-          DOCKER_IMAGE="${{ env.REGISTRY }}/luminarimud/wildeditor-mcp:latest"
+          DOCKER_IMAGE="ghcr.io/luminarimud/wildeditor-mcp:latest"
           CONTAINER_NAME="wildeditor-mcp"
-          MCP_KEY="$WILDEDITOR_MCP_KEY"
-          MCP_BACKEND_KEY="$WILDEDITOR_API_KEY"
           
-          # Validate keys are not empty
-          if [ -z "\$MCP_KEY" ]; then
+          # Keys will be passed as environment variables
+          if [ -z "$MCP_KEY" ]; then
             echo "❌ MCP key not provided to deployment script"
             exit 1
           fi
           
-          if [ -z "\$MCP_BACKEND_KEY" ]; then
+          if [ -z "$MCP_BACKEND_KEY" ]; then
             echo "❌ MCP backend key not provided to deployment script"
             exit 1
           fi
           
-          echo "✅ MCP key received: \${MCP_KEY:0:8}..."
-          echo "✅ MCP backend key received: \${MCP_BACKEND_KEY:0:8}..."
+          echo "✅ MCP key received: ${MCP_KEY:0:8}..."
+          echo "✅ MCP backend key received: ${MCP_BACKEND_KEY:0:8}..."
           
           # Check Docker access
           if groups | grep -q docker; then
@@ -281,50 +279,50 @@ jobs:
             exit 1
           fi
           
-          cd \$APP_DIR
+          cd $APP_DIR
           
-          # Login to GitHub Container Registry
-          echo "${{ secrets.GITHUB_TOKEN }}" | \$DOCKER_CMD login ghcr.io -u ${{ github.actor }} --password-stdin
+          # Login to GitHub Container Registry  
+          echo "GITHUB_TOKEN_PLACEHOLDER" | $DOCKER_CMD login ghcr.io -u GITHUB_ACTOR_PLACEHOLDER --password-stdin
           
           # Pull latest MCP image
           echo "📦 Pulling latest MCP Docker image..."
-          \$DOCKER_CMD pull \$DOCKER_IMAGE
+          $DOCKER_CMD pull $DOCKER_IMAGE
           
           # Stop existing MCP container
           echo "🛑 Stopping existing MCP container..."
-          \$DOCKER_CMD stop \$CONTAINER_NAME || true
-          \$DOCKER_CMD rm \$CONTAINER_NAME || true
+          $DOCKER_CMD stop $CONTAINER_NAME || true
+          $DOCKER_CMD rm $CONTAINER_NAME || true
           
           # Start new MCP container
           echo "🏃 Starting new MCP container..."
-          \$DOCKER_CMD run -d \\
-            --name \$CONTAINER_NAME \\
-            --restart unless-stopped \\
-            -p 8001:8001 \\
-            -e WILDEDITOR_MCP_KEY="\$MCP_KEY" \\
-            -e WILDEDITOR_API_KEY="\$MCP_BACKEND_KEY" \\
-            -e WILDEDITOR_BACKEND_URL="http://localhost:8000" \\
-            -e ENVIRONMENT="production" \\
-            -e DEBUG="false" \\
-            -e PORT="8001" \\
-            -e LOG_LEVEL="INFO" \\
-            -v /var/log/wildeditor-mcp:/var/log/wildeditor-mcp \\
-            \$DOCKER_IMAGE
+          $DOCKER_CMD run -d \
+            --name $CONTAINER_NAME \
+            --restart unless-stopped \
+            -p 8001:8001 \
+            -e WILDEDITOR_MCP_KEY="$MCP_KEY" \
+            -e WILDEDITOR_API_KEY="$MCP_BACKEND_KEY" \
+            -e WILDEDITOR_BACKEND_URL="http://localhost:8000" \
+            -e ENVIRONMENT="production" \
+            -e DEBUG="false" \
+            -e PORT="8001" \
+            -e LOG_LEVEL="INFO" \
+            -v /var/log/wildeditor-mcp:/var/log/wildeditor-mcp \
+            $DOCKER_IMAGE
           
           # Wait for container to be healthy
           echo "🏥 Waiting for health check..."
           for i in {1..30}; do
-            if \$DOCKER_CMD exec \$CONTAINER_NAME python -c "import requests; requests.get('http://localhost:8001/health')" 2>/dev/null; then
+            if $DOCKER_CMD exec $CONTAINER_NAME python -c "import requests; requests.get('http://localhost:8001/health')" 2>/dev/null; then
               echo "✅ MCP container is healthy!"
               break
             fi
-            if [ \$i -eq 30 ]; then
+            if [ $i -eq 30 ]; then
               echo "❌ MCP container failed to become healthy"
               echo "🔍 Container logs:"
-              \$DOCKER_CMD logs --tail 20 \$CONTAINER_NAME
+              $DOCKER_CMD logs --tail 20 $CONTAINER_NAME
               exit 1
             fi
-            echo "Waiting... (\$i/30)"
+            echo "Waiting... ($i/30)"
             sleep 2
           done
           
@@ -338,7 +336,7 @@ jobs:
           fi
           
           # Test authenticated endpoint
-          if curl -s --connect-timeout 5 --max-time 10 -H "X-API-Key: \$MCP_KEY" http://localhost:8001/mcp/status >/dev/null; then
+          if curl -s --connect-timeout 5 --max-time 10 -H "X-API-Key: $MCP_KEY" http://localhost:8001/mcp/status >/dev/null; then
             echo "✅ Authenticated endpoints working"
           else
             echo "⚠️  Authenticated endpoint test failed (but health check passed)"
@@ -346,18 +344,24 @@ jobs:
           
           # Cleanup old images
           echo "🧹 Cleaning up old images..."
-          \$DOCKER_CMD image prune -f
+          $DOCKER_CMD image prune -f
           
           echo "🎉 MCP server deployment completed successfully!"
           EOF
           
-          # Copy and execute MCP deployment script
+          # Replace placeholders in the script
+          sed -i "s/GITHUB_TOKEN_PLACEHOLDER/${{ secrets.GITHUB_TOKEN }}/g" deploy-mcp.sh
+          sed -i "s/GITHUB_ACTOR_PLACEHOLDER/${{ github.actor }}/g" deploy-mcp.sh
+          
+          # Copy and execute MCP deployment script with environment variables
           echo "Copying MCP deployment script to server..."
           scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 deploy-mcp.sh ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:/tmp/
           
           echo "Executing MCP deployment script on server..."
           ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
             chmod +x /tmp/deploy-mcp.sh
+            export MCP_KEY='$WILDEDITOR_MCP_KEY'
+            export MCP_BACKEND_KEY='$WILDEDITOR_API_KEY'
             /tmp/deploy-mcp.sh
           "
           
