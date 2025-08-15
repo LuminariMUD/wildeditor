@@ -8,13 +8,13 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY apps/mcp/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy and install auth package
+# Copy and install auth package first
 COPY packages/auth packages/auth
 RUN pip install -e packages/auth
+
+# Copy requirements and install dependencies
+COPY apps/mcp/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy MCP server source
 COPY apps/mcp/src ./src
