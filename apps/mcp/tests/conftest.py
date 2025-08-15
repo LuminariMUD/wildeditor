@@ -1,8 +1,15 @@
 import pytest
 import asyncio
 import os
+import sys
+from pathlib import Path
 from unittest.mock import patch
 from fastapi.testclient import TestClient
+
+# Add the mcp directory to Python path so we can import src module
+current_dir = Path(__file__).parent  # tests/
+mcp_dir = current_dir.parent         # apps/mcp/
+sys.path.insert(0, str(mcp_dir))
 
 
 @pytest.fixture(scope="session")
