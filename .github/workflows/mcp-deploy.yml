@@ -43,13 +43,11 @@ jobs:
             
       - name: Install dependencies
         run: |
+          # Install auth package first
+          pip install -e packages/auth
           cd apps/mcp
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          
-      - name: Install auth package
-        run: |
-          pip install -e packages/auth
           
       - name: Lint with flake8
         run: |
