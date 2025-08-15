@@ -3,9 +3,7 @@ version: '3.8'
 
 services:
   wildeditor-backend:
-    build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
+    image: ghcr.io/luminarimud/wildeditor-backend:latest
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
@@ -25,9 +23,7 @@ services:
       - wildeditor
 
   wildeditor-mcp:
-    build:
-      context: .
-      dockerfile: apps/mcp/Dockerfile
+    image: ghcr.io/luminarimud/wildeditor-mcp:latest
     ports:
       - "${MCP_PORT:-8001}:8001"
     environment:

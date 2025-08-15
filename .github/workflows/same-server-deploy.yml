@@ -125,9 +125,12 @@ jobs:
           WILDEDITOR_API_KEY: ${{ secrets.WILDEDITOR_API_KEY }}
           WILDEDITOR_MCP_KEY: ${{ secrets.WILDEDITOR_MCP_KEY }}
         run: |
+          # Ensure deployment directory exists on server
+          ssh ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "mkdir -p ~/wildeditor-deploy"
+          
           # Copy deployment files to server
-          scp docker-compose.same-server.yml ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:/opt/wildeditor/
-          scp nginx.conf ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:/opt/wildeditor/
+          scp docker-compose.same-server.yml ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:~/wildeditor-deploy/
+          scp nginx.conf ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:~/wildeditor-deploy/
           
           # Deploy on server
           ssh ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'DEPLOY_EOF'
@@ -135,27 +138,22 @@ jobs:
           
           echo "🚀 Starting same-server deployment..."
           
-          cd /opt/wildeditor
+          cd ~/wildeditor-deploy
           
-          # Set environment variables
-          export MYSQL_DATABASE_URL="${{ env.MYSQL_DATABASE_URL }}"
-          export WILDEDITOR_API_KEY="${{ env.WILDEDITOR_API_KEY }}"
-          export WILDEDITOR_MCP_KEY="${{ env.WILDEDITOR_MCP_KEY }}"
-          export NODE_ENV="production"
-          export BACKEND_PORT="8000"
-          export MCP_PORT="8001"
+          # Create environment file
+          cat > .env << 'ENV_EOF'
+          MYSQL_DATABASE_URL=${{ env.MYSQL_DATABASE_URL }}
+          WILDEDITOR_API_KEY=${{ env.WILDEDITOR_API_KEY }}
+          WILDEDITOR_MCP_KEY=${{ env.WILDEDITOR_MCP_KEY }}
+          NODE_ENV=production
+          BACKEND_PORT=8000
+          MCP_PORT=8001
+          ENV_EOF
           
-          # Pull latest images
-          echo "📥 Pulling latest Docker images..."
-          docker pull ghcr.io/luminarimud/wildeditor-backend:latest
-          docker pull ghcr.io/luminarimud/wildeditor-mcp:latest
-          
-          # Stop existing services
-          echo "🛑 Stopping existing services..."
+          # Pull latest images and restart services
+          echo "📥 Pulling latest images and deploying..."
+          docker-compose -f docker-compose.same-server.yml pull
           docker-compose -f docker-compose.same-server.yml down || true
-          
-          # Start services
-          echo "🚀 Starting services..."
           docker-compose -f docker-compose.same-server.yml up -d
           
           # Wait for services to be ready
