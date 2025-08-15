@@ -14,7 +14,7 @@ from ..config.config_database import get_db
 from ..middleware.auth import RequireAuth
 
 router = APIRouter()
-
+ 
 def coordinates_to_linestring_wkt(coordinates: List[dict]) -> str:
     """
     Convert coordinate list to MySQL LINESTRING WKT format.
