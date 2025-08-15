@@ -1,5 +1,7 @@
 import pytest
 import asyncio
+import os
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 
@@ -11,10 +13,23 @@ def event_loop():
     loop.close()
 
 
+# Set up test environment for the entire session
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_env():
+    """Set up test environment variables for all tests"""
+    test_env = {
+        "WILDEDITOR_MCP_KEY": "test-mcp-key",
+        "WILDEDITOR_API_KEY": "test-backend-key"
+    }
+    
+    with patch.dict(os.environ, test_env):
+        yield
+
+
 @pytest.fixture
-def client():
-    """Create test client"""
-    # We'll import here to avoid import issues during package setup
+def client(setup_test_env):
+    """Create test client with proper environment setup"""
+    # Import here so the app gets the patched environment
     from src.main import app
     return TestClient(app)
 
