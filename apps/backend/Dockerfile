@@ -21,12 +21,16 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy and install auth package first
+COPY packages/auth packages/auth
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install -e packages/auth
+
 # Copy requirements first for better layer caching
 COPY apps/backend/src/requirements.txt ./requirements.txt
 
 # Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY apps/backend/src/ ./src/

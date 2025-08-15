@@ -7,6 +7,9 @@ python-dotenv
 cryptography  # Required for pymysql with some MySQL versions
 geoalchemy2  # For spatial data types (POLYGON, LINESTRING)
 
+# Local packages
+-e ../../../packages/auth
+
 # Production dependencies
 gunicorn  # Production WSGI server
 requests  # For health checks
