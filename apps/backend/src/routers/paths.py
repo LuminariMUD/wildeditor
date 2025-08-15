@@ -17,7 +17,7 @@ router = APIRouter()
  
 def coordinates_to_linestring_wkt(coordinates: List[dict]) -> str:
     """
-    Convert coordinate list to MySQL LINESTRING WKT format.
+    Convert  coordinate list to MySQL LINESTRING WKT format.
     
     Args:
         coordinates: List of coordinate dictionaries with 'x' and 'y' keys

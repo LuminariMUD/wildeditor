@@ -47,7 +47,7 @@ function App() {
     saveAllUnsaved,
     discardItem,
     discardAllUnsaved,
-    deleteItem
+    deleteItem 
   } = useEditor();
 
   // Keyboard shortcuts

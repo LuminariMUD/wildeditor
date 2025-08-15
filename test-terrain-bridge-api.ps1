@@ -75,34 +75,35 @@ Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/analyze_terrain_at_coordinates" `
     -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
     -Body $terrainBody
 
-# Test 14: MCP wilderness rooms tool
+# Test 14: MCP wilderness room finder tool
 $roomsBody = @{
-    limit = 10
+    x = 0
+    y = 0
 } | ConvertTo-Json
 
-Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/get_wilderness_rooms" `
+Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_wilderness_room" `
     -Method POST `
     -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
     -Body $roomsBody
 
-# Test 15: MCP room details tool
+# Test 15: MCP room details by VNUM tool
 $roomDetailsBody = @{
     vnum = 1000000
 } | ConvertTo-Json
 
-Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/get_room_details" `
+Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_wilderness_room" `
     -Method POST `
     -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
     -Body $roomDetailsBody
 
-# Test 16: MCP terrain map generation
+# Test 16: MCP wilderness map generation
 $mapBody = @{
     center_x = 0
     center_y = 0
     radius = 5
 } | ConvertTo-Json
 
-Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/generate_terrain_map" `
+Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/generate_wilderness_map" `
     -Method POST `
     -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
     -Body $mapBody
