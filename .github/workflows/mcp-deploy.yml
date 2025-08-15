@@ -249,7 +249,6 @@ jobs:
           echo "🚀 Starting MCP server deployment..."
           
           # Configuration
-          APP_DIR="/opt/wildeditor-mcp"
           DOCKER_IMAGE="ghcr.io/luminarimud/wildeditor-mcp:latest"
           CONTAINER_NAME="wildeditor-mcp"
           
@@ -279,7 +278,20 @@ jobs:
             exit 1
           fi
           
-          cd $APP_DIR
+          # Debug: Check if directory exists and show current working directory
+          echo "🔍 Current working directory: $(pwd)"
+          echo "🔍 Target directory: /opt/wildeditor-mcp"
+          if [ -d "/opt/wildeditor-mcp" ]; then
+            echo "✅ Target directory exists"
+            ls -la /opt/wildeditor-mcp
+          else
+            echo "❌ Target directory does not exist, creating it..."
+            sudo mkdir -p /opt/wildeditor-mcp
+            sudo chown $USER:$USER /opt/wildeditor-mcp
+          fi
+          
+          echo "🔍 Changing to target directory..."
+          cd /opt/wildeditor-mcp
           
           # Login to GitHub Container Registry  
           echo "GITHUB_TOKEN_PLACEHOLDER" | $DOCKER_CMD login ghcr.io -u GITHUB_ACTOR_PLACEHOLDER --password-stdin
