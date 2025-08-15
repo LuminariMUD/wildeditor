@@ -3,6 +3,7 @@ Main FastAPI application for the MCP server
 """
 
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from wildeditor_auth import AuthMiddleware
@@ -17,6 +18,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan management"""
+    # Startup
+    logger.info(f"Starting Wildeditor MCP Server on port {settings.mcp_port}")
+    logger.info(f"Environment: {settings.node_env}")
+    logger.info(f"Backend URL: {settings.backend_base_url}")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down Wildeditor MCP Server")
+
+
 # Create FastAPI application
 app = FastAPI(
     title="Wildeditor MCP Server",
@@ -24,7 +40,8 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs" if settings.is_development else None,
     redoc_url="/redoc" if settings.is_development else None,
-    openapi_url="/openapi.json" if settings.is_development else None
+    openapi_url="/openapi.json" if settings.is_development else None,
+    lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -47,18 +64,6 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, tags=["Health"])
 app.include_router(mcp_operations.router, prefix="/mcp", tags=["MCP Operations"])
-
-@app.on_event("startup")
-async def startup_event():
-    """Application startup event"""
-    logger.info(f"Starting Wildeditor MCP Server on port {settings.mcp_port}")
-    logger.info(f"Environment: {settings.node_env}")
-    logger.info(f"Backend URL: {settings.backend_base_url}")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Application shutdown event"""
-    logger.info("Shutting down Wildeditor MCP Server")
 
 if __name__ == "__main__":
     import uvicorn
