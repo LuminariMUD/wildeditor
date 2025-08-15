@@ -321,14 +321,29 @@ jobs:
           # Wait for container to be healthy
           echo "🏥 Waiting for health check..."
           for i in {1..30}; do
-            if $DOCKER_CMD exec $CONTAINER_NAME python -c "import requests; requests.get('http://localhost:8001/health')" 2>/dev/null; then
+            # First check if container is running
+            if ! $DOCKER_CMD ps | grep -q $CONTAINER_NAME; then
+              echo "❌ Container is not running"
+              $DOCKER_CMD logs --tail 10 $CONTAINER_NAME
+              exit 1
+            fi
+            
+            # Try health check with curl from host
+            if curl -s --connect-timeout 5 --max-time 10 http://localhost:8001/health >/dev/null 2>&1; then
               echo "✅ MCP container is healthy!"
               break
             fi
+            
             if [ $i -eq 30 ]; then
-              echo "❌ MCP container failed to become healthy"
+              echo "❌ MCP container failed to become healthy after 60 seconds"
+              echo "🔍 Container status:"
+              $DOCKER_CMD ps -a | grep $CONTAINER_NAME
               echo "🔍 Container logs:"
               $DOCKER_CMD logs --tail 20 $CONTAINER_NAME
+              echo "🔍 Port status:"
+              ss -tlnp | grep :8001 || echo "Port 8001 not listening"
+              echo "🔍 Manual health check:"
+              curl -v http://localhost:8001/health || echo "Curl failed"
               exit 1
             fi
             echo "Waiting... ($i/30)"
