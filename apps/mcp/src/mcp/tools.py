@@ -275,7 +275,7 @@ class ToolRegistry:
         async with httpx.AsyncClient() as client:
             try:
                 # Get region data
-                headers = {"X-API-Key": settings.api_key}
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
                 response = await client.get(
                     f"{settings.backend_base_url}/regions/{region_id}",
                     headers=headers,
@@ -316,7 +316,7 @@ class ToolRegistry:
         """Find path between regions"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"X-API-Key": settings.api_key}
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
                 response = await client.get(
                     f"{settings.backend_base_url}/paths/find",
                     params={
@@ -341,7 +341,7 @@ class ToolRegistry:
         """Search for regions"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"X-API-Key": settings.api_key}
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
                 params: Dict[str, Any] = {"limit": limit}
                 
                 if terrain_type:
@@ -370,7 +370,7 @@ class ToolRegistry:
         """Create a new region"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"X-API-Key": settings.api_key}
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
                 data: Dict[str, Any] = {
                     "name": name,
                     "description": description,
@@ -399,7 +399,7 @@ class ToolRegistry:
         """Validate region connections"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"X-API-Key": settings.api_key}
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
                 response = await client.get(
                     f"{settings.backend_base_url}/regions/{region_id}/validate",
                     params={"check_bidirectional": check_bidirectional},
@@ -461,7 +461,7 @@ class ToolRegistry:
         """Analyze real-time terrain at specific coordinates"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"X-API-Key": settings.api_key}
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
                 response = await client.get(
                     f"{settings.backend_base_url}/terrain/at-coordinates",
                     params={"x": x, "y": y},
@@ -480,7 +480,7 @@ class ToolRegistry:
         """Find wilderness room by coordinates or VNUM"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"X-API-Key": settings.api_key}
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
                 
                 if vnum is not None:
                     # Get room by VNUM
@@ -510,7 +510,7 @@ class ToolRegistry:
         """Find all zone entrances in the wilderness"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"X-API-Key": settings.api_key}
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
                 response = await client.get(
                     f"{settings.backend_base_url}/wilderness/navigation/entrances",
                     headers=headers,
@@ -527,7 +527,7 @@ class ToolRegistry:
         """Generate wilderness map for an area"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"X-API-Key": settings.api_key}
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
                 response = await client.get(
                     f"{settings.backend_base_url}/terrain/map-data",
                     params={"center_x": center_x, "center_y": center_y, "radius": radius},
