@@ -1,0 +1,17 @@
+# Test MCP Server Deployment on luminarimud.com
+# Replace YOUR_SERVER with luminarimud.com
+
+# Test 1: Health Check (no auth needed)
+curl http://luminarimud.com:8001/health
+
+# Test 2: MCP Status (with auth)
+curl -H "X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=" http://luminarimud.com:8001/mcp/status
+
+# Test 3: List Tools
+curl -H "X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=" http://luminarimud.com:8001/mcp/tools
+
+# Test 4: List Resources  
+curl -H "X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=" http://luminarimud.com:8001/mcp/resources
+
+# Test 5: Get Terrain Types Resource
+curl -H "X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=" http://luminarimud.com:8001/mcp/resources/terrain-types

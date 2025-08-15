@@ -1,0 +1,26 @@
+# SSH Test Commands for MCP Server on luminarimud.com
+# Username: ornir (SSH key authentication)
+
+# 1. Test basic health endpoint
+ssh ornir@luminarimud.com "curl -s http://localhost:8001/health"
+
+# 2. Test detailed health endpoint (with auth)
+ssh ornir@luminarimud.com "curl -s -H 'X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=' http://localhost:8001/health/detailed"
+
+# 3. Test MCP status endpoint
+ssh ornir@luminarimud.com "curl -s -H 'X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=' http://localhost:8001/mcp/status"
+
+# 4. Test MCP tools endpoint
+ssh ornir@luminarimud.com "curl -s -H 'X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=' http://localhost:8001/mcp/tools"
+
+# 5. Test MCP resources endpoint
+ssh ornir@luminarimud.com "curl -s -H 'X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=' http://localhost:8001/mcp/resources"
+
+# 6. Check Docker container status
+ssh ornir@luminarimud.com "docker ps | grep wildeditor-mcp"
+
+# 7. Check if port 8001 is listening
+ssh ornir@luminarimud.com "ss -tlnp | grep :8001"
+
+# 8. Get recent container logs
+ssh ornir@luminarimud.com "docker logs --tail 10 wildeditor-mcp"

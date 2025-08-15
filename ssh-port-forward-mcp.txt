@@ -1,0 +1,12 @@
+# SSH Port Forwarding Commands
+# Run this on your local machine to forward port 8001 through SSH
+
+# Basic port forwarding (run this in a separate terminal):
+ssh -L 8001:localhost:8001 YOUR_USERNAME@luminarimud.com
+
+# Then test locally on your machine:
+curl http://localhost:8001/health
+curl -H "X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=" http://localhost:8001/mcp/status
+
+# Alternative: Use autossh for persistent forwarding:
+# autossh -M 20000 -L 8001:localhost:8001 YOUR_USERNAME@luminarimud.com
