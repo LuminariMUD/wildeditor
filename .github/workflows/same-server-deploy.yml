@@ -150,11 +150,25 @@ jobs:
           MCP_PORT=8001
           ENV_EOF
           
+          # Check if Docker Compose is available and install if needed
+          if ! command -v docker &> /dev/null; then
+            echo "❌ Docker is not installed on this server!"
+            exit 1
+          fi
+          
+          if ! docker compose version &> /dev/null; then
+            echo "📦 Installing Docker Compose plugin..."
+            sudo apt-get update
+            sudo apt-get install -y docker-compose-plugin
+          fi
+          
+          echo "🐳 Docker Compose version: $(docker compose version)"
+          
           # Pull latest images and restart services
           echo "📥 Pulling latest images and deploying..."
-          docker-compose -f docker-compose.same-server.yml pull
-          docker-compose -f docker-compose.same-server.yml down || true
-          docker-compose -f docker-compose.same-server.yml up -d
+          docker compose -f docker-compose.same-server.yml pull
+          docker compose -f docker-compose.same-server.yml down || true
+          docker compose -f docker-compose.same-server.yml up -d
           
           # Wait for services to be ready
           echo "⏳ Waiting for services to be ready..."
@@ -182,7 +196,7 @@ jobs:
           fi
           
           # Check nginx (if enabled)
-          if docker-compose -f docker-compose.same-server.yml ps nginx | grep -q "Up"; then
+          if docker compose -f docker-compose.same-server.yml ps nginx | grep -q "Up"; then
             echo "✅ Nginx reverse proxy is running"
             if curl -f http://localhost/health; then
               echo "✅ Nginx routing to backend works"
@@ -194,7 +208,7 @@ jobs:
           
           echo "🎉 Same-server deployment completed successfully!"
           echo "📊 Service status:"
-          docker-compose -f docker-compose.same-server.yml ps
+          docker compose -f docker-compose.same-server.yml ps
           
           DEPLOY_EOF
           

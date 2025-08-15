@@ -3,7 +3,7 @@
 # Authentication: X-API-Key header required
 
 # Set variables for easier testing
-$API_KEY = "your_api_key_here"
+$API_KEY = "0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu"
 $BASE_URL = "http://luminarimud.com:8000"
 $MCP_API_KEY = "xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0="
 $MCP_URL = "http://luminarimud.com:8001"
@@ -13,7 +13,7 @@ $MCP_URL = "http://luminarimud.com:8001"
 # ===========================================
 
 # Test 1: Get terrain at origin (0,0)
-Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=0&y=0" -Headers @{"X-API-Key" = $API_KEY}
+Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=0`&y=0" -Headers @{"X-API-Key" = $API_KEY}
 
 # Test 2: Get terrain at specific coordinates  
 Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=100&y=-50" -Headers @{"X-API-Key" = $API_KEY}
@@ -149,7 +149,7 @@ for ($i = 1; $i -le 5; $i++) {
     $result = Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=0&y=0" -Headers @{"X-API-Key" = $API_KEY}
     $end = Get-Date
     $duration = ($end - $start).TotalMilliseconds
-    Write-Host "Request $i: elevation=$($result.data.elevation), time=$($duration)ms"
+    Write-Host "Request ${i}: elevation=$($result.data.elevation), time=$($duration)ms"
 }
 
 # ===========================================
@@ -273,7 +273,7 @@ Get-ElevationProfile -StartX -10 -EndX 10
 Get-ZoneEntrances
 
 # Test specific coordinates
-Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=100&y=-200" -Headers @{"X-API-Key" = $API_KEY}
+Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=100`&y=-200" -Headers @{"X-API-Key" = $API_KEY}
 
 # Get detailed room info
 Invoke-RestMethod -Uri "$BASE_URL/api/wilderness/rooms/1000000" -Headers @{"X-API-Key" = $API_KEY}
