@@ -300,12 +300,12 @@ jobs:
           $DOCKER_CMD stop $CONTAINER_NAME || true
           $DOCKER_CMD rm $CONTAINER_NAME || true
           
-          # Start new MCP container
-          echo "🏃 Starting new MCP container..."
+          # Start new MCP container with host networking (same as backend)
+          echo "🏃 Starting new MCP container with host networking..."
           $DOCKER_CMD run -d \
             --name $CONTAINER_NAME \
             --restart unless-stopped \
-            -p 8001:8001 \
+            --network host \
             -e WILDEDITOR_MCP_KEY="$MCP_KEY" \
             -e WILDEDITOR_API_KEY="$MCP_BACKEND_KEY" \
             -e WILDEDITOR_BACKEND_URL="http://localhost:8000" \
