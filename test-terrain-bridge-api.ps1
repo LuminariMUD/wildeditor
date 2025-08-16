@@ -1,6 +1,25 @@
 # PowerShell Test Commands for New Terrain Bridge API Endpoints
 # Server: luminarimud.com:8000 (Backend API)
-# Authentication: X-API-Key header required
+# Authenticat# Test 18: Missing coordinates
+try {
+    Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates" -Headers @{"Authorization" = "Bearer $API_KEY"}
+} catch {
+    Write-Host "Expected error for missing coordinates: $($_.Exception.Message)"
+}
+
+# Test 19: Missing authentication
+try {
+    Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=0&y=0"
+} catch {
+    Write-Host "Expected error for missing auth: $($_.Exception.Message)"
+}
+
+# Test 20: Invalid batch range (too large)
+try {
+    Invoke-RestMethod -Uri "$BASE_URL/api/terrain/batch?x_min=-100&y_min=-100&x_max=100&y_max=100" -Headers @{"Authorization" = "Bearer $API_KEY"}
+} catch {
+    Write-Host "Expected error for batch too large: $($_.Exception.Message)"
+}r required
 
 # Set variables for easier testing
 $API_KEY = "0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu"
@@ -108,11 +127,21 @@ Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/generate_wilderness_map" `
     -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
     -Body $mapBody
 
+# Test 17: MCP zone entrances finder (NEW)
+Write-Host "`nTesting MCP zone entrances tool..." -ForegroundColor Yellow
+$zoneEntrancesResult = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_zone_entrances" `
+    -Method POST `
+    -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
+    -Body "{}"
+
+Write-Host "✓ Found $($zoneEntrancesResult.result.entrance_count) zone entrances in wilderness" -ForegroundColor Green
+Write-Host "✓ Total wilderness exit rooms: $($zoneEntrancesResult.result.total_wilderness_rooms)" -ForegroundColor Green
+
 # ===========================================
 # ERROR TESTING
 # ===========================================
 
-# Test 17: Missing coordinates
+# Test 18: Missing coordinates
 try {
     Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates" -Headers @{"Authorization" = "Bearer $API_KEY"}
 } catch {
