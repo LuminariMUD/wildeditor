@@ -269,6 +269,44 @@ class ToolRegistry:
                 "required": ["center_x", "center_y"]
             }
         )
+        
+        # Complete terrain analysis tool (enhanced with regions/paths)
+        self.register_tool(
+            "analyze_complete_terrain_map",
+            self._analyze_complete_terrain_map,
+            "Generate complete wilderness map including base terrain PLUS region and path overlays that modify terrain properties",
+            {
+                "type": "object",
+                "properties": {
+                    "center_x": {
+                        "type": "integer",
+                        "description": "Center X coordinate"
+                    },
+                    "center_y": {
+                        "type": "integer",
+                        "description": "Center Y coordinate"
+                    },
+                    "radius": {
+                        "type": "integer",
+                        "description": "Map radius (1-15 recommended for detailed analysis)",
+                        "minimum": 1,
+                        "maximum": 15,
+                        "default": 5
+                    },
+                    "include_regions": {
+                        "type": "boolean",
+                        "description": "Include region overlay analysis",
+                        "default": True
+                    },
+                    "include_paths": {
+                        "type": "boolean",
+                        "description": "Include path overlay analysis", 
+                        "default": True
+                    }
+                },
+                "required": ["center_x", "center_y"]
+            }
+        )
     
     async def _analyze_region(self, region_id: int, include_paths: bool = True) -> Dict[str, Any]:
         """Analyze a wilderness region"""
@@ -540,3 +578,306 @@ class ToolRegistry:
                 
             except httpx.HTTPError as e:
                 return {"error": f"Failed to generate wilderness map: {str(e)}"}
+
+    async def _analyze_complete_terrain_map(self, center_x: int, center_y: int, radius: int = 5, 
+                                          include_regions: bool = True, include_paths: bool = True) -> Dict[str, Any]:
+        """Generate complete wilderness map including terrain + region/path overlays"""
+        async with httpx.AsyncClient() as client:
+            try:
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                
+                # 1. Get base terrain data
+                terrain_response = await client.get(
+                    f"{settings.backend_base_url}/terrain/map-data",
+                    params={"center_x": center_x, "center_y": center_y, "radius": radius},
+                    headers=headers,
+                    timeout=30.0
+                )
+                terrain_response.raise_for_status()
+                base_data = terrain_response.json()
+                
+                # 2. Get regions data if requested
+                regions_data = []
+                if include_regions:
+                    try:
+                        regions_response = await client.get(
+                            f"{settings.backend_base_url}/regions",
+                            headers=headers,
+                            timeout=30.0
+                        )
+                        if regions_response.status_code == 200:
+                            regions_data = regions_response.json().get('data', [])
+                    except httpx.HTTPError:
+                        # Continue without regions if endpoint fails
+                        pass
+                
+                # 3. Get paths data if requested
+                paths_data = []
+                if include_paths:
+                    try:
+                        paths_response = await client.get(
+                            f"{settings.backend_base_url}/paths",
+                            headers=headers,
+                            timeout=30.0
+                        )
+                        if paths_response.status_code == 200:
+                            paths_data = paths_response.json().get('data', [])
+                    except httpx.HTTPError:
+                        # Continue without paths if endpoint fails
+                        pass
+                
+                # 4. Enhance terrain data with overlays
+                enhanced_map_data = {}
+                for coord_key, terrain_point in base_data.get('map_data', {}).items():
+                    enhanced_point = await self._apply_terrain_overlays(
+                        terrain_point, regions_data, paths_data
+                    )
+                    enhanced_map_data[coord_key] = enhanced_point
+                
+                # 5. Analyze overlay coverage
+                regions_affecting_area = self._find_regions_in_area(regions_data, center_x, center_y, radius)
+                paths_affecting_area = self._find_paths_in_area(paths_data, center_x, center_y, radius)
+                
+                affected_coordinates = len([p for p in enhanced_map_data.values() 
+                                          if p.get('overlays', {}).get('has_overlays', False)])
+                
+                return {
+                    "center": {"x": center_x, "y": center_y},
+                    "radius": radius,
+                    "bounds": base_data.get('bounds', {}),
+                    "point_count": len(enhanced_map_data),
+                    "map_data": enhanced_map_data,
+                    "overlay_analysis": {
+                        "regions_in_area": len(regions_affecting_area),
+                        "paths_in_area": len(paths_affecting_area), 
+                        "coordinates_with_overlays": affected_coordinates,
+                        "overlay_coverage_percent": round((affected_coordinates / len(enhanced_map_data)) * 100, 1) if enhanced_map_data else 0
+                    },
+                    "regions_affecting_area": [
+                        {"name": r['name'], "type": r['type'], "vnum": r['vnum']} 
+                        for r in regions_affecting_area
+                    ],
+                    "paths_affecting_area": [
+                        {"name": p['name'], "type": p['type'], "vnum": p['vnum']}
+                        for p in paths_affecting_area
+                    ],
+                    "source": "complete_terrain_analysis"
+                }
+                
+            except httpx.HTTPError as e:
+                return {"error": f"Failed to analyze complete terrain: {str(e)}"}
+
+    async def _apply_terrain_overlays(self, base_terrain: Dict[str, Any], 
+                                    regions: List[Dict[str, Any]], 
+                                    paths: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Apply region and path overlays to base terrain point"""
+        result = base_terrain.copy()
+        result['overlays'] = {
+            'has_overlays': False,
+            'regions': [],
+            'paths': [],
+            'modifications': []
+        }
+        
+        x, y = result.get('x'), result.get('y')
+        if x is None or y is None:
+            return result
+        
+        # Apply regions in priority order (1-4)
+        affecting_regions = []
+        for region in regions:
+            if self._point_in_region(x, y, region):
+                affecting_regions.append(region)
+                result['overlays']['has_overlays'] = True
+                result['overlays']['regions'].append({
+                    'name': region['name'],
+                    'type': region['type'],
+                    'vnum': region['vnum']
+                })
+        
+        # Sort regions by type (priority order)
+        affecting_regions.sort(key=lambda r: r['type'])
+        
+        for region in affecting_regions:
+            region_type = region['type']
+            
+            if region_type == 1:  # Geographic naming
+                result['geographic_name'] = region['name']
+                result['overlays']['modifications'].append(f"Named '{region['name']}'")
+                
+            elif region_type == 2:  # Encounter zone
+                result['encounter_zone'] = region['name']
+                result['overlays']['modifications'].append(f"Encounter zone: {region['name']}")
+                
+            elif region_type == 3:  # Transform elevation
+                # Note: Actual elevation transform would need region props parsing
+                result['overlays']['modifications'].append(f"Elevation affected by {region['name']}")
+                
+            elif region_type == 4:  # Sector override
+                # Note: Would need region props to determine new sector
+                result['overlays']['modifications'].append(f"Sector overridden by {region['name']}")
+        
+        # Apply paths (processed after regions)
+        affecting_paths = []
+        for path in paths:
+            if self._point_on_path(x, y, path):
+                affecting_paths.append(path)
+                result['overlays']['has_overlays'] = True
+                result['overlays']['paths'].append({
+                    'name': path['name'],
+                    'type': path['type'],
+                    'vnum': path['vnum']
+                })
+        
+        for path in affecting_paths:
+            path_type = path['type']
+            
+            # Path sector mappings from documentation
+            path_sector_map = {
+                1: {"sector_type": 17, "sector_name": "Road"},
+                2: {"sector_type": 18, "sector_name": "Dirt Road"},
+                3: {"sector_type": 7, "sector_name": "Water"},     # River
+                4: {"sector_type": 34, "sector_name": "Stream"},   # Stream  
+                5: {"sector_type": 2, "sector_name": "Field"}     # Trail
+            }
+            
+            if path_type in path_sector_map:
+                sector_info = path_sector_map[path_type]
+                result['sector_type'] = sector_info['sector_type']
+                result['sector_name'] = sector_info['sector_name']
+                result['overlays']['modifications'].append(
+                    f"Sector changed to {sector_info['sector_name']} by {path['name']}"
+                )
+            
+            # Environmental effects
+            if path_type in [3, 4]:  # Rivers/streams add moisture
+                original_moisture = result.get('moisture', 127)
+                result['moisture'] = min(255, original_moisture + 20)
+                result['overlays']['modifications'].append(f"Moisture increased by {path['name']}")
+            
+            # Movement bonuses
+            if path_type in [1, 2]:  # Roads provide movement bonus
+                result['movement_bonus'] = 1.5 if path_type == 1 else 1.2
+                result['overlays']['modifications'].append(f"Movement bonus from {path['name']}")
+        
+        return result
+
+    def _point_in_region(self, x: int, y: int, region: Dict[str, Any]) -> bool:
+        """Check if point is inside region polygon (simplified check)"""
+        coordinates = region.get('coordinates', [])
+        if len(coordinates) < 3:
+            return False
+        
+        # Simple bounding box check for now
+        # Real implementation would use proper point-in-polygon algorithm
+        min_x = min(coord['x'] for coord in coordinates)
+        max_x = max(coord['x'] for coord in coordinates)
+        min_y = min(coord['y'] for coord in coordinates)
+        max_y = max(coord['y'] for coord in coordinates)
+        
+        return min_x <= x <= max_x and min_y <= y <= max_y
+
+    def _point_on_path(self, x: int, y: int, path: Dict[str, Any]) -> bool:
+        """Check if point is on path linestring (simplified check)"""
+        coordinates = path.get('coordinates', [])
+        if len(coordinates) < 2:
+            return False
+        
+        # Simple distance check to path segments
+        tolerance = 2  # 2-coordinate tolerance for being "on" the path
+        
+        for i in range(len(coordinates) - 1):
+            p1 = coordinates[i]
+            p2 = coordinates[i + 1]
+            
+            # Distance from point to line segment
+            dist = self._point_to_line_distance(x, y, p1['x'], p1['y'], p2['x'], p2['y'])
+            if dist <= tolerance:
+                return True
+        
+        return False
+
+    def _point_to_line_distance(self, px: int, py: int, x1: int, y1: int, x2: int, y2: int) -> float:
+        """Calculate distance from point to line segment"""
+        import math
+        
+        A = px - x1
+        B = py - y1
+        C = x2 - x1
+        D = y2 - y1
+        
+        dot = A * C + B * D
+        len_sq = C * C + D * D
+        
+        if len_sq == 0:
+            return math.sqrt(A * A + B * B)
+        
+        param = dot / len_sq
+        
+        if param < 0:
+            xx, yy = x1, y1
+        elif param > 1:
+            xx, yy = x2, y2
+        else:
+            xx = x1 + param * C
+            yy = y1 + param * D
+        
+        dx = px - xx
+        dy = py - yy
+        return math.sqrt(dx * dx + dy * dy)
+
+    def _find_regions_in_area(self, regions: List[Dict[str, Any]], center_x: int, center_y: int, radius: int) -> List[Dict[str, Any]]:
+        """Find regions that might affect the given area"""
+        affecting_regions = []
+        
+        for region in regions:
+            coordinates = region.get('coordinates', [])
+            if not coordinates:
+                continue
+            
+            # Check if region bounding box intersects with search area
+            min_x = min(coord['x'] for coord in coordinates)
+            max_x = max(coord['x'] for coord in coordinates)
+            min_y = min(coord['y'] for coord in coordinates)
+            max_y = max(coord['y'] for coord in coordinates)
+            
+            # Search area bounds
+            search_min_x = center_x - radius
+            search_max_x = center_x + radius
+            search_min_y = center_y - radius
+            search_max_y = center_y + radius
+            
+            # Check for intersection
+            if (max_x >= search_min_x and min_x <= search_max_x and 
+                max_y >= search_min_y and min_y <= search_max_y):
+                affecting_regions.append(region)
+        
+        return affecting_regions
+
+    def _find_paths_in_area(self, paths: List[Dict[str, Any]], center_x: int, center_y: int, radius: int) -> List[Dict[str, Any]]:
+        """Find paths that might affect the given area"""
+        affecting_paths = []
+        
+        for path in paths:
+            coordinates = path.get('coordinates', [])
+            if not coordinates:
+                continue
+            
+            # Check if path bounding box intersects with search area
+            min_x = min(coord['x'] for coord in coordinates)
+            max_x = max(coord['x'] for coord in coordinates)
+            min_y = min(coord['y'] for coord in coordinates)
+            max_y = max(coord['y'] for coord in coordinates)
+            
+            # Search area bounds
+            search_min_x = center_x - radius
+            search_max_x = center_x + radius
+            search_min_y = center_y - radius
+            search_max_y = center_y + radius
+            
+            # Check for intersection
+            if (max_x >= search_min_x and min_x <= search_max_x and 
+                max_y >= search_min_y and min_y <= search_max_y):
+                affecting_paths.append(path)
+        
+        return affecting_paths
