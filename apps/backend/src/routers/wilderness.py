@@ -157,12 +157,13 @@ async def get_zone_entrances(
                     "exit_description": exit_info.get('exit_description', '')
                 })
             
+            coordinates = room.get('coordinates', {})
             entrances.append({
                 "wilderness_room": {
                     "vnum": room.get('room_vnum'),
                     "name": room.get('room_name'),
-                    "x": room.get('coordinates', {}).get('x'),
-                    "y": room.get('coordinates', {}).get('y'),
+                    "x": coordinates.get('x'),
+                    "y": coordinates.get('y'),
                     "sector_type": room.get('sector_name'),
                     "sector_number": room.get('sector_type')
                 },
