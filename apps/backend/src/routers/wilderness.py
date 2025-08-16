@@ -136,51 +136,44 @@ async def get_zone_entrances(
     client = get_terrain_client()
     
     try:
-        # Get all wilderness rooms
-        response = await client.get_static_rooms_list(1000)
-        rooms = response.get('data', [])
+        # Use the new terrain bridge endpoint that directly returns wilderness exits
+        response = await client.get_wilderness_exits()
         
+        if not response.get('success', False):
+            raise TerrainBridgeError(response.get('error', 'Failed to get wilderness exits'))
+        
+        wilderness_rooms = response.get('data', [])
+        
+        # Transform the terrain bridge response to match our API format
         entrances = []
-        
-        # Find rooms with zone entrance sector type or exits to other zones
-        for room in rooms:
-            if room.get('sector_type') == 'Zone Entrance':
-                # Get detailed room info to see exits
-                try:
-                    details_response = await client.get_room_details(room['vnum'])
-                    room_details = details_response.get('data', {})
-                    
-                    # Look for exits to non-wilderness zones
-                    zone_exits = []
-                    for exit_info in room_details.get('exits', []):
-                        to_vnum = exit_info.get('to_room_vnum', 0)
-                        # Wilderness rooms are 1000000-1009999
-                        if not (1000000 <= to_vnum <= 1009999):
-                            zone_exits.append({
-                                "direction": exit_info.get('direction'),
-                                "to_room_vnum": to_vnum,
-                                "to_sector_type": exit_info.get('to_room_sector_type')
-                            })
-                    
-                    if zone_exits:
-                        entrances.append({
-                            "wilderness_room": {
-                                "vnum": room['vnum'],
-                                "name": room.get('name'),
-                                "x": room.get('x'),
-                                "y": room.get('y')
-                            },
-                            "zone_exits": zone_exits
-                        })
-                        
-                except TerrainBridgeError:
-                    # Skip this room if we can't get details
-                    continue
-        
+        for room in wilderness_rooms:
+            zone_exits = []
+            for exit_info in room.get('exits', []):
+                zone_exits.append({
+                    "direction": exit_info.get('direction'),
+                    "direction_number": exit_info.get('direction_number'),
+                    "to_room_vnum": exit_info.get('leads_to_vnum'),
+                    "to_zone": exit_info.get('leads_to_zone'),
+                    "exit_description": exit_info.get('exit_description', '')
+                })
+            
+            entrances.append({
+                "wilderness_room": {
+                    "vnum": room.get('room_vnum'),
+                    "name": room.get('room_name'),
+                    "x": room.get('coordinates', {}).get('x'),
+                    "y": room.get('coordinates', {}).get('y'),
+                    "sector_type": room.get('sector_name'),
+                    "sector_number": room.get('sector_type')
+                },
+                "zone_exits": zone_exits
+            })
+
         return {
             "entrance_count": len(entrances),
             "entrances": entrances,
-            "source": "terrain_bridge"
+            "total_wilderness_rooms": response.get('total_rooms', len(entrances)),
+            "source": "terrain_bridge_exits_endpoint"
         }
         
     except TerrainBridgeError as e:

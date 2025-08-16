@@ -180,6 +180,17 @@ class TerrainBridgeClient:
             "vnum": vnum
         })
     
+    async def get_wilderness_exits(self) -> Dict[str, Any]:
+        """
+        Get all wilderness rooms that have exits leading to non-wilderness zones
+        
+        Returns:
+            Dictionary with wilderness rooms that connect to static zones
+        """
+        return await self._send_request({
+            "command": "get_wilderness_exits"
+        })
+    
     async def health_check(self) -> bool:
         """
         Quick health check - returns True if terrain bridge is accessible
