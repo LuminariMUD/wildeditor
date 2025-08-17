@@ -1,16 +1,17 @@
 # MCP Server
 
-AI-powered Model Context Protocol server for the Luminari Wilderness Editor.
+AI-powered Model Context Protocol server for Wildeditor Wilderness Management.
 
 ## 🎯 Overview
 
-The MCP server provides AI-enhanced capabilities for wilderness design, including:
+The MCP server provides AI agents with comprehensive wilderness management capabilities through:
 
-- **Region Analysis**: AI-assisted region design and optimization
-- **Path Planning**: Intelligent path network analysis and creation  
-- **Spatial Analytics**: Advanced spatial analysis and conflict detection
-- **Natural Language Interface**: Create wilderness features from descriptions
-- **Quality Assurance**: Automated validation and improvement suggestions
+- **Real-time Terrain Analysis**: Get current terrain data at any wilderness coordinates
+- **Enhanced Terrain Mapping**: Complete terrain analysis including region and path overlays
+- **Wilderness Room Discovery**: Find and analyze wilderness rooms by coordinates or VNUM
+- **Zone Connection Discovery**: Find all wilderness entrances that connect to static zones
+- **Wilderness Map Generation**: Create detailed terrain maps for specific areas
+- **Spatial Navigation**: Navigate and understand wilderness geography
 
 ## 🏗️ Architecture
 
@@ -18,13 +19,30 @@ The MCP server provides AI-enhanced capabilities for wilderness design, includin
 MCP Server (Port 8001)
 ├── FastAPI Application
 ├── MCP Protocol Implementation
-│   ├── Tools (Region, Path, Spatial Analysis)
-│   ├── Resources (Domain Knowledge, Schema References)
-│   └── Prompts (AI-Powered Generation)
-├── Services (Business Logic)
-├── Shared Components (Auth, Models, Database)
-└── AI Integration (OpenAI/Anthropic)
+│   ├── Tools (Terrain, Wilderness, Navigation)
+│   ├── Terrain Bridge Integration
+│   └── Backend API Integration  
+├── Authentication (API Key)
+└── Docker Deployment
 ```
+
+## 🛠️ Available MCP Tools
+
+### Core Terrain Tools
+- **`analyze_terrain_at_coordinates`** - Get real-time terrain data at specific coordinates
+- **`analyze_complete_terrain_map`** - Enhanced terrain analysis with region/path overlays
+- **`generate_wilderness_map`** - Generate detailed terrain maps for areas
+
+### Wilderness Room Tools  
+- **`find_wilderness_room`** - Find wilderness rooms by coordinates or VNUM
+- **`find_zone_entrances`** - Discover all wilderness→zone connections
+
+### Legacy Region Tools (Planning)
+- **`analyze_region`** - Analyze wilderness regions by ID
+- **`find_path`** - Find paths between regions
+- **`search_regions`** - Search regions by criteria
+- **`create_region`** - Create new wilderness regions
+- **`validate_connections`** - Validate region connections
 
 ## 🚀 Quick Start
 
@@ -35,19 +53,50 @@ cd apps/mcp
 pip install -r requirements.txt
 
 # Set environment variables
-export MYSQL_DATABASE_URL="mysql+pymysql://user:pass@host:port/database"
-export WILDEDITOR_API_KEY="your-api-key"
+export BACKEND_BASE_URL="http://localhost:8000"
+export API_KEY="your-backend-api-key"
 
 # Run development server
-python -m src.main
+python run_dev.py
 ```
 
 ### Production Deployment
 ```bash
-# Build and deploy with backend
-docker-compose -f docker-compose.same-server.yml up -d
+# Deploy with GitHub Actions (automatic)
+git push origin main
+
+# Manual deployment
+docker build -t wildeditor-mcp .
+docker run -d --name wildeditor-mcp --network host \
+  -e BACKEND_BASE_URL="http://localhost:8000" \
+  -e API_KEY="your-api-key" \
+  wildeditor-mcp
 
 # Health check
+curl http://localhost:8001/health
+```
+
+## 📊 Current Implementation Status
+
+### ✅ **Implemented & Working**
+- **MCP Server Framework**: FastAPI-based MCP protocol server
+- **Terrain Analysis Tools**: Real-time terrain data from game engine
+- **Enhanced Terrain Analysis**: Region/path overlays with spatial queries
+- **Wilderness Room Tools**: Room discovery and details
+- **Zone Entrance Discovery**: Complete wilderness→zone connection mapping
+- **Authentication**: API key-based security
+- **Docker Deployment**: Production-ready containerization
+- **GitHub Actions**: Automated deployment pipeline
+
+### 🔄 **In Development**
+- Region management tools (create, modify, validate)
+- Path planning and optimization
+- Advanced spatial analytics
+
+### 📋 **Planned Features**
+- AI-powered wilderness generation
+- Natural language wilderness design
+- Quality assurance and validation tools
 curl http://localhost:8001/health
 ```
 
@@ -97,71 +146,120 @@ apps/mcp/
 ### Environment Variables
 ```bash
 # Required
-MYSQL_DATABASE_URL=mysql+pymysql://user:pass@host:port/database
-WILDEDITOR_API_KEY=your-secure-api-key
+BACKEND_BASE_URL=http://localhost:8000    # Backend API URL
+API_KEY=your-secure-api-key               # Shared API key with backend
 
-# Optional
-NODE_ENV=development|production
-MCP_PORT=8001
-BACKEND_URL=http://localhost:8000
-AI_SERVICE_URL=https://api.openai.com/v1
-AI_API_KEY=your-ai-api-key
+# Optional  
+MCP_PORT=8001                             # MCP server port (default: 8001)
 ```
 
 ### Dependencies
-- **FastAPI** - Web framework
-- **MCP** - Model Context Protocol implementation
-- **SQLAlchemy** - Database ORM (shared with backend)
-- **GeoAlchemy2** - Spatial database support
-- **OpenAI/Anthropic** - AI service integration
-- **Pydantic** - Data validation
+- **FastAPI** - Web framework and MCP protocol
+- **httpx** - HTTP client for backend integration
+- **Pydantic** - Data validation and settings
+- **Python 3.11+** - Runtime environment
 
 ## 🧪 Testing
 
+### Manual Testing
 ```bash
-# Run tests
-pytest tests/
+# Load test script
+. ./test-terrain-bridge-api.ps1
 
-# Run with coverage
-pytest tests/ --cov=src --cov-report=html
+# Run quick test suite  
+Test-WildernessAPI
 
-# Run specific test category
-pytest tests/test_tools/
-pytest tests/test_integration/
+# Test specific MCP tools
+$mcpResult = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_zone_entrances" `
+    -Method POST -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
+    -Body "{}"
+```
+
+### Available Test Functions
+```powershell
+Get-ZoneEntrances          # Test zone entrance discovery
+Get-TerrainSummary         # Test terrain analysis
+Get-ElevationProfile       # Test elevation queries
+Test-WildernessAPI         # Complete test suite
 ```
 
 ## 📊 Health Checks
 
 - **Health Endpoint**: `GET /health`
-- **MCP Protocol**: Available at `/mcp/`
-- **API Documentation**: Available at `/docs`
+- **MCP Tools**: `POST /mcp/tools/{tool_name}`
+- **Server Status**: Returns backend connectivity and tool availability
 
 ## 🔒 Security
 
-- **Authentication**: Shared API key with backend
-- **Rate Limiting**: Configured at Nginx level
-- **Input Validation**: Comprehensive Pydantic validation
-- **AI Safety**: Input sanitization and output validation
+- **Authentication**: API key-based authentication (X-API-Key header)
+- **Network**: Deployed with --network host for backend connectivity
+- **Input Validation**: Comprehensive parameter validation
+- **Rate Limiting**: Managed at infrastructure level
 
-## 🚀 Deployment
+## 🚀 Deployment Architecture
 
-The MCP server is designed to deploy alongside the existing backend on the same server:
+```
+Server: luminarimud.com
+├── Backend API (Port 8000)          # Existing wilderness API
+├── MCP Server (Port 8001)           # New MCP tools for AI agents  
+├── Terrain Bridge (Port 8182)       # Game engine integration
+└── Nginx Proxy                      # Traffic routing and SSL
+```
 
-- **Backend**: Port 8000 (existing)
-- **MCP Server**: Port 8001 (new)
-- **Nginx**: Routes `/api/*` to backend, `/mcp/*` to MCP server
-
-See [Deployment Guide](../../docs/mcp/DEPLOYMENT.md) for detailed instructions.
+**Current Status**: ✅ **Production Ready**  
+- All core MCP tools implemented and tested
+- Deployed via GitHub Actions
+- Full wilderness management capabilities available to AI agents
 
 ## 📞 Support
 
 For issues and questions:
-- Check [Troubleshooting Guide](../../docs/mcp/TROUBLESHOOTING.md)
+- Check server logs: `docker logs wildeditor-mcp`
+- Test connectivity: `curl http://luminarimud.com:8001/health`
 - Review [GitHub Issues](https://github.com/LuminariMUD/wildeditor/issues)
 - Create new issue with detailed information
 
+## 📋 MCP Tool Reference
+
+### Terrain Analysis
+```json
+{
+  "tool": "analyze_terrain_at_coordinates",
+  "parameters": {"x": 0, "y": 0}
+}
+// Returns: elevation, temperature, moisture, sector info
+```
+
+### Enhanced Terrain with Overlays  
+```json
+{
+  "tool": "analyze_complete_terrain_map", 
+  "parameters": {"center_x": 0, "center_y": 0, "radius": 10}
+}
+// Returns: complete terrain + region overlays + path modifications
+```
+
+### Zone Connections
+```json
+{
+  "tool": "find_zone_entrances",
+  "parameters": {}
+}
+// Returns: all wilderness rooms that connect to static zones
+```
+
+### Wilderness Rooms
+```json
+{
+  "tool": "find_wilderness_room",
+  "parameters": {"x": 0, "y": 0}
+}
+// Returns: room details, exits, sector information
+```
+
 ---
 
-**Status**: Planning Phase  
+**Status**: ✅ **Production Deployed**  
 **Version**: 1.0.0  
-**Last Updated**: August 15, 2025
+**Last Updated**: August 17, 2025  
+**Deployment**: luminarimud.com:8001

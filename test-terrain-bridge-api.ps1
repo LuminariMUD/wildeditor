@@ -1,28 +1,9 @@
 # PowerShell Test Commands for New Terrain Bridge API Endpoints
 # Server: luminarimud.com:8000 (Backend API)
-# Authenticat# Test 18: Missing coordinates
-try {
-    Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates" -Headers @{"Authorization" = "Bearer $API_KEY"}
-} catch {
-    Write-Host "Expected error for missing coordinates: $($_.Exception.Message)"
-}
-
-# Test 19: Missing authentication
-try {
-    Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=0&y=0"
-} catch {
-    Write-Host "Expected error for missing auth: $($_.Exception.Message)"
-}
-
-# Test 20: Invalid batch range (too large)
-try {
-    Invoke-RestMethod -Uri "$BASE_URL/api/terrain/batch?x_min=-100&y_min=-100&x_max=100&y_max=100" -Headers @{"Authorization" = "Bearer $API_KEY"}
-} catch {
-    Write-Host "Expected error for batch too large: $($_.Exception.Message)"
-}r required
+# Authentication: X-API-Key header required
 
 # Set variables for easier testing
-$API_KEY = "0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu"
+$API_KEY = ""
 $BASE_URL = "http://luminarimud.com:8000"
 $MCP_API_KEY = "xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0="
 $MCP_URL = "http://luminarimud.com:8001"
@@ -127,35 +108,54 @@ Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/generate_wilderness_map" `
     -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
     -Body $mapBody
 
-# Test 17: MCP zone entrances finder (NEW)
-Write-Host "`nTesting MCP zone entrances tool..." -ForegroundColor Yellow
-$zoneEntrancesResult = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_zone_entrances" `
-    -Method POST `
-    -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
-    -Body "{}"
+# ===========================================
+# ZONE ENTRANCE TESTING (NEW)
+# ===========================================
 
-Write-Host "✓ Found $($zoneEntrancesResult.result.entrance_count) zone entrances in wilderness" -ForegroundColor Green
-Write-Host "✓ Total wilderness exit rooms: $($zoneEntrancesResult.result.total_wilderness_rooms)" -ForegroundColor Green
+# Test 17: Zone entrances endpoint (NEW)
+Write-Host "Testing zone entrances endpoint..." -ForegroundColor Yellow
+try {
+    $entrances = Invoke-RestMethod -Uri "$BASE_URL/api/wilderness/navigation/entrances" -Headers @{"Authorization" = "Bearer $API_KEY"}
+    Write-Host "✓ Found $($entrances.entrance_count) zone entrances from $($entrances.total_wilderness_rooms) wilderness rooms" -ForegroundColor Green
+    if ($entrances.entrance_count -gt 0) {
+        $sample = $entrances.entrances[0]
+        Write-Host "  Sample: Room $($sample.wilderness_room.vnum) at ($($sample.wilderness_room.x),$($sample.wilderness_room.y)) -> $($sample.zone_exits.Count) zones" -ForegroundColor Green
+    }
+} catch {
+    Write-Host "✗ Zone entrances failed: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Test 18: MCP zone entrances tool (NEW)
+Write-Host "Testing MCP zone entrances tool..." -ForegroundColor Yellow
+try {
+    $mcpResult = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_zone_entrances" `
+        -Method POST `
+        -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
+        -Body "{}"
+    Write-Host "✓ MCP found $($mcpResult.result.entrance_count) zone entrances" -ForegroundColor Green
+} catch {
+    Write-Host "✗ MCP zone entrances failed: $($_.Exception.Message)" -ForegroundColor Red
+}
 
 # ===========================================
 # ERROR TESTING
 # ===========================================
 
-# Test 18: Missing coordinates
+# Test 19: Missing coordinates
 try {
     Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates" -Headers @{"Authorization" = "Bearer $API_KEY"}
 } catch {
     Write-Host "Expected error for missing coordinates: $($_.Exception.Message)"
 }
 
-# Test 18: Missing authentication
+# Test 20: Missing authentication
 try {
     Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=0&y=0"
 } catch {
     Write-Host "Expected error for missing auth: $($_.Exception.Message)"
 }
 
-# Test 19: Invalid batch range (too large)
+# Test 21: Invalid batch range (too large)
 try {
     Invoke-RestMethod -Uri "$BASE_URL/api/terrain/batch?x_min=-100&y_min=-100&x_max=100&y_max=100" -Headers @{"Authorization" = "Bearer $API_KEY"}
 } catch {
@@ -166,12 +166,12 @@ try {
 # PERFORMANCE TESTING
 # ===========================================
 
-# Test 20: Large batch request (near maximum)
+# Test 22: Large batch request (near maximum)
 Write-Host "Testing large batch request (32x32 = 1024 coordinates)..."
 $largeBatch = Invoke-RestMethod -Uri "$BASE_URL/api/terrain/batch?x_min=0&y_min=0&x_max=31&y_max=31" -Headers @{"Authorization" = "Bearer $API_KEY"}
 Write-Host "Received $($largeBatch.count) terrain points"
 
-# Test 21: Multiple rapid requests (test caching)
+# Test 23: Multiple rapid requests (test caching)
 Write-Host "Testing multiple rapid requests for caching..."
 for ($i = 1; $i -le 5; $i++) {
     $start = Get-Date
@@ -221,14 +221,19 @@ function Get-ElevationProfile {
     }
 }
 
-# Function: Find zone entrances
+# Function: Find zone entrances using new endpoint
 function Get-ZoneEntrances {
-    $rooms = Invoke-RestMethod -Uri "$BASE_URL/api/wilderness/rooms?limit=100" -Headers @{"Authorization" = "Bearer $API_KEY"}
+    $entrances = Invoke-RestMethod -Uri "$BASE_URL/api/wilderness/navigation/entrances" -Headers @{"Authorization" = "Bearer $API_KEY"}
     
-    $entrances = $rooms.data | Where-Object { $_.sector_type -eq "Zone Entrance" }
+    Write-Host "Found $($entrances.entrance_count) zone entrances:"
     
-    Write-Host "Found $($entrances.Count) zone entrances:"
-    $entrances | Select-Object vnum, name, x, y | Format-Table -AutoSize
+    foreach ($entrance in $entrances.entrances | Select-Object -First 10) {
+        $room = $entrance.wilderness_room
+        Write-Host "Room $($room.vnum): '$($room.name)' at ($($room.x),$($room.y))"
+        foreach ($exit in $entrance.zone_exits) {
+            Write-Host "  -> $($exit.direction) to Room $($exit.to_room_vnum) (Zone $($exit.to_zone))"
+        }
+    }
     
     return $entrances
 }
@@ -237,7 +242,7 @@ function Get-ZoneEntrances {
 # QUICK TEST SUITE
 # ===========================================
 
-function Run-QuickTests {
+function Test-WildernessAPI {
     Write-Host "=== Running Quick Test Suite ===" -ForegroundColor Green
     
     # Test 1: Health check
@@ -268,8 +273,17 @@ function Run-QuickTests {
         Write-Host "✗ Room list failed: $($_.Exception.Message)" -ForegroundColor Red
     }
     
-    # Test 4: MCP integration
-    Write-Host "`n4. Testing MCP integration..." -ForegroundColor Yellow
+    # Test 4: Zone entrances
+    Write-Host "`n4. Testing zone entrances..." -ForegroundColor Yellow
+    try {
+        $entrances = Invoke-RestMethod -Uri "$BASE_URL/api/wilderness/navigation/entrances" -Headers @{"Authorization" = "Bearer $API_KEY"}
+        Write-Host "✓ Found $($entrances.entrance_count) zone entrances" -ForegroundColor Green
+    } catch {
+        Write-Host "✗ Zone entrances failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Test 5: MCP integration
+    Write-Host "`n5. Testing MCP integration..." -ForegroundColor Yellow
     try {
         $mcpBody = @{ x = 0; y = 0 } | ConvertTo-Json
         $mcpResult = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/analyze_terrain_at_coordinates" `
@@ -281,6 +295,18 @@ function Run-QuickTests {
         Write-Host "✗ MCP integration failed: $($_.Exception.Message)" -ForegroundColor Red
     }
     
+    # Test 6: MCP zone entrances
+    Write-Host "`n6. Testing MCP zone entrances..." -ForegroundColor Yellow
+    try {
+        $mcpResult = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_zone_entrances" `
+            -Method POST `
+            -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
+            -Body "{}"
+        Write-Host "✓ MCP found $($mcpResult.result.entrance_count) zone entrances" -ForegroundColor Green
+    } catch {
+        Write-Host "✗ MCP zone entrances failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
     Write-Host "`n=== Quick Test Suite Complete ===" -ForegroundColor Green
 }
 
@@ -290,7 +316,7 @@ function Run-QuickTests {
 
 <#
 # Run the quick test suite
-Run-QuickTests
+Test-WildernessAPI
 
 # Get terrain summary for a small area
 Get-TerrainSummary -MinX 0 -MaxX 10 -MinY 0 -MaxY 10
@@ -309,5 +335,9 @@ Invoke-RestMethod -Uri "$BASE_URL/api/wilderness/rooms/1000000" -Headers @{"Auth
 #>
 
 Write-Host "Terrain Bridge API Test Commands Loaded!" -ForegroundColor Cyan
-Write-Host "Run 'Run-QuickTests' to start basic testing" -ForegroundColor Cyan
-Write-Host "Make sure to set your API_KEY variable first: `$API_KEY = 'your_actual_key'" -ForegroundColor Yellow
+Write-Host "Run 'Test-WildernessAPI' to start basic testing" -ForegroundColor Cyan
+Write-Host "Environment variables are set:" -ForegroundColor Yellow
+Write-Host "  API_KEY: $($API_KEY.Substring(0,8))..." -ForegroundColor Yellow
+Write-Host "  BASE_URL: $BASE_URL" -ForegroundColor Yellow
+Write-Host "  MCP_API_KEY: $($MCP_API_KEY.Substring(0,8))..." -ForegroundColor Yellow
+Write-Host "  MCP_URL: $MCP_URL" -ForegroundColor Yellow
