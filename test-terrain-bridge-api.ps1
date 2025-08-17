@@ -3,7 +3,7 @@
 # Authentication: X-API-Key header required
 
 # Set variables for easier testing
-$API_KEY = ""
+$API_KEY = "0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu"
 $BASE_URL = "http://luminarimud.com:8000"
 $MCP_API_KEY = "xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0="
 $MCP_URL = "http://luminarimud.com:8001"
@@ -61,52 +61,251 @@ try {
 }
 
 # ===========================================
-# MCP SERVER INTEGRATION TESTING
+# MCP SERVER COMPREHENSIVE TESTING (17 CAPABILITIES)
 # ===========================================
 
-# Test 13: MCP terrain analysis tool
+Write-Host "`n=== Testing All 10 MCP Tools ===" -ForegroundColor Cyan
+
+# Tool 1: analyze_terrain_at_coordinates
+Write-Host "1. Testing analyze_terrain_at_coordinates..." -ForegroundColor Yellow
 $terrainBody = @{
     x = 0
     y = 0
 } | ConvertTo-Json
 
-Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/analyze_terrain_at_coordinates" `
-    -Method POST `
-    -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
-    -Body $terrainBody
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/analyze_terrain_at_coordinates" `
+        -Method POST `
+        -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
+        -Body $terrainBody
+    Write-Host "✓ Terrain at (0,0): $($result.result.terrain_data.sector_name)" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
 
-# Test 14: MCP wilderness room finder tool
-$roomsBody = @{
+# Tool 2: find_wilderness_room (by coordinates)
+Write-Host "2. Testing find_wilderness_room (coordinates)..." -ForegroundColor Yellow
+$roomCoordsBody = @{
     x = 0
     y = 0
 } | ConvertTo-Json
 
-Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_wilderness_room" `
-    -Method POST `
-    -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
-    -Body $roomsBody
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_wilderness_room" `
+        -Method POST `
+        -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
+        -Body $roomCoordsBody
+    Write-Host "✓ Room at (0,0): VNUM $($result.result.room_data.vnum)" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
 
-# Test 15: MCP room details by VNUM tool
-$roomDetailsBody = @{
+# Tool 3: find_wilderness_room (by VNUM)
+Write-Host "3. Testing find_wilderness_room (VNUM)..." -ForegroundColor Yellow
+$roomVnumBody = @{
     vnum = 1000000
 } | ConvertTo-Json
 
-Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_wilderness_room" `
-    -Method POST `
-    -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
-    -Body $roomDetailsBody
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_wilderness_room" `
+        -Method POST `
+        -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
+        -Body $roomVnumBody
+    Write-Host "✓ Room VNUM 1000000: '$($result.result.room_data.name)'" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
 
-# Test 16: MCP wilderness map generation
+# Tool 4: find_zone_entrances
+Write-Host "4. Testing find_zone_entrances..." -ForegroundColor Yellow
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_zone_entrances" `
+        -Method POST `
+        -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
+        -Body "{}"
+    Write-Host "✓ Found $($result.result.entrance_count) zone entrances" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Tool 5: generate_wilderness_map
+Write-Host "5. Testing generate_wilderness_map..." -ForegroundColor Yellow
 $mapBody = @{
     center_x = 0
     center_y = 0
     radius = 5
 } | ConvertTo-Json
 
-Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/generate_wilderness_map" `
-    -Method POST `
-    -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
-    -Body $mapBody
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/generate_wilderness_map" `
+        -Method POST `
+        -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
+        -Body $mapBody
+    Write-Host "✓ Generated map: $($result.result.map_data.grid_size) grid" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Tool 6: analyze_complete_terrain_map
+Write-Host "6. Testing analyze_complete_terrain_map..." -ForegroundColor Yellow
+$completeMapBody = @{
+    center_x = 0
+    center_y = 0
+    radius = 3
+    include_regions = $true
+    include_paths = $true
+} | ConvertTo-Json
+
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/analyze_complete_terrain_map" `
+        -Method POST `
+        -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
+        -Body $completeMapBody
+    Write-Host "✓ Complete analysis: $($result.result.analysis.region_overlays.Count) regions, $($result.result.analysis.path_overlays.Count) paths" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Tool 7: analyze_region
+Write-Host "7. Testing analyze_region..." -ForegroundColor Yellow
+$regionBody = @{
+    region_id = 1
+    include_paths = $true
+} | ConvertTo-Json
+
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/analyze_region" `
+        -Method POST `
+        -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
+        -Body $regionBody
+    Write-Host "✓ Region analysis completed" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Tool 8: search_regions
+Write-Host "8. Testing search_regions..." -ForegroundColor Yellow
+$searchBody = @{
+    terrain_type = "forest"
+    limit = 5
+} | ConvertTo-Json
+
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/search_regions" `
+        -Method POST `
+        -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
+        -Body $searchBody
+    Write-Host "✓ Search completed" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Tool 9: find_path
+Write-Host "9. Testing find_path..." -ForegroundColor Yellow
+$pathBody = @{
+    from_region = 1
+    to_region = 2
+    max_distance = 5
+} | ConvertTo-Json
+
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_path" `
+        -Method POST `
+        -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
+        -Body $pathBody
+    Write-Host "✓ Path finding completed" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Tool 10: validate_connections
+Write-Host "10. Testing validate_connections..." -ForegroundColor Yellow
+$validateBody = @{
+    region_id = 1
+    check_bidirectional = $true
+} | ConvertTo-Json
+
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/validate_connections" `
+        -Method POST `
+        -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} `
+        -Body $validateBody
+    Write-Host "✓ Connection validation completed" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+Write-Host "`n=== Testing All 7 MCP Resources ===" -ForegroundColor Cyan
+
+# Resource 1: terrain-types
+Write-Host "1. Testing terrain-types resource..." -ForegroundColor Yellow
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://terrain-types" `
+        -Headers @{"X-API-Key" = $MCP_API_KEY}
+    Write-Host "✓ Terrain types loaded: $($result.terrain_types.Count) types" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Resource 2: environment-types
+Write-Host "2. Testing environment-types resource..." -ForegroundColor Yellow
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://environment-types" `
+        -Headers @{"X-API-Key" = $MCP_API_KEY}
+    Write-Host "✓ Environment types loaded: $($result.environment_types.Count) types" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Resource 3: region-stats
+Write-Host "3. Testing region-stats resource..." -ForegroundColor Yellow
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://region-stats" `
+        -Headers @{"X-API-Key" = $MCP_API_KEY}
+    Write-Host "✓ Region statistics loaded: $($result.total_regions) regions" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Resource 4: schema
+Write-Host "4. Testing schema resource..." -ForegroundColor Yellow
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://schema" `
+        -Headers @{"X-API-Key" = $MCP_API_KEY}
+    Write-Host "✓ Schema loaded: $($result.tables.Count) tables" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Resource 5: recent-regions
+Write-Host "5. Testing recent-regions resource..." -ForegroundColor Yellow
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://recent-regions" `
+        -Headers @{"X-API-Key" = $MCP_API_KEY}
+    Write-Host "✓ Recent regions loaded: $($result.recent_regions.Count) regions" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Resource 6: capabilities
+Write-Host "6. Testing capabilities resource..." -ForegroundColor Yellow
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://capabilities" `
+        -Headers @{"X-API-Key" = $MCP_API_KEY}
+    Write-Host "✓ Capabilities loaded: $($result.features.Count) features" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Resource 7: map-overview
+Write-Host "7. Testing map-overview resource..." -ForegroundColor Yellow
+try {
+    $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://map-overview" `
+        -Headers @{"X-API-Key" = $MCP_API_KEY}
+    Write-Host "✓ Map overview loaded: $($result.overview.total_area) total area" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+}
 
 # ===========================================
 # ZONE ENTRANCE TESTING (NEW)
@@ -150,14 +349,14 @@ try {
 
 # Test 20: Missing authentication
 try {
-    Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=0&y=0"
+    Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=0`&y=0"
 } catch {
     Write-Host "Expected error for missing auth: $($_.Exception.Message)"
 }
 
 # Test 21: Invalid batch range (too large)
 try {
-    Invoke-RestMethod -Uri "$BASE_URL/api/terrain/batch?x_min=-100&y_min=-100&x_max=100&y_max=100" -Headers @{"Authorization" = "Bearer $API_KEY"}
+    Invoke-RestMethod -Uri "$BASE_URL/api/terrain/batch?x_min=-100`&y_min=-100`&x_max=100`&y_max=100" -Headers @{"Authorization" = "Bearer $API_KEY"}
 } catch {
     Write-Host "Expected error for batch too large: $($_.Exception.Message)"
 }
@@ -168,17 +367,262 @@ try {
 
 # Test 22: Large batch request (near maximum)
 Write-Host "Testing large batch request (32x32 = 1024 coordinates)..."
-$largeBatch = Invoke-RestMethod -Uri "$BASE_URL/api/terrain/batch?x_min=0&y_min=0&x_max=31&y_max=31" -Headers @{"Authorization" = "Bearer $API_KEY"}
+$largeBatch = Invoke-RestMethod -Uri "$BASE_URL/api/terrain/batch?x_min=0`&y_min=0`&x_max=31`&y_max=31" -Headers @{"Authorization" = "Bearer $API_KEY"}
 Write-Host "Received $($largeBatch.count) terrain points"
 
 # Test 23: Multiple rapid requests (test caching)
 Write-Host "Testing multiple rapid requests for caching..."
 for ($i = 1; $i -le 5; $i++) {
     $start = Get-Date
-    $result = Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=0&y=0" -Headers @{"Authorization" = "Bearer $API_KEY"}
+    $result = Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=0`&y=0" -Headers @{"Authorization" = "Bearer $API_KEY"}
     $end = Get-Date
     $duration = ($end - $start).TotalMilliseconds
     Write-Host "Request ${i}: elevation=$($result.data.elevation), time=$($duration)ms"
+}
+
+# ===========================================
+# COMPREHENSIVE MCP TEST FUNCTIONS
+# ===========================================
+
+function Test-AllMCPTools {
+    Write-Host "`n=== Testing All 10 MCP Tools ===" -ForegroundColor Cyan
+    
+    $successCount = 0
+    $totalTools = 10
+    
+    # Tool 1: analyze_terrain_at_coordinates
+    Write-Host "1. Testing analyze_terrain_at_coordinates..." -ForegroundColor Yellow
+    try {
+        $body = @{ x = 0; y = 0 } | ConvertTo-Json
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/analyze_terrain_at_coordinates" `
+            -Method POST -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} -Body $body
+        Write-Host "   ✓ Success: $($result.result.terrain_data.sector_name)" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Tool 2: find_wilderness_room (coordinates)
+    Write-Host "2. Testing find_wilderness_room (coordinates)..." -ForegroundColor Yellow
+    try {
+        $body = @{ x = 0; y = 0 } | ConvertTo-Json
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_wilderness_room" `
+            -Method POST -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} -Body $body
+        Write-Host "   ✓ Success: Room VNUM $($result.result.room_data.vnum)" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Tool 3: find_wilderness_room (VNUM)
+    Write-Host "3. Testing find_wilderness_room (VNUM)..." -ForegroundColor Yellow
+    try {
+        $body = @{ vnum = 1000000 } | ConvertTo-Json
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_wilderness_room" `
+            -Method POST -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} -Body $body
+        Write-Host "   ✓ Success: '$($result.result.room_data.name)'" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Tool 4: find_zone_entrances
+    Write-Host "4. Testing find_zone_entrances..." -ForegroundColor Yellow
+    try {
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_zone_entrances" `
+            -Method POST -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} -Body "{}"
+        Write-Host "   ✓ Success: $($result.result.entrance_count) entrances" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Tool 5: generate_wilderness_map
+    Write-Host "5. Testing generate_wilderness_map..." -ForegroundColor Yellow
+    try {
+        $body = @{ center_x = 0; center_y = 0; radius = 5 } | ConvertTo-Json
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/generate_wilderness_map" `
+            -Method POST -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} -Body $body
+        Write-Host "   ✓ Success: Generated $($result.result.map_data.grid_size) grid" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Tool 6: analyze_complete_terrain_map
+    Write-Host "6. Testing analyze_complete_terrain_map..." -ForegroundColor Yellow
+    try {
+        $body = @{ center_x = 0; center_y = 0; radius = 3; include_regions = $true; include_paths = $true } | ConvertTo-Json
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/analyze_complete_terrain_map" `
+            -Method POST -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} -Body $body
+        Write-Host "   ✓ Success: Analysis with overlays completed" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Tool 7: analyze_region
+    Write-Host "7. Testing analyze_region..." -ForegroundColor Yellow
+    try {
+        $body = @{ region_id = 1; include_paths = $true } | ConvertTo-Json
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/analyze_region" `
+            -Method POST -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} -Body $body
+        Write-Host "   ✓ Success: Region analysis completed" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Tool 8: search_regions
+    Write-Host "8. Testing search_regions..." -ForegroundColor Yellow
+    try {
+        $body = @{ terrain_type = "forest"; limit = 5 } | ConvertTo-Json
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/search_regions" `
+            -Method POST -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} -Body $body
+        Write-Host "   ✓ Success: Region search completed" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Tool 9: find_path
+    Write-Host "9. Testing find_path..." -ForegroundColor Yellow
+    try {
+        $body = @{ from_region = 1; to_region = 2; max_distance = 5 } | ConvertTo-Json
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_path" `
+            -Method POST -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} -Body $body
+        Write-Host "   ✓ Success: Path finding completed" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Tool 10: validate_connections
+    Write-Host "10. Testing validate_connections..." -ForegroundColor Yellow
+    try {
+        $body = @{ region_id = 1; check_bidirectional = $true } | ConvertTo-Json
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/validate_connections" `
+            -Method POST -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} -Body $body
+        Write-Host "   ✓ Success: Connection validation completed" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    Write-Host "`nMCP Tools Results: $successCount/$totalTools successful" -ForegroundColor $(if ($successCount -eq $totalTools) { "Green" } else { "Yellow" })
+    return $successCount
+}
+
+function Test-AllMCPResources {
+    Write-Host "`n=== Testing All 7 MCP Resources ===" -ForegroundColor Cyan
+    
+    $successCount = 0
+    $totalResources = 7
+    
+    # Resource 1: terrain-types
+    Write-Host "1. Testing terrain-types resource..." -ForegroundColor Yellow
+    try {
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://terrain-types" `
+            -Headers @{"X-API-Key" = $MCP_API_KEY}
+        Write-Host "   ✓ Success: $($result.terrain_types.Count) terrain types" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Resource 2: environment-types
+    Write-Host "2. Testing environment-types resource..." -ForegroundColor Yellow
+    try {
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://environment-types" `
+            -Headers @{"X-API-Key" = $MCP_API_KEY}
+        Write-Host "   ✓ Success: $($result.environment_types.Count) environment types" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Resource 3: region-stats
+    Write-Host "3. Testing region-stats resource..." -ForegroundColor Yellow
+    try {
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://region-stats" `
+            -Headers @{"X-API-Key" = $MCP_API_KEY}
+        Write-Host "   ✓ Success: $($result.total_regions) total regions" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Resource 4: schema
+    Write-Host "4. Testing schema resource..." -ForegroundColor Yellow
+    try {
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://schema" `
+            -Headers @{"X-API-Key" = $MCP_API_KEY}
+        Write-Host "   ✓ Success: Schema information loaded" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Resource 5: recent-regions
+    Write-Host "5. Testing recent-regions resource..." -ForegroundColor Yellow
+    try {
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://recent-regions" `
+            -Headers @{"X-API-Key" = $MCP_API_KEY}
+        Write-Host "   ✓ Success: Recent regions loaded" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Resource 6: capabilities
+    Write-Host "6. Testing capabilities resource..." -ForegroundColor Yellow
+    try {
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://capabilities" `
+            -Headers @{"X-API-Key" = $MCP_API_KEY}
+        Write-Host "   ✓ Success: Capabilities information loaded" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Resource 7: map-overview
+    Write-Host "7. Testing map-overview resource..." -ForegroundColor Yellow
+    try {
+        $result = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://map-overview" `
+            -Headers @{"X-API-Key" = $MCP_API_KEY}
+        Write-Host "   ✓ Success: Map overview loaded" -ForegroundColor Green
+        $successCount++
+    } catch {
+        Write-Host "   ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    Write-Host "`nMCP Resources Results: $successCount/$totalResources successful" -ForegroundColor $(if ($successCount -eq $totalResources) { "Green" } else { "Yellow" })
+    return $successCount
+}
+
+function Test-CompleteMCPCapabilities {
+    Write-Host "`n=== COMPREHENSIVE MCP TEST SUITE (17 Capabilities) ===" -ForegroundColor Magenta
+    
+    $toolsSuccess = Test-AllMCPTools
+    $resourcesSuccess = Test-AllMCPResources
+    
+    $totalSuccess = $toolsSuccess + $resourcesSuccess
+    $totalCapabilities = 17
+    
+    Write-Host "`n=== FINAL RESULTS ===" -ForegroundColor Magenta
+    Write-Host "Tools: $toolsSuccess/10 successful" -ForegroundColor $(if ($toolsSuccess -eq 10) { "Green" } else { "Yellow" })
+    Write-Host "Resources: $resourcesSuccess/7 successful" -ForegroundColor $(if ($resourcesSuccess -eq 7) { "Green" } else { "Yellow" })
+    Write-Host "Total MCP Capabilities: $totalSuccess/$totalCapabilities successful" -ForegroundColor $(if ($totalSuccess -eq $totalCapabilities) { "Green" } elseif ($totalSuccess -gt 12) { "Yellow" } else { "Red" })
+    
+    if ($totalSuccess -eq $totalCapabilities) {
+        Write-Host "🎉 All MCP capabilities are working perfectly!" -ForegroundColor Green
+    } elseif ($totalSuccess -gt 12) {
+        Write-Host "⚠️  Most MCP capabilities working, some issues detected" -ForegroundColor Yellow
+    } else {
+        Write-Host "❌ Significant MCP issues detected, check deployment" -ForegroundColor Red
+    }
+    
+    return $totalSuccess
 }
 
 # ===========================================
@@ -243,7 +687,7 @@ function Get-ZoneEntrances {
 # ===========================================
 
 function Test-WildernessAPI {
-    Write-Host "=== Running Quick Test Suite ===" -ForegroundColor Green
+    Write-Host "=== Running Comprehensive Test Suite ===" -ForegroundColor Green
     
     # Test 1: Health check
     Write-Host "`n1. Testing API health..." -ForegroundColor Yellow
@@ -258,7 +702,7 @@ function Test-WildernessAPI {
     # Test 2: Basic terrain
     Write-Host "`n2. Testing basic terrain query..." -ForegroundColor Yellow
     try {
-        $terrain = Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=0&y=0" -Headers @{"Authorization" = "Bearer $API_KEY"}
+        $terrain = Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=0`&y=0" -Headers @{"Authorization" = "Bearer $API_KEY"}
         Write-Host "✓ Terrain at (0,0): $($terrain.data.sector_name), elevation=$($terrain.data.elevation)" -ForegroundColor Green
     } catch {
         Write-Host "✗ Terrain query failed: $($_.Exception.Message)" -ForegroundColor Red
@@ -282,8 +726,8 @@ function Test-WildernessAPI {
         Write-Host "✗ Zone entrances failed: $($_.Exception.Message)" -ForegroundColor Red
     }
     
-    # Test 5: MCP integration
-    Write-Host "`n5. Testing MCP integration..." -ForegroundColor Yellow
+    # Test 5: MCP Tools (Sample)
+    Write-Host "`n5. Testing MCP Tools (sample)..." -ForegroundColor Yellow
     try {
         $mcpBody = @{ x = 0; y = 0 } | ConvertTo-Json
         $mcpResult = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/analyze_terrain_at_coordinates" `
@@ -295,8 +739,18 @@ function Test-WildernessAPI {
         Write-Host "✗ MCP integration failed: $($_.Exception.Message)" -ForegroundColor Red
     }
     
-    # Test 6: MCP zone entrances
-    Write-Host "`n6. Testing MCP zone entrances..." -ForegroundColor Yellow
+    # Test 6: MCP Resources (Sample)
+    Write-Host "`n6. Testing MCP Resources (sample)..." -ForegroundColor Yellow
+    try {
+        $null = Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://terrain-types" `
+            -Headers @{"X-API-Key" = $MCP_API_KEY}
+        Write-Host "✓ MCP resource access successful" -ForegroundColor Green
+    } catch {
+        Write-Host "✗ MCP resource access failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Test 7: MCP zone entrances
+    Write-Host "`n7. Testing MCP zone entrances..." -ForegroundColor Yellow
     try {
         $mcpResult = Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/find_zone_entrances" `
             -Method POST `
@@ -308,6 +762,7 @@ function Test-WildernessAPI {
     }
     
     Write-Host "`n=== Quick Test Suite Complete ===" -ForegroundColor Green
+    Write-Host "For comprehensive testing of all 17 MCP capabilities, scroll up to the detailed test sections!" -ForegroundColor Cyan
 }
 
 # ===========================================
@@ -315,8 +770,17 @@ function Test-WildernessAPI {
 # ===========================================
 
 <#
-# Run the quick test suite
+# Quick start - run the basic test suite
 Test-WildernessAPI
+
+# Test all 17 MCP capabilities comprehensively
+Test-CompleteMCPCapabilities
+
+# Test only MCP tools (10 tools)
+Test-AllMCPTools
+
+# Test only MCP resources (7 resources)
+Test-AllMCPResources
 
 # Get terrain summary for a small area
 Get-TerrainSummary -MinX 0 -MaxX 10 -MinY 0 -MaxY 10
@@ -332,12 +796,26 @@ Invoke-RestMethod -Uri "$BASE_URL/api/terrain/at-coordinates?x=100`&y=-200" -Hea
 
 # Get detailed room info
 Invoke-RestMethod -Uri "$BASE_URL/api/wilderness/rooms/1000000" -Headers @{"Authorization" = "Bearer $API_KEY"}
+
+# Test individual MCP tools
+$body = @{ x = 50; y = -25 } | ConvertTo-Json
+Invoke-RestMethod -Uri "$MCP_URL/mcp/tools/analyze_terrain_at_coordinates" -Method POST -Headers @{"X-API-Key" = $MCP_API_KEY; "Content-Type" = "application/json"} -Body $body
+
+# Access MCP resources directly
+Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://terrain-types" -Headers @{"X-API-Key" = $MCP_API_KEY}
 #>
 
-Write-Host "Terrain Bridge API Test Commands Loaded!" -ForegroundColor Cyan
-Write-Host "Run 'Test-WildernessAPI' to start basic testing" -ForegroundColor Cyan
+Write-Host "Comprehensive Wilderness and MCP API Test Suite Loaded!" -ForegroundColor Cyan
 Write-Host "Environment variables are set:" -ForegroundColor Yellow
 Write-Host "  API_KEY: $($API_KEY.Substring(0,8))..." -ForegroundColor Yellow
 Write-Host "  BASE_URL: $BASE_URL" -ForegroundColor Yellow
 Write-Host "  MCP_API_KEY: $($MCP_API_KEY.Substring(0,8))..." -ForegroundColor Yellow
 Write-Host "  MCP_URL: $MCP_URL" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "🚀 Quick Start Commands:" -ForegroundColor Green
+Write-Host "  Test-WildernessAPI                # Basic functionality test" -ForegroundColor White
+Write-Host "  Test-CompleteMCPCapabilities      # Test all 17 MCP capabilities" -ForegroundColor White
+Write-Host "  Test-AllMCPTools                  # Test 10 MCP tools only" -ForegroundColor White
+Write-Host "  Test-AllMCPResources              # Test 7 MCP resources only" -ForegroundColor White
+Write-Host ""
+Write-Host "📊 Coverage: Backend API + Zone Entrances + 10 MCP Tools + 7 MCP Resources = 17 Total MCP Capabilities" -ForegroundColor Cyan

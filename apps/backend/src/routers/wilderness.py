@@ -43,34 +43,6 @@ async def list_wilderness_rooms(
         raise HTTPException(status_code=503, detail=f"Terrain bridge error: {str(e)}")
 
 
-@router.get("/rooms/{vnum}")
-async def get_room_details(
-    vnum: int,
-    authenticated: bool = RequireAuth
-):
-    """
-    Get detailed information for a specific wilderness room
-    
-    Returns complete room data including description, exits, flags,
-    and coordinate information.
-    """
-    client = get_terrain_client()
-    
-    try:
-        response = await client.get_room_details(vnum)
-        room_data = response.get('data', {})
-        
-        return {
-            "room": room_data,
-            "source": "terrain_bridge"
-        }
-        
-    except TerrainBridgeError as e:
-        if "not found" in str(e).lower():
-            raise HTTPException(status_code=404, detail=f"Room {vnum} not found")
-        raise HTTPException(status_code=503, detail=f"Terrain bridge error: {str(e)}")
-
-
 @router.get("/rooms/at-coordinates")
 async def get_room_at_coordinates(
     x: int = Query(..., ge=-1024, le=1024, description="X coordinate"),
@@ -120,6 +92,34 @@ async def get_room_at_coordinates(
         }
         
     except TerrainBridgeError as e:
+        raise HTTPException(status_code=503, detail=f"Terrain bridge error: {str(e)}")
+
+
+@router.get("/rooms/{vnum}")
+async def get_room_details(
+    vnum: int,
+    authenticated: bool = RequireAuth
+):
+    """
+    Get detailed information for a specific wilderness room
+    
+    Returns complete room data including description, exits, flags,
+    and coordinate information.
+    """
+    client = get_terrain_client()
+    
+    try:
+        response = await client.get_room_details(vnum)
+        room_data = response.get('data', {})
+        
+        return {
+            "room": room_data,
+            "source": "terrain_bridge"
+        }
+        
+    except TerrainBridgeError as e:
+        if "not found" in str(e).lower():
+            raise HTTPException(status_code=404, detail=f"Room {vnum} not found")
         raise HTTPException(status_code=503, detail=f"Terrain bridge error: {str(e)}")
 
 
