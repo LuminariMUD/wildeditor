@@ -34,7 +34,7 @@ MCP Server (Port 8001)
 - **`generate_wilderness_map`** - Generate detailed terrain maps for areas
 
 ### Wilderness Room Tools  
-- **`find_wilderness_room`** - Find wilderness rooms by coordinates or VNUM
+- **`find_static_wilderness_room`** - Find static wilderness rooms by coordinates or VNUM
 - **`find_zone_entrances`** - Discover all wilderness→zone connections
 
 ### Legacy Region Tools (Planning)
@@ -248,13 +248,13 @@ For issues and questions:
 // Returns: all wilderness rooms that connect to static zones
 ```
 
-### Wilderness Rooms
+### Static Wilderness Rooms
 ```json
 {
-  "tool": "find_wilderness_room",
+  "tool": "find_static_wilderness_room",
   "parameters": {"x": 0, "y": 0}
 }
-// Returns: room details, exits, sector information
+// Returns: static room details if found, or terrain data if no static room exists
 ```
 
 ---

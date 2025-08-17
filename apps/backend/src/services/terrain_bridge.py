@@ -180,6 +180,26 @@ class TerrainBridgeClient:
             "vnum": vnum
         })
     
+    async def get_static_room_by_coordinates(self, x: int, y: int) -> Dict[str, Any]:
+        """
+        Find static wilderness room at specific coordinates using efficient KD-tree lookup
+        
+        Args:
+            x: X coordinate (-1024 to +1024)
+            y: Y coordinate (-1024 to +1024)
+            
+        Returns:
+            Dictionary with room data if found, or null data if no static room exists
+        """
+        if not (-1024 <= x <= 1024) or not (-1024 <= y <= 1024):
+            raise TerrainBridgeError("Coordinates must be within -1024 to +1024 range")
+        
+        return await self._send_request({
+            "command": "get_static_room_by_coordinates",
+            "x": x,
+            "y": y
+        })
+    
     async def get_wilderness_exits(self) -> Dict[str, Any]:
         """
         Get all wilderness rooms that have exits leading to non-wilderness zones

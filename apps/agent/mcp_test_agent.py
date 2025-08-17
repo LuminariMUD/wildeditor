@@ -184,13 +184,13 @@ class MCPTestAgent:
                 error=str(e)
             )
     
-    async def test_find_wilderness_room(self) -> TestResult:
-        """Test finding wilderness room by coordinates"""
+    async def test_find_static_wilderness_room(self) -> TestResult:
+        """Test finding static wilderness room by coordinates"""
         start_time = time.time()
         try:
             # Use coordinates that exist
             result = await self.call_mcp_tool(
-                "find_wilderness_room",
+                "find_static_wilderness_room",
                 {"x": 0, "y": 0}
             )
             response_time = time.time() - start_time
@@ -200,7 +200,7 @@ class MCPTestAgent:
                 room_data = result["result"]
                 if "error" in room_data:
                     return TestResult(
-                        name="Find Wilderness Room",
+                        name="Find Static Wilderness Room",
                         status=TestStatus.FAILED,
                         response_time=response_time,
                         error=room_data["error"][:50] + "..."
@@ -208,21 +208,21 @@ class MCPTestAgent:
                 elif "vnum" in room_data or "room" in room_data:
                     vnum = room_data.get("vnum", room_data.get("room", {}).get("vnum", "unknown"))
                     return TestResult(
-                        name="Find Wilderness Room",
+                        name="Find Static Wilderness Room",
                         status=TestStatus.PASSED,
                         response_time=response_time,
-                        details=f"Found room at coordinates: VNUM {vnum}"
+                        details=f"Found static room at coordinates: VNUM {vnum}"
                     )
             
             return TestResult(
-                name="Find Wilderness Room",
+                name="Find Static Wilderness Room",
                 status=TestStatus.FAILED,
                 response_time=response_time,
                 error="Invalid response format"
             )
         except Exception as e:
             return TestResult(
-                name="Find Wilderness Room",
+                name="Find Static Wilderness Room",
                 status=TestStatus.FAILED,
                 response_time=time.time() - start_time,
                 error=str(e)
@@ -321,7 +321,7 @@ class MCPTestAgent:
             ("Health Check", self.test_health),
             ("Terrain Analysis", self.test_terrain_analysis),
             ("Complete Terrain Map", self.test_complete_terrain_map),
-            ("Find Wilderness Room", self.test_find_wilderness_room),
+            ("Find Static Wilderness Room", self.test_find_static_wilderness_room),
             ("Find Zone Entrances", self.test_find_zone_entrances),
             ("Generate Wilderness Map", self.test_generate_wilderness_map),
         ]

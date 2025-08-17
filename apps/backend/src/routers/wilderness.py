@@ -50,27 +50,28 @@ async def get_room_at_coordinates(
     authenticated: bool = RequireAuth
 ):
     """
-    Find wilderness room at specific coordinates
+    Find static wilderness room at specific coordinates
     
-    Searches for a wilderness room at the given coordinates and returns
-    room details if found.
+    Uses efficient KD-tree lookup to find pre-built static wilderness rooms.
+    If no static room exists, returns terrain data for the coordinates.
     """
     client = get_terrain_client()
     
     try:
-        # First get the list of rooms to find one at these coordinates
-        response = await client.get_static_rooms_list(1000)  # Get more rooms to search
-        rooms = response.get('data', [])
+        # Use the new efficient static room lookup
+        room_response = await client.get_static_room_by_coordinates(x, y)
         
-        # Find room at coordinates
-        matching_room = None
-        for room in rooms:
-            if room.get('x') == x and room.get('y') == y:
-                matching_room = room
-                break
-        
-        if not matching_room:
-            # Check if there's terrain at these coordinates
+        if room_response.get('success', False) and room_response.get('data'):
+            # Static room found
+            room_data = room_response.get('data', {})
+            return {
+                "coordinates": {"x": x, "y": y},
+                "room": room_data,
+                "source": "terrain_bridge",
+                "room_type": "static"
+            }
+        else:
+            # No static room found, get terrain data instead
             terrain_response = await client.get_terrain(x, y)
             terrain_data = terrain_response.get('data', {})
             
@@ -79,17 +80,9 @@ async def get_room_at_coordinates(
                 "room": None,
                 "terrain": terrain_data,
                 "message": "No static room found at these coordinates, but terrain data is available",
-                "source": "terrain_bridge"
+                "source": "terrain_bridge",
+                "room_type": "none"
             }
-        
-        # Get detailed room information
-        room_details_response = await client.get_room_details(matching_room['vnum'])
-        
-        return {
-            "coordinates": {"x": x, "y": y},
-            "room": room_details_response.get('data', {}),
-            "source": "terrain_bridge"
-        }
         
     except TerrainBridgeError as e:
         raise HTTPException(status_code=503, detail=f"Terrain bridge error: {str(e)}")

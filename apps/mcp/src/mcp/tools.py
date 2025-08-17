@@ -202,11 +202,11 @@ class ToolRegistry:
             }
         )
         
-        # Wilderness room finder tool
+        # Static wilderness room finder tool
         self.register_tool(
-            "find_wilderness_room",
-            self._find_wilderness_room,
-            "Find wilderness room at specific coordinates or get room details by VNUM",
+            "find_static_wilderness_room",
+            self._find_static_wilderness_room,
+            "Find static wilderness room at specific coordinates or get room details by VNUM. Static rooms are pre-built wilderness content.",
             {
                 "type": "object",
                 "properties": {
@@ -513,9 +513,9 @@ class ToolRegistry:
             except httpx.HTTPError as e:
                 return {"error": f"Failed to analyze terrain: {str(e)}"}
     
-    async def _find_wilderness_room(self, x: Optional[int] = None, y: Optional[int] = None, 
+    async def _find_static_wilderness_room(self, x: Optional[int] = None, y: Optional[int] = None, 
                                   vnum: Optional[int] = None) -> Dict[str, Any]:
-        """Find wilderness room by coordinates or VNUM"""
+        """Find static wilderness room by coordinates or VNUM"""
         async with httpx.AsyncClient() as client:
             try:
                 headers = {"Authorization": f"Bearer {settings.api_key}"}
