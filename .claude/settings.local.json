@@ -30,7 +30,15 @@
       "Bash(git push:*)",
       "Bash(grep:*)",
       "Bash(netlify:*)",
-      "Bash(npx netlify:*)"
+      "Bash(npx netlify:*)",
+      "Bash(sudo tail:*)",
+      "Bash(journalctl:*)",
+      "Bash(wsl.exe:*)",
+      "Bash(mkdir:*)",
+      "Bash(pip install:*)",
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(python:*)"
     ],
     "deny": []
   }
