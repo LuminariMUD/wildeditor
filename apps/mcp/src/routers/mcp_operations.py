@@ -46,6 +46,22 @@ for name, prompt_info in prompt_registry.prompts.items():
         prompt_info["arguments"]
     )
 
+
+@router.post("/")
+async def handle_jsonrpc(
+    request: MCPRequest,
+    authenticated: bool = Depends(verify_mcp_key)
+):
+    """
+    Main JSON-RPC endpoint for GitHub Copilot MCP integration
+    
+    This endpoint handles standard MCP JSON-RPC requests that
+    GitHub Copilot sends.
+    """
+    response = await mcp_server.handle_request(request)
+    return response.model_dump()
+
+
 @router.get("/status")
 async def mcp_status(authenticated: bool = Depends(verify_mcp_key)):
     """

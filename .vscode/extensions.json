@@ -1,3 +1,13 @@
 {
-  "recommendations": ["denoland.vscode-deno"]
+  "recommendations": [
+    "GitHub.copilot",
+    "GitHub.copilot-chat",
+    "ms-python.python",
+    "ms-python.flake8",
+    "ms-python.black-formatter",
+    "bradlc.vscode-tailwindcss",
+    "esbenp.prettier-vscode",
+    "ms-vscode.vscode-json",
+    "denoland.vscode-deno"
+  ]
 }

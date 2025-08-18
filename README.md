@@ -102,8 +102,29 @@ A **production-ready** full-stack monorepo application for creating and managing
    - Backend API: http://localhost:8000/api
    - API Documentation: http://localhost:8000/docs
 
-6. **Open in browser**
-   Navigate to `http://localhost:5173`
+## 🤖 GitHub Copilot Integration
+
+This project includes an integrated **MCP (Model Context Protocol) server** that enhances GitHub Copilot with wilderness management capabilities.
+
+### Features
+- **AI-Powered Terrain Analysis**: Use natural language to analyze wilderness regions
+- **Intelligent Landmark Creation**: Generate and place landmarks with AI assistance  
+- **Smart Path Generation**: Create optimized wilderness paths using AI
+- **Contextual Code Assistance**: Enhanced autocomplete and suggestions for wilderness management code
+
+### Quick Setup
+```powershell
+# Configure GitHub Copilot with MCP server
+.\setup-copilot-mcp.ps1 -McpKey "your-mcp-key" -ApiKey "your-api-key"
+```
+
+### Example Usage
+Open GitHub Copilot Chat in VS Code and try:
+- *"Analyze the terrain complexity of region 5"*
+- *"Create a mountain peak landmark in the northern area"*
+- *"Generate an optimal path between the forest and mountains"*
+
+📚 **[Complete Setup Guide](docs/GITHUB_COPILOT_MCP_SETUP.md)**
 
 ## 🏗️ Monorepo Structure
 
@@ -114,13 +135,17 @@ wildeditor/
 │   │   ├── src/
 │   │   ├── public/
 │   │   └── package.json
-│   └── backend/           # Python FastAPI backend
-│       └── src/
+│   ├── backend/           # Python FastAPI backend
+│   │   └── src/
+│   └── mcp/              # MCP server for AI integration
+│       ├── src/
+│       └── requirements.txt
 ├── packages/
-│   └── shared/            # Shared types and utilities
-│       └── src/types/
-├── docs/                  # Documentation
-└── package.json          # Workspace root
+│   ├── shared/            # Shared types and utilities
+│   │   └── src/types/
+│   └── auth/              # Shared authentication
+└── docs/                  # Documentation
+    └── mcp/              # MCP-specific documentation
 ```
 
 ## 📖 Documentation
