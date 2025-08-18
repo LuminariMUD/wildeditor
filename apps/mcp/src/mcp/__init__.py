@@ -5,7 +5,7 @@ This module implements the core MCP protocol components including
 tools, resources, and prompts for wilderness management.
 """
 
-from .protocol import MCPServer, MCPRequest, MCPResponse
+from .protocol import MCPServer, MCPRequest, MCPResponse, MCPNotification
 from .tools import ToolRegistry
 from .resources import ResourceRegistry
 from .prompts import PromptRegistry
@@ -14,6 +14,7 @@ __all__ = [
     "MCPServer",
     "MCPRequest", 
     "MCPResponse",
+    "MCPNotification",
     "ToolRegistry",
     "ResourceRegistry",
     "PromptRegistry"

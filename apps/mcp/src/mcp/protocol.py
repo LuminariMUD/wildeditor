@@ -27,6 +27,13 @@ class MCPRequest(BaseModel):
     params: Optional[Dict[str, Any]] = None
 
 
+class MCPNotification(BaseModel):
+    """MCP notification message (no id field)"""
+    jsonrpc: str = "2.0"
+    method: str
+    params: Optional[Dict[str, Any]] = None
+
+
 class MCPResponse(BaseModel):
     """MCP response message"""
     jsonrpc: str = "2.0"

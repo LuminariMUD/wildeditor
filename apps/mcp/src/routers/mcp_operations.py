@@ -5,10 +5,13 @@ This router implements the core MCP protocol with tools, resources, and prompts
 for wilderness management.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Dict, Any, List, Optional
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from wildeditor_auth import verify_mcp_key
 from ..config import settings
-from ..mcp import MCPServer, MCPRequest, MCPResponse
+from ..mcp import MCPServer, MCPRequest, MCPResponse, MCPNotification
 from ..mcp.tools import ToolRegistry
 from ..mcp.resources import ResourceRegistry  
 from ..mcp.prompts import PromptRegistry
@@ -49,17 +52,29 @@ for name, prompt_info in prompt_registry.prompts.items():
 
 @router.post("/")
 async def handle_jsonrpc(
-    request: MCPRequest,
+    data: dict,
     authenticated: bool = Depends(verify_mcp_key)
 ):
     """
     Main JSON-RPC endpoint for GitHub Copilot MCP integration
     
-    This endpoint handles standard MCP JSON-RPC requests that
-    GitHub Copilot sends.
+    This endpoint handles standard MCP JSON-RPC requests and notifications
+    that GitHub Copilot sends.
     """
-    response = await mcp_server.handle_request(request)
-    return response.model_dump()
+    # Check if this is a notification (no id field) or request (has id field)
+    if "id" in data:
+        # This is a request - convert to MCPRequest
+        request = MCPRequest(**data)
+        response = await mcp_server.handle_request(request)
+        return response.model_dump()
+    else:
+        # This is a notification - handle specially
+        if data.get("method") == "notifications/initialized":
+            # GitHub Copilot sends this after connecting
+            return {"status": "acknowledged"}
+        else:
+            # For other notifications, just acknowledge
+            return {"status": "acknowledged"}
 
 
 @router.get("/status")
