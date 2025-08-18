@@ -531,7 +531,7 @@ class ToolRegistry:
         """Create a new region"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"X-API-Key": settings.api_key}
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
                 
                 # Generate a unique vnum (using timestamp-based approach)
                 import time
