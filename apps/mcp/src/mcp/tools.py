@@ -526,25 +526,58 @@ class ToolRegistry:
                 return {"error": f"Failed to find regions/paths at point: {str(e)}"}
     
     async def _create_region(self, name: str, description: str, terrain_type: str,
-                           environment: Optional[str] = None, 
+                           environment: Optional[str] = None,
                            coordinates: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
         """Create a new region"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
-                data: Dict[str, Any] = {
+                headers = {"X-API-Key": settings.api_key}
+                
+                # Generate a unique vnum (using timestamp-based approach)
+                import time
+                vnum = int(time.time() * 1000) % 100000000  # Reasonable range
+                
+                # Map terrain_type to region_type and region_props
+                if terrain_type.lower() in ["wetlands", "marshland", "swamp"]:
+                    region_type = 4  # REGION_SECTOR (override)
+                    region_props = 16  # Marshland sector type
+                elif terrain_type.lower() in ["forest", "thickets", "woods"]:
+                    region_type = 4  # REGION_SECTOR (override)
+                    region_props = 3   # Forest sector type
+                elif terrain_type.lower() in ["hills", "highlands"]:
+                    region_type = 4  # REGION_SECTOR (override)
+                    region_props = 4   # Hills sector type
+                else:
+                    # Default to geographic region for unknown terrain types
+                    region_type = 1  # REGION_GEOGRAPHIC
+                    region_props = 0
+                
+                # Convert single coordinate to polygon if provided
+                coord_list = []
+                if coordinates and "x" in coordinates and "y" in coordinates:
+                    x, y = float(coordinates["x"]), float(coordinates["y"])
+                    radius = 0.5  # Create small polygon around point
+                    coord_list = [
+                        {"x": x - radius, "y": y - radius},
+                        {"x": x + radius, "y": y - radius},
+                        {"x": x + radius, "y": y + radius},
+                        {"x": x - radius, "y": y + radius},
+                        {"x": x - radius, "y": y - radius}  # Close polygon
+                    ]
+                
+                data = {
+                    "vnum": vnum,
+                    "zone_vnum": 10000,  # Default wilderness zone
                     "name": name,
-                    "description": description,
-                    "terrain_type": terrain_type
+                    "region_type": region_type,
+                    "coordinates": coord_list,
+                    "region_props": region_props,
+                    "region_reset_data": "",
+                    "region_reset_time": None
                 }
                 
-                if environment:
-                    data["environment"] = environment
-                if coordinates:
-                    data["coordinates"] = coordinates
-                
                 response = await client.post(
-                    f"{settings.backend_base_url}/regions",
+                    f"{settings.backend_base_url}/regions/",
                     json=data,
                     headers=headers,
                     timeout=30.0
