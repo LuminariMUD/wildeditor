@@ -194,16 +194,19 @@ class ToolRegistry:
                         "description": "Environmental conditions"
                     },
                     "coordinates": {
-                        "type": "object",
-                        "properties": {
-                            "x": {"type": "integer"},
-                            "y": {"type": "integer"},
-                            "z": {"type": "integer"}
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "x": {"type": "number"},
+                                "y": {"type": "number"}
+                            },
+                            "required": ["x", "y"]
                         },
-                        "description": "3D coordinates for the region"
+                        "description": "Array of coordinates defining the region polygon boundary"
                     }
                 },
-                "required": ["name", "description", "terrain_type"]
+                "required": ["name", "description", "terrain_type", "coordinates"]
             }
         )
         
@@ -527,7 +530,7 @@ class ToolRegistry:
     
     async def _create_region(self, name: str, description: str, terrain_type: str,
                            environment: Optional[str] = None,
-                           coordinates: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
+                           coordinates: Optional[List[Dict[str, float]]] = None) -> Dict[str, Any]:
         """Create a new region"""
         async with httpx.AsyncClient() as client:
             try:
@@ -552,18 +555,16 @@ class ToolRegistry:
                     region_type = 1  # REGION_GEOGRAPHIC
                     region_props = 0
                 
-                # Convert single coordinate to polygon if provided
+                # Validate coordinates array
                 coord_list = []
-                if coordinates and "x" in coordinates and "y" in coordinates:
-                    x, y = float(coordinates["x"]), float(coordinates["y"])
-                    radius = 0.5  # Create small polygon around point
-                    coord_list = [
-                        {"x": x - radius, "y": y - radius},
-                        {"x": x + radius, "y": y - radius},
-                        {"x": x + radius, "y": y + radius},
-                        {"x": x - radius, "y": y + radius},
-                        {"x": x - radius, "y": y - radius}  # Close polygon
-                    ]
+                if coordinates and len(coordinates) >= 3:
+                    # Use provided coordinates (minimum 3 points for polygon)
+                    coord_list = coordinates
+                    # Ensure polygon is closed (first point = last point)
+                    if coord_list[0] != coord_list[-1]:
+                        coord_list.append(coord_list[0])
+                else:
+                    raise ValueError("Region requires at least 3 coordinate points to form a polygon")
                 
                 data = {
                     "vnum": vnum,
@@ -588,6 +589,8 @@ class ToolRegistry:
                 
             except httpx.HTTPError as e:
                 return {"error": f"Failed to create region: {str(e)}"}
+            except ValueError as e:
+                return {"error": str(e)}
     
     async def _validate_connections(self, region_id: int, check_bidirectional: bool = True) -> Dict[str, Any]:
         """Validate region connections"""
