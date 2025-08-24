@@ -91,21 +91,25 @@ class ToolRegistry:
             }
         )
         
-        # Region search tool - matches backend capabilities
+        # Region search tool
         self.register_tool(
             "search_regions",
             self._search_regions,
-            "Search for regions by type or zone. Region types: 1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override",
+            "Search for regions by terrain type, environmental conditions, or description",
             {
                 "type": "object",
                 "properties": {
-                    "region_type": {
-                        "type": "integer",
-                        "description": "Filter by region type (1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override)"
+                    "terrain_type": {
+                        "type": "string",
+                        "description": "Terrain type to search for (e.g., 'forest', 'mountain', 'desert')"
                     },
-                    "zone_vnum": {
-                        "type": "integer", 
-                        "description": "Filter by zone vnum"
+                    "environment": {
+                        "type": "string",
+                        "description": "Environmental condition (e.g., 'cold', 'hot', 'humid')"
+                    },
+                    "description_keywords": {
+                        "type": "string",
+                        "description": "Keywords to search in region descriptions"
                     },
                     "limit": {
                         "type": "integer",
@@ -114,58 +118,6 @@ class ToolRegistry:
                     }
                 },
                 "required": []
-            }
-        )
-
-        # Path search tool - matches backend capabilities
-        self.register_tool(
-            "search_paths",
-            self._search_paths,
-            "Search for paths by type or zone. Path types: 0=Road, 1=Paved Road, 2=Dirt Road, 3=Geographic, 4=River, 5=River, 6=Trail",
-            {
-                "type": "object",
-                "properties": {
-                    "path_type": {
-                        "type": "integer",
-                        "description": "Filter by path type (0=Road, 1=Paved Road, 2=Dirt Road, 3=Geographic, 4=River, 5=River, 6=Trail)"
-                    },
-                    "zone_vnum": {
-                        "type": "integer",
-                        "description": "Filter by zone vnum"
-                    },
-                    "limit": {
-                        "type": "integer", 
-                        "description": "Maximum number of results to return",
-                        "default": 20
-                    }
-                },
-                "required": []
-            }
-        )
-
-        # Point analysis tool - uses points endpoint to find containing regions/paths
-        self.register_tool(
-            "find_regions_and_paths_at_point",
-            self._find_regions_and_paths_at_point,
-            "Find regions and paths that contain or are near a specific coordinate point",
-            {
-                "type": "object",
-                "properties": {
-                    "x": {
-                        "type": "number",
-                        "description": "X coordinate"
-                    },
-                    "y": {
-                        "type": "number", 
-                        "description": "Y coordinate"
-                    },
-                    "radius": {
-                        "type": "number",
-                        "description": "Search radius around the point (default: 0.1)",
-                        "default": 0.1
-                    }
-                },
-                "required": ["x", "y"]
             }
         )
         
@@ -194,6 +146,44 @@ class ToolRegistry:
                         "description": "Environmental conditions"
                     },
                     "coordinates": {
+                        "type": "object",
+                        "properties": {
+                            "x": {"type": "integer"},
+                            "y": {"type": "integer"},
+                            "z": {"type": "integer"}
+                        },
+                        "description": "3D coordinates for the region"
+                    }
+                },
+                "required": ["name", "description", "terrain_type"]
+            }
+        )
+        
+        # Create path tool
+        self.register_tool(
+            "create_path",
+            self._create_path,
+            "Create a new wilderness path with specified route and properties",
+            {
+                "type": "object",
+                "properties": {
+                    "vnum": {
+                        "type": "integer",
+                        "description": "Unique path VNUM identifier"
+                    },
+                    "zone_vnum": {
+                        "type": "integer",
+                        "description": "Zone VNUM this path belongs to"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the path (max 50 characters)"
+                    },
+                    "path_type": {
+                        "type": "integer",
+                        "description": "Path type: 1=Paved Road, 2=Dirt Road, 3=Geographic, 5=River, 6=Stream"
+                    },
+                    "coordinates": {
                         "type": "array",
                         "items": {
                             "type": "object",
@@ -203,10 +193,15 @@ class ToolRegistry:
                             },
                             "required": ["x", "y"]
                         },
-                        "description": "Array of coordinates defining the region polygon boundary"
+                        "description": "Array of x,y coordinates defining the path route"
+                    },
+                    "path_props": {
+                        "type": "integer",
+                        "description": "Sector type to apply along path (0-36), optional",
+                        "default": 0
                     }
                 },
-                "required": ["name", "description", "terrain_type", "coordinates"]
+                "required": ["vnum", "zone_vnum", "name", "path_type", "coordinates"]
             }
         )
         
@@ -423,100 +418,25 @@ class ToolRegistry:
             except httpx.HTTPError as e:
                 return {"error": f"Failed to find path: {str(e)}"}
     
-    async def _search_regions(self, region_type: Optional[int] = None, 
-                            zone_vnum: Optional[int] = None,
+    async def _search_regions(self, terrain_type: Optional[str] = None, 
+                            environment: Optional[str] = None,
+                            description_keywords: Optional[str] = None,
                             limit: int = 20) -> Dict[str, Any]:
-        """Search for regions by type or zone"""
+        """Search for regions"""
         async with httpx.AsyncClient() as client:
             try:
                 headers = {"Authorization": f"Bearer {settings.api_key}"}
-                params: Dict[str, Any] = {}
+                params: Dict[str, Any] = {"limit": limit}
                 
-                if region_type is not None:
-                    params["region_type"] = region_type
-                if zone_vnum is not None:
-                    params["zone_vnum"] = zone_vnum
-                
-                response = await client.get(
-                    f"{settings.backend_base_url}/regions/",
-                    params=params,
-                    headers=headers,
-                    timeout=30.0
-                )
-                
-                response.raise_for_status()
-                data = response.json()
-                
-                # Apply limit if specified
-                if isinstance(data, list) and limit and len(data) > limit:
-                    data = data[:limit]
-                    
-                return {
-                    "regions": data,
-                    "count": len(data) if isinstance(data, list) else 0,
-                    "filters": {
-                        "region_type": region_type,
-                        "zone_vnum": zone_vnum
-                    }
-                }
-                
-            except httpx.HTTPError as e:
-                return {"error": f"Failed to search regions: {str(e)}"}
-    
-    async def _search_paths(self, path_type: Optional[int] = None,
-                          zone_vnum: Optional[int] = None,
-                          limit: int = 20) -> Dict[str, Any]:
-        """Search for paths by type or zone"""
-        async with httpx.AsyncClient() as client:
-            try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
-                params: Dict[str, Any] = {}
-                
-                if path_type is not None:
-                    params["path_type"] = path_type
-                if zone_vnum is not None:
-                    params["zone_vnum"] = zone_vnum
+                if terrain_type:
+                    params["terrain_type"] = terrain_type
+                if environment:
+                    params["environment"] = environment
+                if description_keywords:
+                    params["description"] = description_keywords
                 
                 response = await client.get(
-                    f"{settings.backend_base_url}/paths/",
-                    params=params,
-                    headers=headers,
-                    timeout=30.0
-                )
-                
-                response.raise_for_status()
-                data = response.json()
-                
-                # Apply limit if specified
-                if isinstance(data, list) and limit and len(data) > limit:
-                    data = data[:limit]
-                    
-                return {
-                    "paths": data,
-                    "count": len(data) if isinstance(data, list) else 0,
-                    "filters": {
-                        "path_type": path_type,
-                        "zone_vnum": zone_vnum
-                    }
-                }
-                
-            except httpx.HTTPError as e:
-                return {"error": f"Failed to search paths: {str(e)}"}
-
-    async def _find_regions_and_paths_at_point(self, x: float, y: float,
-                                             radius: float = 0.1) -> Dict[str, Any]:
-        """Find regions and paths at a specific coordinate point"""
-        async with httpx.AsyncClient() as client:
-            try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
-                params = {
-                    "x": x,
-                    "y": y,
-                    "radius": radius
-                }
-                
-                response = await client.get(
-                    f"{settings.backend_base_url}/points/",
+                    f"{settings.backend_base_url}/regions/search",
                     params=params,
                     headers=headers,
                     timeout=30.0
@@ -526,59 +446,28 @@ class ToolRegistry:
                 return response.json()
                 
             except httpx.HTTPError as e:
-                return {"error": f"Failed to find regions/paths at point: {str(e)}"}
+                return {"error": f"Failed to search regions: {str(e)}"}
     
     async def _create_region(self, name: str, description: str, terrain_type: str,
-                           environment: Optional[str] = None,
-                           coordinates: Optional[List[Dict[str, float]]] = None) -> Dict[str, Any]:
+                           environment: Optional[str] = None, 
+                           coordinates: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
         """Create a new region"""
         async with httpx.AsyncClient() as client:
             try:
                 headers = {"Authorization": f"Bearer {settings.api_key}"}
-                
-                # Generate a unique vnum (using timestamp-based approach)
-                import time
-                vnum = int(time.time() * 1000) % 100000000  # Reasonable range
-                
-                # Map terrain_type to region_type and region_props
-                if terrain_type.lower() in ["wetlands", "marshland", "swamp"]:
-                    region_type = 4  # REGION_SECTOR (override)
-                    region_props = 16  # Marshland sector type
-                elif terrain_type.lower() in ["forest", "thickets", "woods"]:
-                    region_type = 4  # REGION_SECTOR (override)
-                    region_props = 3   # Forest sector type
-                elif terrain_type.lower() in ["hills", "highlands"]:
-                    region_type = 4  # REGION_SECTOR (override)
-                    region_props = 4   # Hills sector type
-                else:
-                    # Default to geographic region for unknown terrain types
-                    region_type = 1  # REGION_GEOGRAPHIC
-                    region_props = 0
-                
-                # Validate coordinates array
-                coord_list = []
-                if coordinates and len(coordinates) >= 3:
-                    # Use provided coordinates (minimum 3 points for polygon)
-                    coord_list = coordinates
-                    # Ensure polygon is closed (first point = last point)
-                    if coord_list[0] != coord_list[-1]:
-                        coord_list.append(coord_list[0])
-                else:
-                    raise ValueError("Region requires at least 3 coordinate points to form a polygon")
-                
-                data = {
-                    "vnum": vnum,
-                    "zone_vnum": 10000,  # Default wilderness zone
+                data: Dict[str, Any] = {
                     "name": name,
-                    "region_type": region_type,
-                    "coordinates": coord_list,
-                    "region_props": region_props,
-                    "region_reset_data": "",
-                    "region_reset_time": None
+                    "description": description,
+                    "terrain_type": terrain_type
                 }
                 
+                if environment:
+                    data["environment"] = environment
+                if coordinates:
+                    data["coordinates"] = coordinates
+                
                 response = await client.post(
-                    f"{settings.backend_base_url}/regions/",
+                    f"{settings.backend_base_url}/regions",
                     json=data,
                     headers=headers,
                     timeout=30.0
@@ -589,8 +478,35 @@ class ToolRegistry:
                 
             except httpx.HTTPError as e:
                 return {"error": f"Failed to create region: {str(e)}"}
-            except ValueError as e:
-                return {"error": str(e)}
+    
+    async def _create_path(self, vnum: int, zone_vnum: int, name: str, 
+                          path_type: int, coordinates: List[Dict[str, float]],
+                          path_props: int = 0) -> Dict[str, Any]:
+        """Create a new path"""
+        async with httpx.AsyncClient() as client:
+            try:
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                data: Dict[str, Any] = {
+                    "vnum": vnum,
+                    "zone_vnum": zone_vnum,
+                    "name": name,
+                    "path_type": path_type,
+                    "coordinates": coordinates,
+                    "path_props": path_props
+                }
+                
+                response = await client.post(
+                    f"{settings.backend_base_url}/paths",
+                    json=data,
+                    headers=headers,
+                    timeout=30.0
+                )
+                
+                response.raise_for_status()
+                return response.json()
+                
+            except httpx.HTTPError as e:
+                return {"error": f"Failed to create path: {str(e)}"}
     
     async def _validate_connections(self, region_id: int, check_bidirectional: bool = True) -> Dict[str, Any]:
         """Validate region connections"""
