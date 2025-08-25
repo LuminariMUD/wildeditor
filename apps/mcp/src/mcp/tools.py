@@ -409,7 +409,7 @@ class ToolRegistry:
                     "show_regions": {
                         "type": "boolean",
                         "description": "Whether to show region overlays on map",
-                        "default": true
+                        "default": True
                     }
                 },
                 "required": ["center_x", "center_y"]
