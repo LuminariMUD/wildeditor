@@ -85,9 +85,10 @@ class AIService:
                     return None
                 
                 model_name = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
+                # Set OpenAI API key in environment for the client
+                os.environ['OPENAI_API_KEY'] = api_key
                 return OpenAIModel(
-                    model=model_name,
-                    api_key=api_key
+                    model_name=model_name
                 )
             
             elif self.provider == AIProvider.ANTHROPIC:
@@ -97,9 +98,10 @@ class AIService:
                     return None
                 
                 model_name = os.getenv("ANTHROPIC_MODEL", "claude-3-opus-20240229")
+                # Set Anthropic API key in environment for the client
+                os.environ['ANTHROPIC_API_KEY'] = api_key
                 return AnthropicModel(
-                    model=model_name,
-                    api_key=api_key
+                    model_name=model_name
                 )
             
             elif self.provider == AIProvider.OLLAMA:
@@ -109,10 +111,15 @@ class AIService:
                 model_name = os.getenv("OLLAMA_MODEL", "llama2")
                 
                 # Ollama can use OpenAI-compatible API
-                return OpenAIModel(
-                    model=model_name,
+                # For Ollama, we need to use a custom provider
+                from openai import AsyncOpenAI
+                client = AsyncOpenAI(
                     base_url=f"{base_url}/v1",
                     api_key="ollama"  # Ollama doesn't need a real key
+                )
+                return OpenAIModel(
+                    model_name=model_name,
+                    provider=client
                 )
             
             else:
@@ -132,8 +139,8 @@ class AIService:
             # Create agent with structured output
             agent = Agent(
                 model=self.model,
-                result_type=GeneratedDescription,
-                system_prompt="""You are an expert wilderness designer for a fantasy MUD game. 
+                output_type=GeneratedDescription,
+                instructions="""You are an expert wilderness designer for a fantasy MUD game. 
                 Your task is to create rich, immersive descriptions for wilderness regions.
                 
                 Guidelines:
