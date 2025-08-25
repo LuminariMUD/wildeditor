@@ -53,7 +53,7 @@ class AIService:
         self.model = self._initialize_model()
         self.agent = self._create_agent() if self.model else None
         
-        logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.7)")
+        logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.8)")
     
     def _get_provider(self) -> AIProvider:
         """Determine which AI provider to use based on environment"""
@@ -393,6 +393,10 @@ Create a comprehensive, immersive description that brings this region to life.""
     
     def is_available(self) -> bool:
         """Check if AI service is available"""
+        # Ollama uses direct HTTP so agent is None, but it's still available
+        if self.provider == AIProvider.OLLAMA and os.getenv("OLLAMA_BASE_URL"):
+            return True
+        # For other providers, check if agent exists
         return self.agent is not None
     
     def get_provider_info(self) -> Dict[str, Any]:
