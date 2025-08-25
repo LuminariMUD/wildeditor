@@ -367,7 +367,7 @@ Create a comprehensive, immersive description that brings this region to life.""
                     # Create a structured response similar to PydanticAI format
                     word_count = len(generated_text.split())
                     
-                    logger.info("Ollama fallback generation successful")
+                    logger.info("Ollama fallback generation successful (v1.0.1)")
                     
                     return {
                         "generated_description": generated_text,
