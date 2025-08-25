@@ -53,7 +53,7 @@ class AIService:
         self.model = self._initialize_model()
         self.agent = self._create_agent() if self.model else None
         
-        logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.5)")
+        logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.6)")
     
     def _get_provider(self) -> AIProvider:
         """Determine which AI provider to use based on environment"""
@@ -107,22 +107,10 @@ class AIService:
                 )
             
             elif self.provider == AIProvider.OLLAMA:
-                # For Ollama, we'd need to implement a custom model class
-                # or use OpenAI-compatible endpoint
-                base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-                model_name = os.getenv("OLLAMA_MODEL", "llama2")
-                
-                # Ollama can use OpenAI-compatible API
-                # For Ollama, we need to use a custom provider
-                from openai import AsyncOpenAI
-                client = AsyncOpenAI(
-                    base_url=f"{base_url}/v1",
-                    api_key="ollama"  # Ollama doesn't need a real key
-                )
-                return OpenAIModel(
-                    model_name=model_name,
-                    provider=client
-                )
+                # Ollama doesn't work well with PydanticAI's OpenAI adapter
+                # Return None to trigger direct HTTP fallback in generate_description
+                logger.info("Ollama selected as provider, will use direct HTTP calls")
+                return None
             
             else:
                 logger.info("No AI provider configured, using template generation")
@@ -185,12 +173,16 @@ class AIService:
             Dictionary with generated description and metadata
         """
         
-        # If no AI available, try Ollama fallback before template
+        # If no AI available, check if we should use Ollama or fallback to template
         if not self.agent:
             logger.info("Primary AI agent not available")
-            if self.provider != AIProvider.OLLAMA:
-                logger.info("Attempting Ollama fallback for description generation")
-                return await self._try_ollama_fallback(
+            # If Ollama is the selected provider OR we want to try it as fallback
+            if self.provider == AIProvider.OLLAMA or (
+                self.provider in [AIProvider.OPENAI, AIProvider.ANTHROPIC] and 
+                os.getenv("OLLAMA_BASE_URL")
+            ):
+                logger.info(f"Using Ollama for description generation (provider: {self.provider})")
+                return await self._use_ollama_direct(
                     region_name, terrain_theme, style, length, sections, existing_prompt
                 )
             else:
@@ -275,13 +267,13 @@ Make the description vivid and engaging while maintaining the {style} style thro
             # Try Ollama fallback if primary provider failed and we're not already using Ollama
             if self.provider != AIProvider.OLLAMA:
                 logger.info("Attempting Ollama fallback for description generation")
-                return await self._try_ollama_fallback(
+                return await self._use_ollama_direct(
                     region_name, terrain_theme, style, length, sections, existing_prompt
                 )
             # Return None to trigger template fallback
             return None
     
-    async def _try_ollama_fallback(
+    async def _use_ollama_direct(
         self,
         region_name: str,
         terrain_theme: str,
@@ -291,10 +283,11 @@ Make the description vivid and engaging while maintaining the {style} style thro
         existing_prompt: Dict[str, Any] = None
     ) -> Optional[Dict[str, Any]]:
         """
-        Try to generate description using Ollama as fallback
+        Generate description using direct Ollama HTTP API
         
-        This method creates a temporary Ollama-based AI service to attempt
-        generation when the primary provider fails.
+        This method is used when:
+        1. Ollama is the primary provider (AI_PROVIDER=ollama)
+        2. As a fallback when OpenAI/Anthropic fail
         """
         try:
             # Check if Ollama is configured and available
@@ -367,7 +360,9 @@ Create a comprehensive, immersive description that brings this region to life.""
                     # Create a structured response similar to PydanticAI format
                     word_count = len(generated_text.split())
                     
-                    logger.info("Ollama fallback generation successful (v1.0.1)")
+                    # Determine if this is primary or fallback usage
+                    provider_name = "ollama" if self.provider == AIProvider.OLLAMA else "ollama_fallback"
+                    logger.info(f"Ollama generation successful via direct API (provider: {provider_name})")
                     
                     return {
                         "generated_description": generated_text,
@@ -377,13 +372,13 @@ Create a comprehensive, immersive description that brings this region to life.""
                             "has_wildlife_info": True,
                             "has_geological_info": True,
                             "has_cultural_info": False,
-                            "quality_score": 7.0  # Default score for fallback
+                            "quality_score": 7.0  # Default score for Ollama
                         },
                         "word_count": word_count,
                         "character_count": len(generated_text),
                         "suggested_quality_score": 7.0,
                         "region_name": region_name,
-                        "ai_provider": "ollama_fallback",
+                        "ai_provider": provider_name,
                         "key_features": []  # Could be enhanced later
                     }
             
