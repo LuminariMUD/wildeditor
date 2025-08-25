@@ -44,6 +44,10 @@ async def debug_environment(authenticated: bool = Depends(verify_mcp_key)):
         "AI_PROVIDER": os.getenv("AI_PROVIDER", "NOT_SET"),
         "OPENAI_API_KEY": mask_key("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", "")),
         "OPENAI_MODEL": os.getenv("OPENAI_MODEL", "NOT_SET"),
+        "ANTHROPIC_API_KEY": mask_key("ANTHROPIC_API_KEY", os.getenv("ANTHROPIC_API_KEY", "")),
+        "ANTHROPIC_MODEL": os.getenv("ANTHROPIC_MODEL", "NOT_SET"),
+        "DEEPSEEK_API_KEY": mask_key("DEEPSEEK_API_KEY", os.getenv("DEEPSEEK_API_KEY", "")),
+        "DEEPSEEK_MODEL": os.getenv("DEEPSEEK_MODEL", "NOT_SET"),
         "OLLAMA_BASE_URL": os.getenv("OLLAMA_BASE_URL", "NOT_SET"),
         "OLLAMA_MODEL": os.getenv("OLLAMA_MODEL", "NOT_SET"),
         "WILDEDITOR_MCP_KEY": mask_key("MCP_KEY", os.getenv("WILDEDITOR_MCP_KEY", "")),
@@ -66,11 +70,24 @@ async def debug_environment(authenticated: bool = Depends(verify_mcp_key)):
     except Exception as e:
         ollama_test["error"] = str(e)
     
+    # Check actual AI service configuration
+    ai_service_info = {"configured_provider": "NOT_SET", "is_available": False, "error": None}
+    try:
+        from ..services.ai_service import get_ai_service
+        ai_service = get_ai_service()
+        ai_service_info["configured_provider"] = ai_service.provider.value
+        ai_service_info["is_available"] = ai_service.is_available()
+        ai_service_info["has_model"] = ai_service.model is not None
+        ai_service_info["has_agent"] = ai_service.agent is not None
+    except Exception as e:
+        ai_service_info["error"] = str(e)
+    
     return {
         "status": "debug",
         "service": "wildeditor-mcp-server",
-        "version": "1.0.6-debug",
+        "version": "1.0.10-debug",
         "environment_variables": env_vars,
+        "ai_service_status": ai_service_info,
         "ollama_connectivity_test": ollama_test,
         "warning": "TEMPORARY DEBUG ENDPOINT - REMOVE AFTER TESTING"
     }
