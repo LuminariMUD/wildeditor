@@ -50,16 +50,29 @@ for name, prompt_info in prompt_registry.prompts.items():
     )
 
 
+# Root MCP endpoint - this is the standard entry point for MCP clients
+@router.post("")
+async def handle_mcp_root(
+    data: dict,
+    authenticated: bool = Depends(verify_mcp_key)
+):
+    """
+    Root MCP JSON-RPC endpoint (standard MCP protocol)
+    
+    This is the main endpoint that MCP clients expect at /mcp
+    """
+    return await handle_jsonrpc(data, authenticated)
+
 @router.post("/")
 async def handle_jsonrpc(
     data: dict,
     authenticated: bool = Depends(verify_mcp_key)
 ):
     """
-    Main JSON-RPC endpoint for GitHub Copilot MCP integration
+    Main JSON-RPC endpoint for MCP integration
     
-    This endpoint handles standard MCP JSON-RPC requests and notifications
-    that GitHub Copilot sends.
+    This endpoint handles standard MCP JSON-RPC requests and notifications.
+    Available at both /mcp and /mcp/ for compatibility.
     """
     # Check if this is a notification (no id field) or request (has id field)
     if "id" in data:
@@ -70,7 +83,7 @@ async def handle_jsonrpc(
     else:
         # This is a notification - handle specially
         if data.get("method") == "notifications/initialized":
-            # GitHub Copilot sends this after connecting
+            # MCP clients send this after connecting
             return {"status": "acknowledged"}
         else:
             # For other notifications, just acknowledge
@@ -127,6 +140,101 @@ async def handle_mcp_request(request: MCPRequest, authenticated: bool = Depends(
     
     This is the main MCP protocol endpoint for handling JSON-RPC requests.
     """
+    response = await mcp_server.handle_request(request)
+    return response.model_dump()
+
+# Standard MCP protocol endpoints - these match the expected MCP method names
+@router.post("/tools/list")
+async def tools_list(authenticated: bool = Depends(verify_mcp_key)):
+    """
+    Standard MCP tools/list endpoint
+    
+    Returns the list of available tools in MCP protocol format.
+    """
+    request = MCPRequest(
+        jsonrpc="2.0",
+        id="tools-list",
+        method="tools/list"
+    )
+    response = await mcp_server.handle_request(request)
+    return response.model_dump()
+
+@router.post("/tools/call")
+async def tools_call(data: dict, authenticated: bool = Depends(verify_mcp_key)):
+    """
+    Standard MCP tools/call endpoint
+    
+    Calls a tool with the provided arguments.
+    """
+    # Create proper MCP request
+    request = MCPRequest(
+        jsonrpc=data.get("jsonrpc", "2.0"),
+        id=data.get("id", "tools-call"),
+        method="tools/call",
+        params=data.get("params", {})
+    )
+    response = await mcp_server.handle_request(request)
+    return response.model_dump()
+
+@router.post("/resources/list")
+async def resources_list(authenticated: bool = Depends(verify_mcp_key)):
+    """
+    Standard MCP resources/list endpoint
+    
+    Returns the list of available resources in MCP protocol format.
+    """
+    request = MCPRequest(
+        jsonrpc="2.0",
+        id="resources-list",
+        method="resources/list"
+    )
+    response = await mcp_server.handle_request(request)
+    return response.model_dump()
+
+@router.post("/resources/read")
+async def resources_read(data: dict, authenticated: bool = Depends(verify_mcp_key)):
+    """
+    Standard MCP resources/read endpoint
+    
+    Reads a resource with the provided URI.
+    """
+    request = MCPRequest(
+        jsonrpc=data.get("jsonrpc", "2.0"),
+        id=data.get("id", "resources-read"),
+        method="resources/read",
+        params=data.get("params", {})
+    )
+    response = await mcp_server.handle_request(request)
+    return response.model_dump()
+
+@router.post("/prompts/list")
+async def prompts_list(authenticated: bool = Depends(verify_mcp_key)):
+    """
+    Standard MCP prompts/list endpoint
+    
+    Returns the list of available prompts in MCP protocol format.
+    """
+    request = MCPRequest(
+        jsonrpc="2.0",
+        id="prompts-list",
+        method="prompts/list"
+    )
+    response = await mcp_server.handle_request(request)
+    return response.model_dump()
+
+@router.post("/prompts/get")
+async def prompts_get(data: dict, authenticated: bool = Depends(verify_mcp_key)):
+    """
+    Standard MCP prompts/get endpoint
+    
+    Gets a prompt with the provided name and arguments.
+    """
+    request = MCPRequest(
+        jsonrpc=data.get("jsonrpc", "2.0"),
+        id=data.get("id", "prompts-get"),
+        method="prompts/get",
+        params=data.get("params", {})
+    )
     response = await mcp_server.handle_request(request)
     return response.model_dump()
 
