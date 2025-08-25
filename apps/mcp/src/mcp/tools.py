@@ -71,31 +71,8 @@ class ToolRegistry:
             }
         )
         
-        # Path finding tool
-        self.register_tool(
-            "find_path",
-            self._find_path,
-            "Find paths between two regions in the wilderness",
-            {
-                "type": "object",
-                "properties": {
-                    "from_region": {
-                        "type": "integer",
-                        "description": "Starting region ID"
-                    },
-                    "to_region": {
-                        "type": "integer",
-                        "description": "Destination region ID"
-                    },
-                    "max_distance": {
-                        "type": "integer",
-                        "description": "Maximum path distance to search",
-                        "default": 10
-                    }
-                },
-                "required": ["from_region", "to_region"]
-            }
-        )
+        # Path finding tool - REMOVED: Use spatial search instead
+        # Spatial search with search_by_coordinates provides better path discovery
         
         # Region search tool (enhanced with spatial and description support)
         self.register_tool(
@@ -384,7 +361,12 @@ class ToolRegistry:
             "Find all zone entrances in the wilderness that connect to other game areas",
             {
                 "type": "object",
-                "properties": {},
+                "properties": {
+                    "zone_vnum": {
+                        "type": "integer",
+                        "description": "Optional zone VNUM to filter entrances for specific zone"
+                    }
+                },
                 "required": []
             }
         )
@@ -411,6 +393,23 @@ class ToolRegistry:
                         "minimum": 1,
                         "maximum": 31,
                         "default": 10
+                    },
+                    "width": {
+                        "type": "integer",
+                        "description": "Map width (alternative to radius)",
+                        "minimum": 2,
+                        "maximum": 62
+                    },
+                    "height": {
+                        "type": "integer",
+                        "description": "Map height (alternative to radius)",
+                        "minimum": 2,
+                        "maximum": 62
+                    },
+                    "show_regions": {
+                        "type": "boolean",
+                        "description": "Whether to show region overlays on map",
+                        "default": true
                     }
                 },
                 "required": ["center_x", "center_y"]
@@ -693,27 +692,7 @@ class ToolRegistry:
             except httpx.HTTPError as e:
                 return {"error": f"Failed to analyze region: {str(e)}"}
     
-    async def _find_path(self, from_region: int, to_region: int, max_distance: int = 10) -> Dict[str, Any]:
-        """Find path between regions"""
-        async with httpx.AsyncClient() as client:
-            try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
-                response = await client.get(
-                    f"{settings.backend_base_url}/paths/find",
-                    params={
-                        "from": from_region,
-                        "to": to_region,
-                        "max_distance": max_distance
-                    },
-                    headers=headers,
-                    timeout=30.0
-                )
-                
-                response.raise_for_status()
-                return response.json()
-                
-            except httpx.HTTPError as e:
-                return {"error": f"Failed to find path: {str(e)}"}
+    # _find_path function removed - use spatial search instead
     
     async def _search_regions(self, **kwargs) -> Dict[str, Any]:
         """Search for regions with optional filters including spatial search"""
@@ -873,7 +852,7 @@ class ToolRegistry:
                 }
                 
                 response = await client.post(
-                    f"{settings.backend_base_url}/paths",
+                    f"{settings.backend_base_url}/paths/",
                     json=data,
                     headers=headers,
                     timeout=30.0
@@ -1046,31 +1025,69 @@ class ToolRegistry:
             except httpx.HTTPError as e:
                 return {"error": f"Failed to find wilderness room: {str(e)}"}
     
-    async def _find_zone_entrances(self) -> Dict[str, Any]:
-        """Find all zone entrances in the wilderness"""
+    async def _find_zone_entrances(self, zone_vnum: Optional[int] = None) -> Dict[str, Any]:
+        """Find all zone entrances in the wilderness, optionally filtered by zone"""
         async with httpx.AsyncClient() as client:
             try:
                 headers = {"Authorization": f"Bearer {settings.api_key}"}
+                params = {}
+                if zone_vnum is not None:
+                    params["zone_vnum"] = zone_vnum
+                
                 response = await client.get(
                     f"{settings.backend_base_url}/wilderness/navigation/entrances",
+                    params=params,
                     headers=headers,
                     timeout=30.0
                 )
                 
                 response.raise_for_status()
-                return response.json()
+                data = response.json()
+                
+                # If zone filtering was requested but backend doesn't support it, filter client-side
+                if zone_vnum is not None and "entrances" in data:
+                    filtered_entrances = [e for e in data["entrances"] if e.get("zone_vnum") == zone_vnum]
+                    data["entrances"] = filtered_entrances
+                    data["total_found"] = len(filtered_entrances)
+                    data["note"] = f"Filtered for zone {zone_vnum}"
+                
+                return data
                 
             except httpx.HTTPError as e:
                 return {"error": f"Failed to find zone entrances: {str(e)}"}
     
-    async def _generate_wilderness_map(self, center_x: int, center_y: int, radius: int = 10) -> Dict[str, Any]:
+    async def _generate_wilderness_map(self, center_x: int, center_y: int, radius: Optional[int] = None, 
+                                      width: Optional[int] = None, height: Optional[int] = None,
+                                      show_regions: bool = True) -> Dict[str, Any]:
         """Generate wilderness map for an area"""
         async with httpx.AsyncClient() as client:
             try:
                 headers = {"Authorization": f"Bearer {settings.api_key}"}
+                
+                # Convert width/height to radius if provided
+                if width is not None and height is not None:
+                    # Use the larger dimension and convert to radius
+                    actual_radius = max(width, height) // 2
+                elif width is not None:
+                    actual_radius = width // 2
+                elif height is not None:
+                    actual_radius = height // 2
+                else:
+                    actual_radius = radius or 10
+                
+                params = {
+                    "center_x": center_x, 
+                    "center_y": center_y, 
+                    "radius": actual_radius
+                }
+                
+                # Add show_regions if supported by backend
+                if show_regions:
+                    params["include_regions"] = True
+                
                 response = await client.get(
                     f"{settings.backend_base_url}/terrain/map-data",
-                    params={"center_x": center_x, "center_y": center_y, "radius": radius},
+                    params=params,
                     headers=headers,
                     timeout=30.0
                 )
