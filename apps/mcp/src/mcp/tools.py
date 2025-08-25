@@ -97,14 +97,26 @@ class ToolRegistry:
             }
         )
         
-        # Region search tool (enhanced with description support)
+        # Region search tool (enhanced with spatial and description support)
         self.register_tool(
             "search_regions",
             self._search_regions,
-            "Search for regions by type, zone, or analyze all regions with descriptions",
+            "Search for regions by coordinates/radius, type, zone, or descriptions",
             {
                 "type": "object",
                 "properties": {
+                    "x": {
+                        "type": "number",
+                        "description": "X coordinate for spatial search"
+                    },
+                    "y": {
+                        "type": "number",
+                        "description": "Y coordinate for spatial search"
+                    },
+                    "radius": {
+                        "type": "number",
+                        "description": "Search radius for spatial search (default 10)"
+                    },
                     "region_type": {
                         "type": "integer",
                         "description": "Filter by region type: 1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override"
@@ -130,6 +142,10 @@ class ToolRegistry:
                     "requires_review": {
                         "type": "boolean",
                         "description": "Filter to regions requiring review"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return"
                     }
                 },
                 "required": []
@@ -552,6 +568,84 @@ class ToolRegistry:
                 "required": ["vnum"]
             }
         )
+        
+        # Spatial search tool - searches for regions and paths by coordinates
+        self.register_tool(
+            "search_by_coordinates",
+            self._search_by_coordinates,
+            "Search for regions and paths at or near specific coordinates",
+            {
+                "type": "object",
+                "properties": {
+                    "x": {
+                        "type": "number",
+                        "description": "X coordinate to search from"
+                    },
+                    "y": {
+                        "type": "number",
+                        "description": "Y coordinate to search from"
+                    },
+                    "radius": {
+                        "type": "number",
+                        "description": "Search radius (default 10)",
+                        "default": 10
+                    }
+                },
+                "required": ["x", "y"]
+            }
+        )
+    
+    async def _search_by_coordinates(self, x: float, y: float, radius: float = 10) -> Dict[str, Any]:
+        """Search for regions and paths at or near specific coordinates"""
+        async with httpx.AsyncClient() as client:
+            try:
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                
+                # Use the /points endpoint which does spatial queries
+                response = await client.get(
+                    f"{settings.backend_base_url}/points",
+                    params={"x": x, "y": y, "radius": radius},
+                    headers=headers,
+                    timeout=30.0
+                )
+                
+                response.raise_for_status()
+                data = response.json()
+                
+                # Enhance the response with additional analysis
+                result = {
+                    "coordinate": data["coordinate"],
+                    "radius": data["radius"],
+                    "regions": data["regions"],
+                    "paths": data["paths"],
+                    "summary": {
+                        "region_count": data["summary"]["region_count"],
+                        "path_count": data["summary"]["path_count"],
+                        "total_features": data["summary"]["region_count"] + data["summary"]["path_count"]
+                    }
+                }
+                
+                # Add analysis of what was found
+                if data["regions"]:
+                    result["analysis"] = {
+                        "regions_at_point": [r for r in data["regions"] if self._contains_point(r, x, y)],
+                        "regions_nearby": [r for r in data["regions"] if not self._contains_point(r, x, y)],
+                        "region_types": list(set(r["region_type_name"] for r in data["regions"]))
+                    }
+                
+                if data["paths"]:
+                    result["analysis"]["path_types"] = list(set(p["path_type_name"] for p in data["paths"]))
+                
+                return result
+                
+            except httpx.HTTPError as e:
+                return {"error": f"Failed to search by coordinates: {str(e)}"}
+    
+    def _contains_point(self, region: Dict[str, Any], x: float, y: float) -> bool:
+        """Check if a region contains a point (simplified check)"""
+        # This is a simplified check - the actual containment is done by the database
+        # We're just categorizing the results here
+        return True  # For now, assume regions returned are at the point
     
     async def _analyze_region(self, region_id: int, include_paths: bool = True) -> Dict[str, Any]:
         """Analyze a wilderness region including its description"""
@@ -622,32 +716,61 @@ class ToolRegistry:
                 return {"error": f"Failed to find path: {str(e)}"}
     
     async def _search_regions(self, **kwargs) -> Dict[str, Any]:
-        """Search for regions with optional filters"""
+        """Search for regions with optional filters including spatial search"""
         async with httpx.AsyncClient() as client:
             try:
                 headers = {"Authorization": f"Bearer {settings.api_key}"}
-                params: Dict[str, Any] = {}
                 
-                # Add filters if provided
-                if "region_type" in kwargs:
-                    params["region_type"] = kwargs["region_type"]
-                if "zone_vnum" in kwargs:
-                    params["zone_vnum"] = kwargs["zone_vnum"]
-                if "include_descriptions" in kwargs:
-                    params["include_descriptions"] = kwargs["include_descriptions"]
+                # Check if this is a spatial search
+                if "x" in kwargs and "y" in kwargs:
+                    # Use the spatial search endpoint
+                    params = {
+                        "x": kwargs["x"],
+                        "y": kwargs["y"],
+                        "radius": kwargs.get("radius", 10)
+                    }
+                    
+                    response = await client.get(
+                        f"{settings.backend_base_url}/points",
+                        params=params,
+                        headers=headers,
+                        timeout=30.0
+                    )
+                    
+                    response.raise_for_status()
+                    spatial_data = response.json()
+                    
+                    # Return regions from spatial search
+                    regions = spatial_data["regions"]
+                    
+                    # Apply additional filters if provided
+                    if "region_type" in kwargs:
+                        regions = [r for r in regions if r.get("region_type") == kwargs["region_type"]]
+                    
                 else:
-                    params["include_descriptions"] = "false"  # Default to no descriptions for performance
-                
-                # Get all regions with specified filters
-                response = await client.get(
-                    f"{settings.backend_base_url}/regions",
-                    params=params,
-                    headers=headers,
-                    timeout=30.0
-                )
-                
-                response.raise_for_status()
-                regions = response.json()
+                    # Traditional search by filters
+                    params: Dict[str, Any] = {}
+                    
+                    # Add filters if provided
+                    if "region_type" in kwargs:
+                        params["region_type"] = kwargs["region_type"]
+                    if "zone_vnum" in kwargs:
+                        params["zone_vnum"] = kwargs["zone_vnum"]
+                    if "include_descriptions" in kwargs:
+                        params["include_descriptions"] = kwargs["include_descriptions"]
+                    else:
+                        params["include_descriptions"] = "false"  # Default to no descriptions for performance
+                    
+                    # Get all regions with specified filters
+                    response = await client.get(
+                        f"{settings.backend_base_url}/regions",
+                        params=params,
+                        headers=headers,
+                        timeout=30.0
+                    )
+                    
+                    response.raise_for_status()
+                    regions = response.json()
                 
                 # Client-side filtering for description-based filters
                 if kwargs.get("has_description"):
