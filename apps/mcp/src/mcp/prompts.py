@@ -177,46 +177,65 @@ class PromptRegistry:
         )
     
     async def _create_region_prompt(self, terrain_type: str, environment: str = None, 
-                                  theme: str = None, size: str = "medium") -> Dict[str, Any]:
-        """Generate region creation prompt"""
+                                  theme: str = None, size: str = "medium",
+                                  description_style: str = "poetic",
+                                  description_length: str = "moderate") -> Dict[str, Any]:
+        """Generate region creation prompt with enhanced description guidance"""
         
-        base_prompt = f"""Create a detailed wilderness region with the following specifications:
+        # Length word counts
+        length_guides = {
+            "brief": "100-200 words",
+            "moderate": "300-500 words",
+            "detailed": "600-900 words",
+            "extensive": "1000+ words"
+        }
+        
+        base_prompt = f"""Create a detailed wilderness region with comprehensive description:
 
 **Core Requirements:**
 - Terrain Type: {terrain_type}
 - Environment: {environment or 'temperate'}
 - Size: {size}
+- Description Style: {description_style}
+- Description Length: {length_guides.get(description_length, '300-500 words')}
 {f'- Theme: {theme}' if theme else ''}
 
-**Instructions:**
-1. Generate a evocative name that reflects the terrain and character
-2. Write a rich, immersive description (100-300 words) that includes:
-   - Visual details of the landscape
-   - Atmospheric elements (sounds, smells, lighting)
-   - Notable features or landmarks
-   - Environmental conditions
-   - Sense of scale and space
+**Required Sections:**
+1. **OVERVIEW** - Opening paragraph that sets the scene
+2. **GEOGRAPHY** - Terrain features, elevation, and landscape
+3. **VEGETATION** - Plant life, trees, and flora
+4. **WILDLIFE** - Animals, creatures, and fauna
+5. **ATMOSPHERE** - Mood, ambiance, and sensory details
+6. **RESOURCES** - Available materials, minerals, or harvestables
+7. **SEASONAL CHANGES** - How the area transforms through seasons
+8. **HISTORICAL CONTEXT** - Legends, past events, or cultural significance
 
-3. Consider how this region fits into a larger wilderness ecosystem
-4. Include subtle hints about potential connections to other areas
-5. Make the description vivid enough for players to visualize
+**Content Metadata to Include:**
+- Historical elements (ancient ruins, battle sites, legends)
+- Resource availability (minerals, herbs, water sources)
+- Wildlife presence (specific creatures, migration patterns)
+- Geological features (rock formations, caves, minerals)
+- Cultural connections (local traditions, sacred sites)
 
-**Style Guidelines:**
-- Use present tense, second person ("You see...")
-- Include sensory details beyond just visual
-- Create a sense of place and atmosphere
-- Avoid overly dramatic or cliché descriptions
-- Focus on natural, believable features"""
+**Style Guidelines for {description_style}:**
+{self._get_style_guidelines(description_style)}
+
+**Quality Standards:**
+- Use vivid, specific details rather than generic descriptions
+- Include multiple senses (sight, sound, smell, touch, temperature)
+- Create a strong sense of place and atmosphere
+- Ensure consistency with the terrain type and environment
+- Make descriptions actionable for game purposes"""
 
         terrain_specific = self._get_terrain_specific_guidance(terrain_type)
         environment_specific = self._get_environment_specific_guidance(environment or 'temperate')
         
         return {
-            "description": f"Generate a detailed {terrain_type} region",
+            "description": f"Generate a {description_style} {terrain_type} region with {description_length} description",
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are an expert wilderness designer creating immersive natural environments for a fantasy world. Focus on realistic, detailed descriptions that help players feel present in the environment."
+                    "content": f"You are an expert wilderness designer creating immersive natural environments for a fantasy MUD game. Generate descriptions in {description_style} style that are {description_length} in length. Include all required sections and metadata flags."
                 },
                 {
                     "role": "user", 
@@ -532,3 +551,44 @@ Provide both summary assessment and specific, actionable suggestions for improve
         }
         
         return guidance.get(environment, "**Climate Neutral**: Focus on terrain rather than specific climate effects.")
+    
+    def _get_style_guidelines(self, style: str) -> str:
+        """Get style-specific writing guidelines"""
+        guidelines = {
+            "poetic": """
+- Use metaphorical and evocative language
+- Create rhythm and flow in sentence structure
+- Emphasize beauty and emotional resonance
+- Include lyrical descriptions of natural phenomena
+- Draw connections between landscape and feelings""",
+            
+            "practical": """
+- Focus on clear, direct descriptions
+- Emphasize useful information for travelers
+- Describe terrain in terms of navigation and resources
+- Use straightforward, unembellished language
+- Include practical details about conditions and hazards""",
+            
+            "mysterious": """
+- Create an atmosphere of uncertainty and wonder
+- Hint at hidden secrets and ancient mysteries
+- Use shadowy, ambiguous descriptions
+- Include unexplained phenomena or features
+- Build tension through what is left unsaid""",
+            
+            "dramatic": """
+- Use bold, powerful language
+- Emphasize scale and grandeur
+- Create dynamic, action-oriented descriptions
+- Highlight conflicts between natural forces
+- Build excitement through vivid imagery""",
+            
+            "pastoral": """
+- Create peaceful, idyllic descriptions
+- Emphasize harmony and natural beauty
+- Use gentle, flowing language
+- Focus on pleasant sensory details
+- Evoke feelings of tranquility and contentment"""
+        }
+        
+        return guidelines.get(style, "Use clear, descriptive language appropriate to the content.")

@@ -91,71 +91,150 @@ class ToolRegistry:
             }
         )
         
-        # Region search tool
+        # Region search tool (enhanced with description support)
         self.register_tool(
             "search_regions",
             self._search_regions,
-            "Search for regions by terrain type, environmental conditions, or description",
+            "Search for regions by type, zone, or analyze all regions with descriptions",
             {
                 "type": "object",
                 "properties": {
-                    "terrain_type": {
-                        "type": "string",
-                        "description": "Terrain type to search for (e.g., 'forest', 'mountain', 'desert')"
-                    },
-                    "environment": {
-                        "type": "string",
-                        "description": "Environmental condition (e.g., 'cold', 'hot', 'humid')"
-                    },
-                    "description_keywords": {
-                        "type": "string",
-                        "description": "Keywords to search in region descriptions"
-                    },
-                    "limit": {
+                    "region_type": {
                         "type": "integer",
-                        "description": "Maximum number of results to return",
-                        "default": 20
+                        "description": "Filter by region type: 1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override"
+                    },
+                    "zone_vnum": {
+                        "type": "integer",
+                        "description": "Filter by zone VNUM"
+                    },
+                    "include_descriptions": {
+                        "type": "string",
+                        "enum": ["false", "true", "summary"],
+                        "description": "Include descriptions: false (default), true (full), summary (first 200 chars)",
+                        "default": "false"
+                    },
+                    "has_description": {
+                        "type": "boolean",
+                        "description": "Filter to only regions that have descriptions"
+                    },
+                    "is_approved": {
+                        "type": "boolean",
+                        "description": "Filter by approval status"
+                    },
+                    "requires_review": {
+                        "type": "boolean",
+                        "description": "Filter to regions requiring review"
                     }
                 },
                 "required": []
             }
         )
         
-        # Create region tool
+        # Create region tool (updated with description fields)
         self.register_tool(
             "create_region",
             self._create_region,
-            "Create a new wilderness region with specified properties",
+            "Create a new wilderness region with comprehensive description and metadata",
             {
                 "type": "object",
                 "properties": {
+                    "vnum": {
+                        "type": "integer",
+                        "description": "Unique region VNUM identifier (1-99999999)"
+                    },
+                    "zone_vnum": {
+                        "type": "integer",
+                        "description": "Zone VNUM this region belongs to",
+                        "default": 1
+                    },
                     "name": {
                         "type": "string",
-                        "description": "Name of the region"
+                        "description": "Name of the region (max 50 chars)"
                     },
-                    "description": {
-                        "type": "string",
-                        "description": "Detailed description of the region"
-                    },
-                    "terrain_type": {
-                        "type": "string",
-                        "description": "Primary terrain type"
-                    },
-                    "environment": {
-                        "type": "string",
-                        "description": "Environmental conditions"
+                    "region_type": {
+                        "type": "integer",
+                        "description": "Region type: 1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override"
                     },
                     "coordinates": {
-                        "type": "object",
-                        "properties": {
-                            "x": {"type": "integer"},
-                            "y": {"type": "integer"},
-                            "z": {"type": "integer"}
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "x": {"type": "number"},
+                                "y": {"type": "number"}
+                            },
+                            "required": ["x", "y"]
                         },
-                        "description": "3D coordinates for the region"
+                        "description": "Array of x,y coordinates defining the region boundary (min 3 points for polygon)"
+                    },
+                    "region_props": {
+                        "type": "integer",
+                        "description": "Properties value: sector type (0-36) for type 4, elevation adjustment for type 3",
+                        "default": 0
+                    },
+                    "region_description": {
+                        "type": "string",
+                        "description": "Comprehensive description of the region (can be very detailed)"
+                    },
+                    "description_style": {
+                        "type": "string",
+                        "enum": ["poetic", "practical", "mysterious", "dramatic", "pastoral"],
+                        "description": "Writing style for the description",
+                        "default": "poetic"
+                    },
+                    "description_length": {
+                        "type": "string",
+                        "enum": ["brief", "moderate", "detailed", "extensive"],
+                        "description": "Target length for the description",
+                        "default": "moderate"
+                    },
+                    "has_historical_context": {
+                        "type": "boolean",
+                        "description": "Whether description includes historical information",
+                        "default": False
+                    },
+                    "has_resource_info": {
+                        "type": "boolean",
+                        "description": "Whether description mentions available resources",
+                        "default": False
+                    },
+                    "has_wildlife_info": {
+                        "type": "boolean",
+                        "description": "Whether description includes wildlife details",
+                        "default": False
+                    },
+                    "has_geological_info": {
+                        "type": "boolean",
+                        "description": "Whether description contains geological information",
+                        "default": False
+                    },
+                    "has_cultural_info": {
+                        "type": "boolean",
+                        "description": "Whether description includes cultural elements",
+                        "default": False
+                    },
+                    "ai_agent_source": {
+                        "type": "string",
+                        "description": "Identifier of the AI agent that generated the description"
+                    },
+                    "description_quality_score": {
+                        "type": "number",
+                        "description": "Quality score for the description (0.00-9.99)",
+                        "minimum": 0,
+                        "maximum": 9.99
+                    },
+                    "requires_review": {
+                        "type": "boolean",
+                        "description": "Whether the description needs human review",
+                        "default": False
+                    },
+                    "is_approved": {
+                        "type": "boolean",
+                        "description": "Whether the description has been approved",
+                        "default": False
                     }
                 },
-                "required": ["name", "description", "terrain_type"]
+                "required": ["vnum", "zone_vnum", "name", "region_type", "coordinates"]
             }
         )
         
@@ -353,12 +432,126 @@ class ToolRegistry:
                 "required": ["center_x", "center_y"]
             }
         )
+        
+        # Generate region description tool
+        self.register_tool(
+            "generate_region_description",
+            self._generate_region_description,
+            "Generate a comprehensive description for a region based on its properties",
+            {
+                "type": "object",
+                "properties": {
+                    "region_vnum": {
+                        "type": "integer",
+                        "description": "VNUM of existing region to generate description for"
+                    },
+                    "region_name": {
+                        "type": "string",
+                        "description": "Name of the region (used if vnum not provided)"
+                    },
+                    "region_type": {
+                        "type": "integer",
+                        "description": "Region type (1-4) to inform description generation"
+                    },
+                    "terrain_theme": {
+                        "type": "string",
+                        "description": "Primary terrain theme (forest, mountain, desert, etc.)"
+                    },
+                    "description_style": {
+                        "type": "string",
+                        "enum": ["poetic", "practical", "mysterious", "dramatic", "pastoral"],
+                        "description": "Writing style for the description",
+                        "default": "poetic"
+                    },
+                    "description_length": {
+                        "type": "string",
+                        "enum": ["brief", "moderate", "detailed", "extensive"],
+                        "description": "Target length for the description",
+                        "default": "moderate"
+                    },
+                    "include_sections": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": ["overview", "geography", "vegetation", "wildlife", "atmosphere", "seasons", "resources", "history", "culture"]
+                        },
+                        "description": "Specific sections to include in the description"
+                    }
+                },
+                "required": []
+            }
+        )
+        
+        # Update region description tool
+        self.register_tool(
+            "update_region_description",
+            self._update_region_description,
+            "Update the description and metadata for an existing region",
+            {
+                "type": "object",
+                "properties": {
+                    "vnum": {
+                        "type": "integer",
+                        "description": "VNUM of the region to update"
+                    },
+                    "region_description": {
+                        "type": "string",
+                        "description": "New or updated description text"
+                    },
+                    "description_style": {
+                        "type": "string",
+                        "enum": ["poetic", "practical", "mysterious", "dramatic", "pastoral"],
+                        "description": "Writing style"
+                    },
+                    "description_length": {
+                        "type": "string",
+                        "enum": ["brief", "moderate", "detailed", "extensive"],
+                        "description": "Length category"
+                    },
+                    "has_historical_context": {"type": "boolean"},
+                    "has_resource_info": {"type": "boolean"},
+                    "has_wildlife_info": {"type": "boolean"},
+                    "has_geological_info": {"type": "boolean"},
+                    "has_cultural_info": {"type": "boolean"},
+                    "description_quality_score": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 9.99
+                    },
+                    "requires_review": {"type": "boolean"},
+                    "is_approved": {"type": "boolean"}
+                },
+                "required": ["vnum"]
+            }
+        )
+        
+        # Analyze description quality tool
+        self.register_tool(
+            "analyze_description_quality",
+            self._analyze_description_quality,
+            "Analyze the quality and completeness of a region's description",
+            {
+                "type": "object",
+                "properties": {
+                    "vnum": {
+                        "type": "integer",
+                        "description": "VNUM of the region to analyze"
+                    },
+                    "suggest_improvements": {
+                        "type": "boolean",
+                        "description": "Whether to generate improvement suggestions",
+                        "default": True
+                    }
+                },
+                "required": ["vnum"]
+            }
+        )
     
     async def _analyze_region(self, region_id: int, include_paths: bool = True) -> Dict[str, Any]:
-        """Analyze a wilderness region"""
+        """Analyze a wilderness region including its description"""
         async with httpx.AsyncClient() as client:
             try:
-                # Get region data
+                # Get region data with full description
                 headers = {"Authorization": f"Bearer {settings.api_key}"}
                 response = await client.get(
                     f"{settings.backend_base_url}/regions/{region_id}",
@@ -372,12 +565,16 @@ class ToolRegistry:
                 response.raise_for_status()
                 region_data = response.json()
                 
+                # Analyze description if present
+                description_analysis = self._analyze_region_description(region_data)
+                
                 result = {
                     "region": region_data,
                     "analysis": {
                         "terrain_features": self._extract_terrain_features(region_data),
                         "environmental_conditions": self._extract_environmental_data(region_data),
-                        "accessibility": self._analyze_accessibility(region_data)
+                        "accessibility": self._analyze_accessibility(region_data),
+                        "description_analysis": description_analysis
                     }
                 }
                 
@@ -418,56 +615,107 @@ class ToolRegistry:
             except httpx.HTTPError as e:
                 return {"error": f"Failed to find path: {str(e)}"}
     
-    async def _search_regions(self, terrain_type: Optional[str] = None, 
-                            environment: Optional[str] = None,
-                            description_keywords: Optional[str] = None,
-                            limit: int = 20) -> Dict[str, Any]:
-        """Search for regions"""
+    async def _search_regions(self, **kwargs) -> Dict[str, Any]:
+        """Search for regions with optional filters"""
         async with httpx.AsyncClient() as client:
             try:
                 headers = {"Authorization": f"Bearer {settings.api_key}"}
-                params: Dict[str, Any] = {"limit": limit}
+                params: Dict[str, Any] = {}
                 
-                if terrain_type:
-                    params["terrain_type"] = terrain_type
-                if environment:
-                    params["environment"] = environment
-                if description_keywords:
-                    params["description"] = description_keywords
+                # Add filters if provided
+                if "region_type" in kwargs:
+                    params["region_type"] = kwargs["region_type"]
+                if "zone_vnum" in kwargs:
+                    params["zone_vnum"] = kwargs["zone_vnum"]
+                if "include_descriptions" in kwargs:
+                    params["include_descriptions"] = kwargs["include_descriptions"]
+                else:
+                    params["include_descriptions"] = "false"  # Default to no descriptions for performance
                 
+                # Get all regions with specified filters
                 response = await client.get(
-                    f"{settings.backend_base_url}/regions/search",
+                    f"{settings.backend_base_url}/regions",
                     params=params,
                     headers=headers,
                     timeout=30.0
                 )
                 
                 response.raise_for_status()
-                return response.json()
+                regions = response.json()
+                
+                # Client-side filtering for description-based filters
+                if kwargs.get("has_description"):
+                    regions = [r for r in regions if r.get("region_description") or r.get("has_description")]
+                if kwargs.get("is_approved") is not None:
+                    regions = [r for r in regions if r.get("is_approved") == kwargs["is_approved"]]
+                if kwargs.get("requires_review") is not None:
+                    regions = [r for r in regions if r.get("requires_review") == kwargs["requires_review"]]
+                
+                # Analyze results
+                result = {
+                    "total_found": len(regions),
+                    "regions": regions,
+                    "summary": {
+                        "by_type": {},
+                        "with_descriptions": 0,
+                        "approved": 0,
+                        "requiring_review": 0
+                    }
+                }
+                
+                # Generate summary statistics
+                for region in regions:
+                    region_type = region.get("region_type_name", "Unknown")
+                    result["summary"]["by_type"][region_type] = result["summary"]["by_type"].get(region_type, 0) + 1
+                    
+                    if region.get("region_description") or region.get("has_description"):
+                        result["summary"]["with_descriptions"] += 1
+                    if region.get("is_approved"):
+                        result["summary"]["approved"] += 1
+                    if region.get("requires_review"):
+                        result["summary"]["requiring_review"] += 1
+                
+                return result
                 
             except httpx.HTTPError as e:
                 return {"error": f"Failed to search regions: {str(e)}"}
     
-    async def _create_region(self, name: str, description: str, terrain_type: str,
-                           environment: Optional[str] = None, 
-                           coordinates: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
-        """Create a new region"""
+    async def _create_region(self, vnum: int, zone_vnum: int, name: str, region_type: int,
+                           coordinates: List[Dict[str, float]], **kwargs) -> Dict[str, Any]:
+        """Create a new region with comprehensive description"""
         async with httpx.AsyncClient() as client:
             try:
                 headers = {"Authorization": f"Bearer {settings.api_key}"}
+                
+                # Build the region data with all fields
                 data: Dict[str, Any] = {
+                    "vnum": vnum,
+                    "zone_vnum": zone_vnum,
                     "name": name,
-                    "description": description,
-                    "terrain_type": terrain_type
+                    "region_type": region_type,
+                    "coordinates": coordinates
                 }
                 
-                if environment:
-                    data["environment"] = environment
-                if coordinates:
-                    data["coordinates"] = coordinates
+                # Add optional fields from kwargs
+                optional_fields = [
+                    "region_props", "region_reset_data", "region_reset_time",
+                    "region_description", "description_style", "description_length",
+                    "has_historical_context", "has_resource_info", "has_wildlife_info",
+                    "has_geological_info", "has_cultural_info",
+                    "ai_agent_source", "description_quality_score", 
+                    "requires_review", "is_approved"
+                ]
+                
+                for field in optional_fields:
+                    if field in kwargs and kwargs[field] is not None:
+                        data[field] = kwargs[field]
+                
+                # Set AI agent source if not provided
+                if "ai_agent_source" not in data and "region_description" in data:
+                    data["ai_agent_source"] = "mcp_server"
                 
                 response = await client.post(
-                    f"{settings.backend_base_url}/regions",
+                    f"{settings.backend_base_url}/regions/",
                     json=data,
                     headers=headers,
                     timeout=30.0
@@ -526,16 +774,63 @@ class ToolRegistry:
             except httpx.HTTPError as e:
                 return {"error": f"Failed to validate connections: {str(e)}"}
     
+    def _analyze_region_description(self, region_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze region description and metadata"""
+        description = region_data.get("region_description", "")
+        
+        analysis = {
+            "has_description": bool(description),
+            "description_length": len(description) if description else 0,
+            "description_style": region_data.get("description_style"),
+            "description_length_category": region_data.get("description_length"),
+            "quality_score": region_data.get("description_quality_score"),
+            "is_approved": region_data.get("is_approved", False),
+            "requires_review": region_data.get("requires_review", False),
+            "ai_source": region_data.get("ai_agent_source"),
+            "content_flags": {
+                "historical": region_data.get("has_historical_context", False),
+                "resources": region_data.get("has_resource_info", False),
+                "wildlife": region_data.get("has_wildlife_info", False),
+                "geological": region_data.get("has_geological_info", False),
+                "cultural": region_data.get("has_cultural_info", False)
+            }
+        }
+        
+        if description:
+            # Analyze description content
+            analysis["word_count"] = len(description.split())
+            analysis["paragraph_count"] = len([p for p in description.split('\n\n') if p.strip()])
+            
+            # Check for key sections
+            description_lower = description.lower()
+            analysis["has_sections"] = {
+                "overview": "overview" in description_lower,
+                "geography": any(word in description_lower for word in ["geography", "terrain", "landscape"]),
+                "vegetation": any(word in description_lower for word in ["vegetation", "flora", "trees", "plants"]),
+                "wildlife": any(word in description_lower for word in ["wildlife", "fauna", "animals", "creatures"]),
+                "atmosphere": any(word in description_lower for word in ["atmosphere", "mood", "feeling"]),
+                "resources": any(word in description_lower for word in ["resources", "materials", "minerals"]),
+                "seasonal": any(word in description_lower for word in ["season", "spring", "summer", "autumn", "winter"])
+            }
+            
+            # Calculate completeness score
+            content_count = sum(analysis["content_flags"].values())
+            section_count = sum(analysis["has_sections"].values())
+            analysis["completeness_score"] = (content_count + section_count) / 12.0 * 10  # Scale to 0-10
+            
+        return analysis
+    
     def _extract_terrain_features(self, region_data: Dict[str, Any]) -> List[str]:
         """Extract terrain features from region data"""
         features = []
         
-        # Basic terrain analysis
-        if "terrain_type" in region_data:
-            features.append(f"Primary terrain: {region_data['terrain_type']}")
+        # Basic terrain analysis from region type
+        region_type_name = region_data.get("region_type_name", "")
+        if region_type_name:
+            features.append(f"Type: {region_type_name}")
         
         # Look for terrain keywords in description
-        description = region_data.get("description", "").lower()
+        description = region_data.get("region_description", "").lower()
         terrain_keywords = ["forest", "mountain", "river", "lake", "desert", "swamp", "cave", "hill"]
         
         for keyword in terrain_keywords:
@@ -548,12 +843,15 @@ class ToolRegistry:
         """Extract environmental conditions"""
         conditions = []
         
-        if "environment" in region_data:
-            conditions.append(f"Climate: {region_data['environment']}")
+        # Check description metadata
+        if region_data.get("has_geological_info"):
+            conditions.append("Contains geological information")
+        if region_data.get("has_wildlife_info"):
+            conditions.append("Contains wildlife information")
         
-        # Environmental keywords
-        description = region_data.get("description", "").lower()
-        env_keywords = ["cold", "hot", "humid", "dry", "windy", "calm", "dark", "bright"]
+        # Environmental keywords in description
+        description = region_data.get("region_description", "").lower()
+        env_keywords = ["cold", "hot", "humid", "dry", "windy", "calm", "dark", "bright", "mist", "fog"]
         
         for keyword in env_keywords:
             if keyword in description:
@@ -830,3 +1128,226 @@ class ToolRegistry:
                 result['overlays']['error'] = f"Spatial query failed: {str(e)}"
         
         return result
+    
+    async def _generate_region_description(self, **kwargs) -> Dict[str, Any]:
+        """Generate a comprehensive description for a region"""
+        try:
+            # If vnum provided, fetch existing region data
+            region_data = None
+            if "region_vnum" in kwargs:
+                async with httpx.AsyncClient() as client:
+                    headers = {"Authorization": f"Bearer {settings.api_key}"}
+                    response = await client.get(
+                        f"{settings.backend_base_url}/regions/{kwargs['region_vnum']}",
+                        headers=headers,
+                        timeout=30.0
+                    )
+                    if response.status_code == 200:
+                        region_data = response.json()
+            
+            # Build description generation prompt
+            region_name = kwargs.get("region_name") or (region_data["name"] if region_data else "Unnamed Region")
+            region_type = kwargs.get("region_type") or (region_data["region_type"] if region_data else 1)
+            terrain_theme = kwargs.get("terrain_theme", "wilderness")
+            style = kwargs.get("description_style", "poetic")
+            length = kwargs.get("description_length", "moderate")
+            sections = kwargs.get("include_sections", ["overview", "geography", "vegetation", "atmosphere"])
+            
+            # Generate description based on parameters
+            description = self._compose_region_description(
+                name=region_name,
+                region_type=region_type,
+                terrain_theme=terrain_theme,
+                style=style,
+                length=length,
+                sections=sections
+            )
+            
+            # Analyze generated description for metadata
+            metadata = self._analyze_description_content(description)
+            
+            return {
+                "generated_description": description,
+                "metadata": metadata,
+                "word_count": len(description.split()),
+                "character_count": len(description),
+                "suggested_quality_score": metadata.get("quality_score", 7.0),
+                "region_vnum": kwargs.get("region_vnum"),
+                "region_name": region_name
+            }
+            
+        except Exception as e:
+            return {"error": f"Failed to generate description: {str(e)}"}
+    
+    async def _update_region_description(self, vnum: int, **kwargs) -> Dict[str, Any]:
+        """Update region description and metadata"""
+        async with httpx.AsyncClient() as client:
+            try:
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                
+                # Build update data
+                update_data = {}
+                for field in ["region_description", "description_style", "description_length",
+                             "has_historical_context", "has_resource_info", "has_wildlife_info",
+                             "has_geological_info", "has_cultural_info", "description_quality_score",
+                             "requires_review", "is_approved"]:
+                    if field in kwargs:
+                        update_data[field] = kwargs[field]
+                
+                # Set AI agent source
+                if "region_description" in update_data:
+                    update_data["ai_agent_source"] = "mcp_server_update"
+                
+                response = await client.put(
+                    f"{settings.backend_base_url}/regions/{vnum}",
+                    json=update_data,
+                    headers=headers,
+                    timeout=30.0
+                )
+                
+                response.raise_for_status()
+                return response.json()
+                
+            except httpx.HTTPError as e:
+                return {"error": f"Failed to update region description: {str(e)}"}
+    
+    async def _analyze_description_quality(self, vnum: int, suggest_improvements: bool = True) -> Dict[str, Any]:
+        """Analyze description quality and suggest improvements"""
+        async with httpx.AsyncClient() as client:
+            try:
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                response = await client.get(
+                    f"{settings.backend_base_url}/regions/{vnum}",
+                    headers=headers,
+                    timeout=30.0
+                )
+                
+                if response.status_code == 404:
+                    return {"error": f"Region {vnum} not found"}
+                
+                response.raise_for_status()
+                region_data = response.json()
+                
+                # Perform quality analysis
+                analysis = self._analyze_region_description(region_data)
+                
+                result = {
+                    "vnum": vnum,
+                    "name": region_data.get("name"),
+                    "current_quality_score": region_data.get("description_quality_score"),
+                    "analysis": analysis
+                }
+                
+                if suggest_improvements and region_data.get("region_description"):
+                    result["improvements"] = self._suggest_description_improvements(
+                        region_data.get("region_description", ""),
+                        analysis
+                    )
+                
+                return result
+                
+            except httpx.HTTPError as e:
+                return {"error": f"Failed to analyze description quality: {str(e)}"}
+    
+    def _compose_region_description(self, name: str, region_type: int, terrain_theme: str,
+                                   style: str, length: str, sections: List[str]) -> str:
+        """Compose a region description based on parameters"""
+        # Length guidelines
+        length_targets = {
+            "brief": 100,
+            "moderate": 300,
+            "detailed": 600,
+            "extensive": 1000
+        }
+        target_words = length_targets.get(length, 300)
+        
+        # Style templates
+        style_intros = {
+            "poetic": f"The {name} unfolds before you like a living canvas of {terrain_theme} beauty.",
+            "practical": f"{name} is a {terrain_theme} region with distinct geographical features.",
+            "mysterious": f"An air of ancient mystery permeates {name}, where the {terrain_theme} holds secrets untold.",
+            "dramatic": f"The {name} rises dramatically from the surrounding lands, a testament to nature's raw power.",
+            "pastoral": f"The gentle contours of {name} create a peaceful {terrain_theme} sanctuary."
+        }
+        
+        description_parts = []
+        description_parts.append(f"{name.upper()} COMPREHENSIVE DESCRIPTION\n")
+        
+        # Add sections based on request
+        if "overview" in sections:
+            description_parts.append(f"\nOVERVIEW:\n{style_intros.get(style, style_intros['poetic'])}")
+            
+        if "geography" in sections:
+            description_parts.append(f"\nGEOGRAPHY:\nThe terrain here is characterized by {terrain_theme} features, "
+                                    f"with natural formations that have developed over countless ages.")
+            
+        if "vegetation" in sections:
+            description_parts.append(f"\nVEGETATION:\nThe plant life adapts remarkably to the {terrain_theme} environment, "
+                                    f"creating a unique ecosystem of hardy flora.")
+            
+        if "wildlife" in sections:
+            description_parts.append(f"\nWILDLIFE:\nCreatures both common and rare make their home in this {terrain_theme}, "
+                                    f"each adapted to the specific challenges of the environment.")
+            
+        if "atmosphere" in sections:
+            description_parts.append(f"\nATMOSPHERE:\nThe ambiance of {name} shifts with the time of day, "
+                                    f"from misty mornings to sun-drenched afternoons.")
+            
+        if "seasons" in sections:
+            description_parts.append(f"\nSEASONAL CHANGES:\nEach season transforms {name} in unique ways, "
+                                    f"bringing different colors, sounds, and experiences.")
+            
+        if "resources" in sections:
+            description_parts.append(f"\nRESOURCES:\nThe {terrain_theme} provides various natural resources, "
+                                    f"from minerals to medicinal plants.")
+            
+        if "history" in sections:
+            description_parts.append(f"\nHISTORICAL CONTEXT:\nLegends speak of ancient times when {name} "
+                                    f"played a crucial role in the region's history.")
+            
+        if "culture" in sections:
+            description_parts.append(f"\nCULTURAL SIGNIFICANCE:\nLocal traditions and folklore are deeply connected "
+                                    f"to the {terrain_theme} landscape of {name}.")
+        
+        return "\n".join(description_parts)
+    
+    def _analyze_description_content(self, description: str) -> Dict[str, Any]:
+        """Analyze description content to determine metadata flags"""
+        desc_lower = description.lower()
+        
+        return {
+            "has_historical_context": any(word in desc_lower for word in ["history", "ancient", "legend", "past"]),
+            "has_resource_info": any(word in desc_lower for word in ["resource", "mineral", "material", "harvest"]),
+            "has_wildlife_info": any(word in desc_lower for word in ["wildlife", "animal", "creature", "fauna"]),
+            "has_geological_info": any(word in desc_lower for word in ["geological", "rock", "stone", "mineral", "formation"]),
+            "has_cultural_info": any(word in desc_lower for word in ["culture", "tradition", "folklore", "people"]),
+            "quality_score": min(9.0, 5.0 + len(description) / 500)  # Simple quality estimate
+        }
+    
+    def _suggest_description_improvements(self, description: str, analysis: Dict[str, Any]) -> List[str]:
+        """Suggest improvements for a description"""
+        suggestions = []
+        
+        # Check completeness
+        if analysis.get("word_count", 0) < 100:
+            suggestions.append("Expand the description to provide more detail (currently very brief)")
+        
+        if not analysis.get("has_sections", {}).get("overview"):
+            suggestions.append("Add an overview section to introduce the region")
+            
+        if not analysis.get("has_sections", {}).get("geography"):
+            suggestions.append("Include geographical details about the terrain")
+            
+        if not analysis.get("content_flags", {}).get("wildlife"):
+            suggestions.append("Add information about local wildlife and creatures")
+            
+        if not analysis.get("content_flags", {}).get("resources"):
+            suggestions.append("Mention available resources or materials in the area")
+            
+        if analysis.get("completeness_score", 0) < 5:
+            suggestions.append("Add more comprehensive sections to improve completeness")
+            
+        if not analysis.get("has_sections", {}).get("atmosphere"):
+            suggestions.append("Describe the atmospheric qualities and mood of the region")
+        
+        return suggestions
