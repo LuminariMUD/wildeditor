@@ -53,7 +53,7 @@ class AIService:
         self.model = self._initialize_model()
         self.agent = self._create_agent() if self.model else None
         
-        logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.6)")
+        logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.7)")
     
     def _get_provider(self) -> AIProvider:
         """Determine which AI provider to use based on environment"""
@@ -289,10 +289,12 @@ Make the description vivid and engaging while maintaining the {style} style thro
         1. Ollama is the primary provider (AI_PROVIDER=ollama)
         2. As a fallback when OpenAI/Anthropic fail
         """
+        logger.info(f"Starting Ollama direct generation (provider: {self.provider})")
         try:
             # Check if Ollama is configured and available
             ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
             ollama_model = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
+            logger.info(f"Ollama config - URL: {ollama_base_url}, Model: {ollama_model}")
             
             # Use direct HTTP request to Ollama instead of PydanticAI
             # This is more reliable for our fallback use case
@@ -341,10 +343,11 @@ Create a comprehensive, immersive description that brings this region to life.""
             }
             
             async with aiohttp.ClientSession() as session:
+                logger.info(f"Attempting Ollama request to {ollama_base_url}/api/generate")
                 async with session.post(
                     f"{ollama_base_url}/api/generate",
                     json=request_data,
-                    timeout=30
+                    timeout=aiohttp.ClientTimeout(total=30)
                 ) as response:
                     if response.status != 200:
                         logger.error(f"Ollama request failed with status {response.status}")
@@ -383,7 +386,9 @@ Create a comprehensive, immersive description that brings this region to life.""
                     }
             
         except Exception as e:
-            logger.error(f"Ollama fallback generation failed: {e}")
+            logger.error(f"Ollama generation failed: {e}", exc_info=True)
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return None
     
     def is_available(self) -> bool:
