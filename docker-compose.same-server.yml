@@ -32,6 +32,16 @@ services:
       - WILDEDITOR_BACKEND_URL=http://wildeditor-backend:8000  # Internal container communication
       - WILDEDITOR_API_KEY=${WILDEDITOR_API_KEY}
       - WILDEDITOR_MCP_KEY=${WILDEDITOR_MCP_KEY}
+      # AI Provider Configuration
+      - AI_PROVIDER=${AI_PROVIDER:-none}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4-turbo-preview}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-3-opus-20240229}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama2}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]

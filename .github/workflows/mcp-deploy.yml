@@ -220,9 +220,11 @@ jobs:
           # AI Provider Keys
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
           ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          DEEPSEEK_MODEL: ${{ secrets.DEEPSEEK_MODEL }}
           OLLAMA_BASE_URL: ${{ secrets.OLLAMA_BASE_URL }}
           OLLAMA_MODEL: ${{ secrets.OLLAMA_MODEL }}
         run: |
@@ -326,6 +328,8 @@ jobs:
             -e OPENAI_MODEL="${OPENAI_MODEL:-gpt-4-turbo-preview}" \
             -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
             -e ANTHROPIC_MODEL="${ANTHROPIC_MODEL:-claude-3-opus-20240229}" \
+            -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
+            -e DEEPSEEK_MODEL="${DEEPSEEK_MODEL:-deepseek-chat}" \
             -e OLLAMA_BASE_URL="$OLLAMA_BASE_URL" \
             -e OLLAMA_MODEL="${OLLAMA_MODEL:-llama2}" \
             -v $HOME/logs/wildeditor-mcp:/var/log/wildeditor-mcp \
@@ -404,6 +408,8 @@ jobs:
             export OPENAI_MODEL='${OPENAI_MODEL:-gpt-4-turbo-preview}'
             export ANTHROPIC_API_KEY='$ANTHROPIC_API_KEY'
             export ANTHROPIC_MODEL='${ANTHROPIC_MODEL:-claude-3-opus-20240229}'
+            export DEEPSEEK_API_KEY='$DEEPSEEK_API_KEY'
+            export DEEPSEEK_MODEL='${DEEPSEEK_MODEL:-deepseek-chat}'
             export OLLAMA_BASE_URL='$OLLAMA_BASE_URL'
             export OLLAMA_MODEL='${OLLAMA_MODEL:-llama2}'
             /tmp/deploy-mcp.sh
@@ -464,6 +470,7 @@ jobs:
             - **Health Check**: ✅ Passing
             - **Authentication**: 🔐 MCP Key Required
             - **AI Provider**: ${process.env.AI_PROVIDER || 'Template Fallback'}
+            - **Supported Providers**: OpenAI, Anthropic, DeepSeek, Ollama
             - **Tools**: 14 Wilderness Management Tools (5 with AI)
             - **Resources**: 7 Knowledge Resources  
             - **Prompts**: 5 AI Content Generation Templates

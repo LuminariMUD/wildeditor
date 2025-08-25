@@ -23,12 +23,21 @@ Generate these using the command: `openssl rand -base64 32`
 | `PRODUCTION_USER` | `root` |
 | `PRODUCTION_SSH_KEY` | *(Your SSH private key for server access)* |
 
-### OpenAI Configuration
+### AI Provider Configuration (Choose One)
+
+#### Option 1: OpenAI
 | Secret Name | Value |
 |------------|-------|
 | `AI_PROVIDER` | `openai` |
 | `OPENAI_API_KEY` | *(Copy from ~/Luminari-Source/lib/.env line 92)* |
 | `OPENAI_MODEL` | `gpt-4o-mini` |
+
+#### Option 2: DeepSeek (Cost-Effective Alternative)
+| Secret Name | Value |
+|------------|-------|
+| `AI_PROVIDER` | `deepseek` |
+| `DEEPSEEK_API_KEY` | *(Get from https://platform.deepseek.com)* |
+| `DEEPSEEK_MODEL` | `deepseek-chat` |
 
 ## How the System Works
 
@@ -40,16 +49,18 @@ Generate these using the command: `openssl rand -base64 32`
    -e AI_PROVIDER="${AI_PROVIDER:-none}"
    -e OPENAI_API_KEY="$OPENAI_API_KEY"
    -e OPENAI_MODEL="${OPENAI_MODEL:-gpt-4o-mini}"
+   -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY"
+   -e DEEPSEEK_MODEL="${DEEPSEEK_MODEL:-deepseek-chat}"
    ```
 3. **MCP Server** in the container uses these environment variables automatically
-4. **AI Service** detects OpenAI is configured and enables AI generation
+4. **AI Service** detects which provider is configured and enables AI generation
 
 ## After Adding Secrets
 
 1. **Trigger Deployment**: Push any change to main branch
 2. **Monitor**: Check GitHub Actions tab for deployment status
 3. **Verify**: The deployment notification will show:
-   - AI Provider: openai
+   - AI Provider: openai/deepseek (depending on configuration)
    - Tools: 14 Wilderness Management Tools (5 with AI)
 
 ## Security Notes
@@ -89,15 +100,21 @@ curl -X POST http://luminarimud.com:8001/mcp/request \
 
 ## Cost Information
 
-With `gpt-4o-mini`:
+### OpenAI (`gpt-4o-mini`):
 - Input: $0.15 per 1M tokens
 - Output: $0.60 per 1M tokens
 - Estimated monthly cost: $5-20 for moderate usage
+
+### DeepSeek (`deepseek-chat`):
+- Input: $0.14 per 1M tokens (cached: $0.014)
+- Output: $0.28 per 1M tokens
+- Estimated monthly cost: $2-10 for moderate usage
+- Note: DeepSeek offers very competitive pricing with strong performance
 
 ## Summary
 
 Total secrets to add: **8**
 - 5 for deployment and authentication
-- 3 for OpenAI integration
+- 3 for AI provider (OpenAI or DeepSeek)
 
-The workflow is already configured to use these secrets, so once you add them, the next deployment will automatically have AI-powered description generation enabled!
+The workflow is already configured to use these secrets, including the new DeepSeek option. Once you add them, the next deployment will automatically have AI-powered description generation enabled!
