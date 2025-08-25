@@ -14,6 +14,7 @@ from pydantic_ai import Agent, ModelRetry
 from pydantic_ai.models import Model
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.providers.deepseek import DeepSeekProvider
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ class AIProvider(str, Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     OLLAMA = "ollama"
+    DEEPSEEK = "deepseek"
     NONE = "none"
 
 class DescriptionMetadata(BaseModel):
@@ -66,12 +68,16 @@ class AIService:
             return AIProvider.ANTHROPIC
         elif provider_str == "ollama":
             return AIProvider.OLLAMA
+        elif provider_str == "deepseek":
+            return AIProvider.DEEPSEEK
         else:
             # Try to auto-detect based on available keys
             if os.getenv("OPENAI_API_KEY"):
                 return AIProvider.OPENAI
             elif os.getenv("ANTHROPIC_API_KEY"):
                 return AIProvider.ANTHROPIC
+            elif os.getenv("DEEPSEEK_API_KEY"):
+                return AIProvider.DEEPSEEK
             elif os.getenv("OLLAMA_BASE_URL"):
                 return AIProvider.OLLAMA
             else:
@@ -105,6 +111,25 @@ class AIService:
                 return AnthropicModel(
                     model_name=model_name
                 )
+            
+            elif self.provider == AIProvider.DEEPSEEK:
+                api_key = os.getenv("DEEPSEEK_API_KEY")
+                if not api_key:
+                    logger.warning("DeepSeek API key not found")
+                    return None
+                
+                model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+                
+                # Use DeepSeekProvider with OpenAIModel
+                try:
+                    provider = DeepSeekProvider(api_key=api_key)
+                    return OpenAIModel(
+                        model_name=model_name,
+                        provider=provider
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to initialize DeepSeek client: {e}")
+                    return None
             
             elif self.provider == AIProvider.OLLAMA:
                 # Ollama doesn't work well with PydanticAI's OpenAI adapter
@@ -178,7 +203,7 @@ class AIService:
             logger.info("Primary AI agent not available")
             # If Ollama is the selected provider OR we want to try it as fallback
             if self.provider == AIProvider.OLLAMA or (
-                self.provider in [AIProvider.OPENAI, AIProvider.ANTHROPIC] and 
+                self.provider in [AIProvider.OPENAI, AIProvider.ANTHROPIC, AIProvider.DEEPSEEK] and 
                 os.getenv("OLLAMA_BASE_URL")
             ):
                 logger.info(f"Using Ollama for description generation (provider: {self.provider})")
@@ -396,6 +421,9 @@ Create a comprehensive, immersive description that brings this region to life.""
         # Ollama uses direct HTTP so agent is None, but it's still available
         if self.provider == AIProvider.OLLAMA and os.getenv("OLLAMA_BASE_URL"):
             return True
+        # DeepSeek requires API key
+        if self.provider == AIProvider.DEEPSEEK:
+            return self.agent is not None and os.getenv("DEEPSEEK_API_KEY") is not None
         # For other providers, check if agent exists
         return self.agent is not None
     

@@ -165,7 +165,7 @@ MCP_PORT=8001                             # MCP server port (default: 8001)
 
 The MCP server includes AI-powered description generation with a robust fallback chain for reliability:
 
-**Fallback Chain**: OpenAI → Ollama → Template-based
+**Fallback Chain**: OpenAI → Anthropic → DeepSeek → Ollama → Template-based
 
 ### Ollama Setup (Local LLM)
 
@@ -184,11 +184,17 @@ The MCP server can use local Ollama for description generation, matching the Lum
 3. **Configure environment variables**:
    ```bash
    # AI Provider Configuration (primary provider)
-   AI_PROVIDER=openai  # Primary provider
-   OPENAI_API_KEY=your-openai-key  # Optional - will fallback to Ollama if missing
+   AI_PROVIDER=openai  # Primary provider (options: openai, anthropic, deepseek, ollama)
+   
+   # OpenAI Configuration
+   OPENAI_API_KEY=your-openai-key  # Optional - will fallback if missing
    OPENAI_MODEL=gpt-4o-mini
+   
+   # DeepSeek Configuration (alternative provider)
+   DEEPSEEK_API_KEY=your-deepseek-key  # Optional - will fallback if missing
+   DEEPSEEK_MODEL=deepseek-chat  # Or deepseek-coder for code-focused generation
 
-   # Ollama Configuration (fallback)
+   # Ollama Configuration (local fallback)
    OLLAMA_BASE_URL=http://localhost:11434
    OLLAMA_MODEL=llama3.2:1b
    ```
@@ -201,11 +207,20 @@ The MCP server can use local Ollama for description generation, matching the Lum
 
 ### AI Fallback Behavior
 
-1. **Primary**: Try OpenAI with configured API key
-2. **Fallback**: If OpenAI fails or unavailable, use local Ollama
-3. **Final**: If both fail, use template-based generation
+1. **Primary**: Try configured provider (OpenAI, Anthropic, or DeepSeek)
+2. **Secondary**: If primary fails, try next available provider in chain
+3. **Local Fallback**: If all cloud providers fail, use local Ollama
+4. **Final**: If all AI providers fail, use template-based generation
 
 This ensures description generation always works, even without internet connectivity or API keys.
+
+### DeepSeek Setup
+
+DeepSeek provides a cost-effective alternative with strong performance:
+
+1. **Get API Key**: Sign up at https://platform.deepseek.com
+2. **Configure**: Set `DEEPSEEK_API_KEY` in environment
+3. **Select Provider**: Set `AI_PROVIDER=deepseek` to use as primary
 
 ### Testing AI Integration
 
