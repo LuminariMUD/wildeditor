@@ -19,7 +19,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "wildeditor-mcp-server",
-        "version": "1.0.8",
+        "version": "1.0.9",
         "environment": settings.node_env
     }
 
@@ -87,7 +87,7 @@ async def detailed_health_check(authenticated: bool = Depends(verify_mcp_key)):
     return {
         "status": "healthy",
         "service": "wildeditor-mcp-server", 
-        "version": "1.0.8",
+        "version": "1.0.9",
         "environment": settings.node_env,
         "authenticated": True,
         "backend_url": settings.backend_base_url,
