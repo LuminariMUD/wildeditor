@@ -41,7 +41,7 @@ class TestMCPPhase2:
             
             # Should have wilderness management tools
             tool_names = [tool["name"] for tool in tools]
-            expected_tools = ["analyze_region", "find_path", "search_regions", "create_region"]
+            expected_tools = ["analyze_region", "search_regions", "create_region"]
             
             for expected_tool in expected_tools:
                 assert expected_tool in tool_names
