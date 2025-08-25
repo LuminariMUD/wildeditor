@@ -1133,7 +1133,14 @@ class ToolRegistry:
         """Generate a comprehensive description for a region"""
         try:
             # Import AI service dynamically to avoid circular imports
-            from services.ai_service import get_ai_service
+            try:
+                from ..services.ai_service import get_ai_service
+            except ImportError:
+                # Fallback for different import contexts
+                import sys
+                import os
+                sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+                from services.ai_service import get_ai_service
             
             # If vnum provided, fetch existing region data
             region_data = None
