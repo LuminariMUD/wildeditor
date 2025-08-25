@@ -7,7 +7,13 @@ the wilderness system through the backend API.
 
 from typing import Dict, Any, List, Optional
 import httpx
-from ..config import settings
+
+try:
+    # Try relative import (when run as module)
+    from ..config import settings
+except ImportError:
+    # Fall back to absolute import (when run directly)
+    from config import settings
 
 
 class ToolRegistry:
