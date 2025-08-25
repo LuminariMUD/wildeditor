@@ -316,15 +316,24 @@ Make the description vivid and engaging while maintaining the {style} style thro
                     raise
             
         except Exception as e:
-            logger.error(f"Primary AI generation failed: {e}")
+            error_details = f"Primary AI generation failed with {self.provider.value}: {str(e)}"
+            logger.error(error_details)
             # Try Ollama fallback if primary provider failed and we're not already using Ollama
             if self.provider != AIProvider.OLLAMA:
                 logger.info("Attempting Ollama fallback for description generation")
-                return await self._use_ollama_direct(
+                result = await self._use_ollama_direct(
                     region_name, terrain_theme, style, length, sections, existing_prompt
                 )
-            # Return None to trigger template fallback
-            return None
+                if result:
+                    # Add error info from primary provider
+                    result['primary_provider_error'] = error_details
+                return result
+            # Return error details if no fallback available
+            return {
+                "error": "AI generation failed",
+                "error_details": error_details,
+                "provider": self.provider.value
+            }
     
     async def _use_ollama_direct(
         self,
