@@ -257,7 +257,8 @@ class ApiClient {
 
   // Region methods - GET endpoints without trailing slash, POST/PUT/DELETE with trailing slash
   async getRegions(): Promise<Region[]> {
-    const response = await this.request<ApiRegionResponse[]>('/regions');
+    // Don't include descriptions when listing regions for performance
+    const response = await this.request<ApiRegionResponse[]>('/regions?include_descriptions=false');
     // Convert API format to frontend format
     return Array.isArray(response) ? response.map(apiRegionToFrontend) : [];
   }

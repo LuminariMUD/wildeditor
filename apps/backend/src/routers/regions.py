@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from sqlalchemy.engine import Result
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Union
 from datetime import datetime
 from geoalchemy2 import WKBElement
 from geoalchemy2.functions import ST_AsText
 from ..models.region import Region
 from ..schemas.region import (
-    RegionCreate, RegionResponse, RegionUpdate, create_landmark_region,
+    RegionCreate, RegionResponse, RegionDetailResponse, RegionListResponse, RegionUpdate, create_landmark_region,
     get_region_type_name, get_sector_type_name, REGION_GEOGRAPHIC, REGION_ENCOUNTER,
     REGION_SECTOR_TRANSFORM, REGION_SECTOR, SECTOR_TYPES
 )
@@ -106,13 +106,14 @@ def polygon_wkt_to_coordinates(wkt: str) -> List[dict]:
         print(f"Error parsing WKT: {e}, WKT: {wkt}")
         return []
 
-@router.get("", response_model=List[RegionResponse])
-@router.get("/", response_model=List[RegionResponse])
+@router.get("")
+@router.get("/")
 def get_regions(
     region_type: Optional[int] = Query(None, description="Filter by region type (1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override)"),
     zone_vnum: Optional[int] = Query(None, description="Filter by zone vnum"),
+    include_descriptions: Optional[str] = Query("false", description="Include descriptions: 'false' (default), 'true' (full), 'summary' (first 200 chars)"),
     db: Session = Depends(get_db)
-):
+) -> List[Union[RegionListResponse, RegionDetailResponse]]:
     """
     Get all regions, optionally filtered by type or zone.
     
@@ -204,7 +205,8 @@ def get_regions(
                     print(f"Error parsing reset_time for region {region.vnum}: {e}")
                     reset_time = datetime(2000, 1, 1)
             
-            region_dict = {
+            # Base data for all response types
+            base_dict = {
                 "vnum": region.vnum,
                 "zone_vnum": region.zone_vnum,
                 "name": region.name,
@@ -215,25 +217,58 @@ def get_regions(
                 "region_reset_time": reset_time,
                 "region_type_name": get_region_type_name(region.region_type),
                 "sector_type_name": get_sector_type_name(region.region_props) if region.region_type == REGION_SECTOR and region.region_props is not None else None,
-                # Description fields
-                "region_description": region.region_description,
-                "description_version": region.description_version,
-                "ai_agent_source": region.ai_agent_source,
-                "last_description_update": region.last_description_update,
-                "description_style": region.description_style,
-                "description_length": region.description_length,
-                # Description metadata flags
-                "has_historical_context": region.has_historical_context,
-                "has_resource_info": region.has_resource_info,
-                "has_wildlife_info": region.has_wildlife_info,
-                "has_geological_info": region.has_geological_info,
-                "has_cultural_info": region.has_cultural_info,
-                # Quality and review fields
-                "description_quality_score": float(region.description_quality_score) if region.description_quality_score is not None else None,
-                "requires_review": region.requires_review,
-                "is_approved": region.is_approved
             }
-            response_regions.append(RegionResponse(**region_dict))
+            
+            # Handle different include_descriptions options
+            if include_descriptions == "true":
+                # Full description - use RegionDetailResponse
+                region_dict = {
+                    **base_dict,
+                    "region_description": region.region_description,
+                    "description_version": region.description_version,
+                    "ai_agent_source": region.ai_agent_source,
+                    "last_description_update": region.last_description_update,
+                    "description_style": region.description_style,
+                    "description_length": region.description_length,
+                    "has_historical_context": region.has_historical_context,
+                    "has_resource_info": region.has_resource_info,
+                    "has_wildlife_info": region.has_wildlife_info,
+                    "has_geological_info": region.has_geological_info,
+                    "has_cultural_info": region.has_cultural_info,
+                    "description_quality_score": float(region.description_quality_score) if region.description_quality_score is not None else None,
+                    "requires_review": region.requires_review,
+                    "is_approved": region.is_approved
+                }
+                response_regions.append(RegionDetailResponse(**region_dict))
+            elif include_descriptions == "summary":
+                # Summary description - use RegionListResponse with summary
+                description_summary = None
+                if region.region_description:
+                    # Take first 200 characters and add ellipsis if truncated
+                    description_summary = region.region_description[:200]
+                    if len(region.region_description) > 200:
+                        description_summary += "..."
+                
+                region_dict = {
+                    **base_dict,
+                    "description_summary": description_summary,
+                    "has_description": bool(region.region_description),
+                    "description_style": region.description_style,
+                    "description_length": region.description_length,
+                    "is_approved": region.is_approved
+                }
+                response_regions.append(RegionListResponse(**region_dict))
+            else:
+                # No description (default) - use RegionListResponse
+                region_dict = {
+                    **base_dict,
+                    "description_summary": None,
+                    "has_description": bool(region.region_description),
+                    "description_style": region.description_style,
+                    "description_length": region.description_length,
+                    "is_approved": region.is_approved
+                }
+                response_regions.append(RegionListResponse(**region_dict))
         
         return response_regions
     except Exception as e:
@@ -290,7 +325,7 @@ def get_region_types():
         "processing_order": "Regions processed in database order - later regions override earlier ones"
     }
 
-@router.get("/{vnum}", response_model=RegionResponse)
+@router.get("/{vnum}", response_model=RegionDetailResponse)
 def get_region(vnum: int, db: Session = Depends(get_db)):
     """Get a specific region by vnum"""
     region = db.query(Region).filter(Region.vnum == vnum).first()
@@ -372,7 +407,7 @@ def get_region(vnum: int, db: Session = Depends(get_db)):
         "is_approved": region.is_approved
     }
     
-    return RegionResponse(**region_dict)
+    return RegionDetailResponse(**region_dict)
 
 @router.post("/", response_model=RegionResponse, status_code=status.HTTP_201_CREATED)
 def create_region(region: RegionCreate, db: Session = Depends(get_db), authenticated: bool = RequireAuth):

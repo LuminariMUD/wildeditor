@@ -149,12 +149,31 @@ class RegionUpdate(BaseModel):
             return v.strip()
         return v
 
-class RegionResponse(RegionBase):
+class RegionListResponse(RegionBase):
+    """Response model for region lists (without description fields for performance)"""
     # Add human-readable type and sector descriptions
     region_type_name: Optional[str] = None
     sector_type_name: Optional[str] = None
     
-    # Description fields
+    # Optional summary of description (first 200 chars)
+    description_summary: Optional[str] = None
+    
+    # Basic description metadata (lightweight info)
+    has_description: bool = False
+    description_style: Optional[str] = None
+    description_length: Optional[str] = None
+    is_approved: Optional[bool] = False
+    
+    class Config:
+        from_attributes = True
+
+class RegionDetailResponse(RegionBase):
+    """Response model for single region with full description data"""
+    # Add human-readable type and sector descriptions
+    region_type_name: Optional[str] = None
+    sector_type_name: Optional[str] = None
+    
+    # Full description fields
     region_description: Optional[str] = None
     description_version: Optional[int] = 1
     ai_agent_source: Optional[str] = None
@@ -176,6 +195,9 @@ class RegionResponse(RegionBase):
     
     class Config:
         from_attributes = True
+
+# Alias for backward compatibility
+RegionResponse = RegionDetailResponse
 
 # Helper function to create a landmark/point region (as geographic type)
 def create_landmark_region(x: float, y: float, name: str, vnum: int, zone_vnum: int, radius: float = 0.2) -> dict:
