@@ -1,0 +1,11 @@
+{
+  "id": "test-1",
+  "method": "tools/call",
+  "params": {
+    "name": "analyze_region",
+    "arguments": {
+      "region_id": 1000004,
+      "include_paths": false
+    }
+  }
+}

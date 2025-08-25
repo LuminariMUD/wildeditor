@@ -1132,6 +1132,9 @@ class ToolRegistry:
     async def _generate_region_description(self, **kwargs) -> Dict[str, Any]:
         """Generate a comprehensive description for a region"""
         try:
+            # Import AI service dynamically to avoid circular imports
+            from services.ai_service import get_ai_service
+            
             # If vnum provided, fetch existing region data
             region_data = None
             if "region_vnum" in kwargs:
@@ -1145,7 +1148,7 @@ class ToolRegistry:
                     if response.status_code == 200:
                         region_data = response.json()
             
-            # Build description generation prompt
+            # Build description generation parameters
             region_name = kwargs.get("region_name") or (region_data["name"] if region_data else "Unnamed Region")
             region_type = kwargs.get("region_type") or (region_data["region_type"] if region_data else 1)
             terrain_theme = kwargs.get("terrain_theme", "wilderness")
@@ -1153,7 +1156,24 @@ class ToolRegistry:
             length = kwargs.get("description_length", "moderate")
             sections = kwargs.get("include_sections", ["overview", "geography", "vegetation", "atmosphere"])
             
-            # Generate description based on parameters
+            # Try AI generation first
+            ai_service = get_ai_service()
+            ai_result = None
+            
+            if ai_service.is_available():
+                ai_result = await ai_service.generate_description(
+                    region_name=region_name,
+                    terrain_theme=terrain_theme,
+                    style=style,
+                    length=length,
+                    sections=sections
+                )
+            
+            # If AI generation succeeded, use that result
+            if ai_result:
+                return ai_result
+            
+            # Fall back to template-based generation
             description = self._compose_region_description(
                 name=region_name,
                 region_type=region_type,
@@ -1173,7 +1193,8 @@ class ToolRegistry:
                 "character_count": len(description),
                 "suggested_quality_score": metadata.get("quality_score", 7.0),
                 "region_vnum": kwargs.get("region_vnum"),
-                "region_name": region_name
+                "region_name": region_name,
+                "ai_provider": "template"  # Mark as template-generated
             }
             
         except Exception as e:

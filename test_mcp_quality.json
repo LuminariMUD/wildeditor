@@ -1,0 +1,11 @@
+{
+  "id": "test-2",
+  "method": "tools/call",
+  "params": {
+    "name": "analyze_description_quality",
+    "arguments": {
+      "vnum": 1000004,
+      "suggest_improvements": true
+    }
+  }
+}

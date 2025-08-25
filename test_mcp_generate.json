@@ -1,0 +1,14 @@
+{
+  "id": "test-3",
+  "method": "tools/call",
+  "params": {
+    "name": "generate_region_description",
+    "arguments": {
+      "region_name": "Crystal Falls Valley",
+      "terrain_theme": "mountain valley with waterfalls",
+      "description_style": "poetic",
+      "description_length": "moderate",
+      "include_sections": ["overview", "geography", "vegetation", "wildlife", "atmosphere", "resources"]
+    }
+  }
+}

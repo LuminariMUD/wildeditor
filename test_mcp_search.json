@@ -1,0 +1,11 @@
+{
+  "id": "test-4",
+  "method": "tools/call",
+  "params": {
+    "name": "search_regions",
+    "arguments": {
+      "include_descriptions": "summary",
+      "has_description": true
+    }
+  }
+}
