@@ -79,6 +79,7 @@ async def debug_environment(authenticated: bool = Depends(verify_mcp_key)):
         ai_service_info["is_available"] = ai_service.is_available()
         ai_service_info["has_model"] = ai_service.model is not None
         ai_service_info["has_agent"] = ai_service.agent is not None
+        ai_service_info["initialization_error"] = getattr(ai_service, 'initialization_error', None)
     except Exception as e:
         ai_service_info["error"] = str(e)
     

@@ -14,9 +14,16 @@ from pydantic_ai import Agent, ModelRetry
 from pydantic_ai.models import Model
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.models.anthropic import AnthropicModel
-from pydantic_ai.providers.deepseek import DeepSeekProvider
 
 logger = logging.getLogger(__name__)
+
+# Try to import DeepSeekProvider - it might not exist in older versions
+try:
+    from pydantic_ai.providers.deepseek import DeepSeekProvider
+    DEEPSEEK_AVAILABLE = True
+except ImportError:
+    logger.warning("DeepSeekProvider not available in this version of pydantic-ai")
+    DEEPSEEK_AVAILABLE = False
 
 class AIProvider(str, Enum):
     """Supported AI providers"""
@@ -52,10 +59,11 @@ class AIService:
     def __init__(self):
         """Initialize AI service with configured provider"""
         self.provider = self._get_provider()
+        self.initialization_error = None
         self.model = self._initialize_model()
         self.agent = self._create_agent() if self.model else None
         
-        logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.9)")
+        logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.10)")
     
     def _get_provider(self) -> AIProvider:
         """Determine which AI provider to use based on environment"""
@@ -115,10 +123,17 @@ class AIService:
             elif self.provider == AIProvider.DEEPSEEK:
                 api_key = os.getenv("DEEPSEEK_API_KEY")
                 if not api_key:
-                    logger.warning("DeepSeek API key not found")
+                    self.initialization_error = "DeepSeek API key not found"
+                    logger.warning(self.initialization_error)
                     return None
                 
                 model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+                
+                # Check if DeepSeekProvider is available
+                if not DEEPSEEK_AVAILABLE:
+                    self.initialization_error = f"DeepSeekProvider not available in pydantic-ai version"
+                    logger.warning(self.initialization_error)
+                    return None
                 
                 # Use DeepSeekProvider with OpenAIModel
                 try:
@@ -128,7 +143,8 @@ class AIService:
                         provider=provider
                     )
                 except Exception as e:
-                    logger.error(f"Failed to initialize DeepSeek client: {e}")
+                    self.initialization_error = f"Failed to initialize DeepSeek: {str(e)}"
+                    logger.error(self.initialization_error)
                     return None
             
             elif self.provider == AIProvider.OLLAMA:
@@ -200,19 +216,31 @@ class AIService:
         
         # If no AI available, check if we should use Ollama or fallback to template
         if not self.agent:
-            logger.info("Primary AI agent not available")
+            error_msg = f"Primary AI agent not available. Provider: {self.provider}"
+            if self.initialization_error:
+                error_msg += f". Error: {self.initialization_error}"
+            logger.info(error_msg)
+            
             # If Ollama is the selected provider OR we want to try it as fallback
             if self.provider == AIProvider.OLLAMA or (
                 self.provider in [AIProvider.OPENAI, AIProvider.ANTHROPIC, AIProvider.DEEPSEEK] and 
                 os.getenv("OLLAMA_BASE_URL")
             ):
                 logger.info(f"Using Ollama for description generation (provider: {self.provider})")
-                return await self._use_ollama_direct(
+                result = await self._use_ollama_direct(
                     region_name, terrain_theme, style, length, sections, existing_prompt
                 )
+                if result:
+                    # Add initialization error info to result
+                    result['initialization_error'] = self.initialization_error
+                return result
             else:
                 logger.info("No AI agent available, falling back to template")
-                return None
+                return {
+                    "error": "No AI provider available",
+                    "initialization_error": self.initialization_error,
+                    "provider_attempted": self.provider.value
+                }
         
         # Prepare the user prompt
         if existing_prompt and "messages" in existing_prompt:
