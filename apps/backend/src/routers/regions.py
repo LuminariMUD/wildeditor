@@ -456,9 +456,29 @@ def create_region(region: RegionCreate, db: Session = Depends(get_db), authentic
         # Handle region_reset_time - use current timestamp if NULL since column is NOT NULL
         reset_time = region.region_reset_time if region.region_reset_time is not None else datetime.now()
         
+        # Prepare description fields
+        from decimal import Decimal
+        description_quality_score = Decimal(str(region.description_quality_score)) if region.description_quality_score is not None else None
+        
         db.execute(text("""
-            INSERT INTO region_data (vnum, zone_vnum, name, region_type, region_polygon, region_props, region_reset_data, region_reset_time)
-            VALUES (:vnum, :zone_vnum, :name, :region_type, ST_GeomFromText(:polygon), :region_props, :region_reset_data, :region_reset_time)
+            INSERT INTO region_data (
+                vnum, zone_vnum, name, region_type, region_polygon, region_props, 
+                region_reset_data, region_reset_time,
+                region_description, description_style, description_length,
+                has_historical_context, has_resource_info, has_wildlife_info,
+                has_geological_info, has_cultural_info,
+                ai_agent_source, description_quality_score, requires_review, is_approved,
+                description_version
+            )
+            VALUES (
+                :vnum, :zone_vnum, :name, :region_type, ST_GeomFromText(:polygon), :region_props,
+                :region_reset_data, :region_reset_time,
+                :region_description, :description_style, :description_length,
+                :has_historical_context, :has_resource_info, :has_wildlife_info,
+                :has_geological_info, :has_cultural_info,
+                :ai_agent_source, :description_quality_score, :requires_review, :is_approved,
+                1
+            )
         """), {
             "vnum": region.vnum,
             "zone_vnum": region.zone_vnum,
@@ -467,7 +487,20 @@ def create_region(region: RegionCreate, db: Session = Depends(get_db), authentic
             "polygon": polygon_wkt,
             "region_props": region.region_props,
             "region_reset_data": region.region_reset_data,
-            "region_reset_time": reset_time
+            "region_reset_time": reset_time,
+            # Description fields
+            "region_description": region.region_description,
+            "description_style": region.description_style,
+            "description_length": region.description_length,
+            "has_historical_context": region.has_historical_context,
+            "has_resource_info": region.has_resource_info,
+            "has_wildlife_info": region.has_wildlife_info,
+            "has_geological_info": region.has_geological_info,
+            "has_cultural_info": region.has_cultural_info,
+            "ai_agent_source": region.ai_agent_source,
+            "description_quality_score": description_quality_score,
+            "requires_review": region.requires_review,
+            "is_approved": region.is_approved
         })
         
         db.commit()
@@ -544,6 +577,11 @@ def update_region(vnum: int, region_update: RegionUpdate, db: Session = Depends(
         # Build update query dynamically
         update_data = region_update.dict(exclude_unset=True, exclude={'coordinates'})
         
+        # Handle decimal field
+        if 'description_quality_score' in update_data and update_data['description_quality_score'] is not None:
+            from decimal import Decimal
+            update_data['description_quality_score'] = Decimal(str(update_data['description_quality_score']))
+        
         # Handle coordinates separately if provided
         if region_update.coordinates is not None:
             polygon_wkt = coordinates_to_polygon_wkt(region_update.coordinates)
@@ -558,6 +596,10 @@ def update_region(vnum: int, region_update: RegionUpdate, db: Session = Depends(
             
             query_parts.append("region_polygon = ST_GeomFromText(:polygon)")
             
+            # Update description_version when description changes
+            if 'region_description' in update_data:
+                query_parts.append("description_version = COALESCE(description_version, 0) + 1")
+            
             if query_parts:
                 query = f"UPDATE region_data SET {', '.join(query_parts)} WHERE vnum = :vnum"  # nosec B608
                 db.execute(text(query), params)
@@ -567,6 +609,10 @@ def update_region(vnum: int, region_update: RegionUpdate, db: Session = Depends(
                 query_parts = [f"{field} = :{field}" for field in update_data.keys()]
                 params = update_data.copy()
                 params["vnum"] = vnum
+                
+                # Update description_version when description changes
+                if 'region_description' in update_data:
+                    query_parts.append("description_version = COALESCE(description_version, 0) + 1")
                 
                 query = f"UPDATE region_data SET {', '.join(query_parts)} WHERE vnum = :vnum"  # nosec B608
                 db.execute(text(query), params)

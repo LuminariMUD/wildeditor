@@ -127,7 +127,23 @@ class RegionBase(BaseModel):
         return v
 
 class RegionCreate(RegionBase):
-    pass
+    # Optional description fields for creating regions
+    region_description: Optional[str] = None
+    description_style: Optional[str] = 'poetic'  # 'poetic', 'practical', 'mysterious', 'dramatic', 'pastoral'
+    description_length: Optional[str] = 'moderate'  # 'brief', 'moderate', 'detailed', 'extensive'
+    
+    # Description metadata flags
+    has_historical_context: Optional[bool] = False
+    has_resource_info: Optional[bool] = False
+    has_wildlife_info: Optional[bool] = False
+    has_geological_info: Optional[bool] = False
+    has_cultural_info: Optional[bool] = False
+    
+    # AI generation metadata
+    ai_agent_source: Optional[str] = None
+    description_quality_score: Optional[float] = None
+    requires_review: Optional[bool] = False
+    is_approved: Optional[bool] = False
 
 class RegionUpdate(BaseModel):
     vnum: Optional[int] = None
@@ -135,9 +151,27 @@ class RegionUpdate(BaseModel):
     name: Optional[str] = None
     region_type: Optional[int] = None
     coordinates: Optional[List[Dict[str, float]]] = None
-    region_props: Optional[str] = None
+    region_props: Optional[int] = None
     region_reset_data: Optional[str] = None
     region_reset_time: Optional[datetime] = None
+    
+    # Description fields for updates
+    region_description: Optional[str] = None
+    description_style: Optional[str] = None
+    description_length: Optional[str] = None
+    
+    # Description metadata flags
+    has_historical_context: Optional[bool] = None
+    has_resource_info: Optional[bool] = None
+    has_wildlife_info: Optional[bool] = None
+    has_geological_info: Optional[bool] = None
+    has_cultural_info: Optional[bool] = None
+    
+    # AI generation metadata
+    ai_agent_source: Optional[str] = None
+    description_quality_score: Optional[float] = None
+    requires_review: Optional[bool] = None
+    is_approved: Optional[bool] = None
     
     @validator('name')
     def validate_name_if_provided(cls, v):
@@ -147,6 +181,29 @@ class RegionUpdate(BaseModel):
             if len(v) > 50:
                 raise ValueError('Name cannot be longer than 50 characters')
             return v.strip()
+        return v
+    
+    @validator('description_style')
+    def validate_description_style(cls, v):
+        if v is not None:
+            valid_styles = ['poetic', 'practical', 'mysterious', 'dramatic', 'pastoral']
+            if v not in valid_styles:
+                raise ValueError(f'Description style must be one of: {", ".join(valid_styles)}')
+        return v
+    
+    @validator('description_length')
+    def validate_description_length(cls, v):
+        if v is not None:
+            valid_lengths = ['brief', 'moderate', 'detailed', 'extensive']
+            if v not in valid_lengths:
+                raise ValueError(f'Description length must be one of: {", ".join(valid_lengths)}')
+        return v
+    
+    @validator('description_quality_score')
+    def validate_quality_score(cls, v):
+        if v is not None:
+            if v < 0 or v > 9.99:
+                raise ValueError('Description quality score must be between 0.00 and 9.99')
         return v
 
 class RegionListResponse(RegionBase):
