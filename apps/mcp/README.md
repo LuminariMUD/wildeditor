@@ -158,6 +158,66 @@ MCP_PORT=8001                             # MCP server port (default: 8001)
 - **httpx** - HTTP client for backend integration
 - **Pydantic** - Data validation and settings
 - **Python 3.11+** - Runtime environment
+- **PydanticAI** - AI agent framework for description generation
+- **aiohttp** - HTTP client for Ollama integration
+
+## 🤖 AI Integration
+
+The MCP server includes AI-powered description generation with a robust fallback chain for reliability:
+
+**Fallback Chain**: OpenAI → Ollama → Template-based
+
+### Ollama Setup (Local LLM)
+
+The MCP server can use local Ollama for description generation, matching the Luminari MUD server configuration:
+
+1. **Install Ollama** (if not already installed):
+   ```bash
+   curl -fsSL https://ollama.ai/install.sh | sh
+   ```
+
+2. **Install the model** (use same model as Luminari-Source):
+   ```bash
+   ollama pull llama3.2:1b
+   ```
+
+3. **Configure environment variables**:
+   ```bash
+   # AI Provider Configuration (primary provider)
+   AI_PROVIDER=openai  # Primary provider
+   OPENAI_API_KEY=your-openai-key  # Optional - will fallback to Ollama if missing
+   OPENAI_MODEL=gpt-4o-mini
+
+   # Ollama Configuration (fallback)
+   OLLAMA_BASE_URL=http://localhost:11434
+   OLLAMA_MODEL=llama3.2:1b
+   ```
+
+4. **Verify Ollama is running**:
+   ```bash
+   curl http://localhost:11434/api/tags
+   # Should show llama3.2:1b model
+   ```
+
+### AI Fallback Behavior
+
+1. **Primary**: Try OpenAI with configured API key
+2. **Fallback**: If OpenAI fails or unavailable, use local Ollama
+3. **Final**: If both fail, use template-based generation
+
+This ensures description generation always works, even without internet connectivity or API keys.
+
+### Testing AI Integration
+
+```bash
+# Test the complete fallback chain
+python test_ollama_integration.py
+
+# Expected results:
+# ✅ Ollama Connectivity
+# ✅ Ollama Fallback Configuration  
+# ✅ Fallback Chain (OpenAI->Ollama->Template)
+```
 
 ## 🧪 Testing
 

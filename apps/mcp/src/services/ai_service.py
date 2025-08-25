@@ -59,12 +59,12 @@ class AIService:
         """Determine which AI provider to use based on environment"""
         provider_str = os.getenv("AI_PROVIDER", "none").lower()
         
-        # Check if provider is configured
-        if provider_str == "openai" and os.getenv("OPENAI_API_KEY"):
+        # Respect explicit AI_PROVIDER setting (even without API key - for fallback chain)
+        if provider_str == "openai":
             return AIProvider.OPENAI
-        elif provider_str == "anthropic" and os.getenv("ANTHROPIC_API_KEY"):
+        elif provider_str == "anthropic":
             return AIProvider.ANTHROPIC
-        elif provider_str == "ollama" and os.getenv("OLLAMA_BASE_URL"):
+        elif provider_str == "ollama":
             return AIProvider.OLLAMA
         else:
             # Try to auto-detect based on available keys
@@ -72,6 +72,8 @@ class AIService:
                 return AIProvider.OPENAI
             elif os.getenv("ANTHROPIC_API_KEY"):
                 return AIProvider.ANTHROPIC
+            elif os.getenv("OLLAMA_BASE_URL"):
+                return AIProvider.OLLAMA
             else:
                 return AIProvider.NONE
     
@@ -183,10 +185,17 @@ class AIService:
             Dictionary with generated description and metadata
         """
         
-        # If no AI available, return None to trigger fallback
+        # If no AI available, try Ollama fallback before template
         if not self.agent:
-            logger.info("AI agent not available, falling back to template")
-            return None
+            logger.info("Primary AI agent not available")
+            if self.provider != AIProvider.OLLAMA:
+                logger.info("Attempting Ollama fallback for description generation")
+                return await self._try_ollama_fallback(
+                    region_name, terrain_theme, style, length, sections, existing_prompt
+                )
+            else:
+                logger.info("No AI agent available, falling back to template")
+                return None
         
         # Prepare the user prompt
         if existing_prompt and "messages" in existing_prompt:
@@ -262,8 +271,124 @@ Make the description vivid and engaging while maintaining the {style} style thro
                     raise
             
         except Exception as e:
-            logger.error(f"AI generation failed: {e}")
-            # Return None to trigger fallback to template
+            logger.error(f"Primary AI generation failed: {e}")
+            # Try Ollama fallback if primary provider failed and we're not already using Ollama
+            if self.provider != AIProvider.OLLAMA:
+                logger.info("Attempting Ollama fallback for description generation")
+                return await self._try_ollama_fallback(
+                    region_name, terrain_theme, style, length, sections, existing_prompt
+                )
+            # Return None to trigger template fallback
+            return None
+    
+    async def _try_ollama_fallback(
+        self,
+        region_name: str,
+        terrain_theme: str,
+        style: str = "poetic",
+        length: str = "moderate",
+        sections: List[str] = None,
+        existing_prompt: Dict[str, Any] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Try to generate description using Ollama as fallback
+        
+        This method creates a temporary Ollama-based AI service to attempt
+        generation when the primary provider fails.
+        """
+        try:
+            # Check if Ollama is configured and available
+            ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+            ollama_model = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
+            
+            # Use direct HTTP request to Ollama instead of PydanticAI
+            # This is more reliable for our fallback use case
+            import aiohttp
+            import json as json_lib
+            
+            # Build the prompt content
+            if existing_prompt and "messages" in existing_prompt:
+                messages = existing_prompt["messages"]
+                user_content = next(
+                    (msg["content"] for msg in messages if msg["role"] == "user"),
+                    ""
+                )
+            else:
+                length_guides = {
+                    "brief": "100-200 words",
+                    "moderate": "300-500 words", 
+                    "detailed": "600-900 words",
+                    "extensive": "1000+ words"
+                }
+                
+                sections_list = sections or ["overview", "geography", "vegetation", "atmosphere"]
+                sections_text = "\n".join(f"- {section.upper()}" for section in sections_list)
+                
+                user_content = f"""Create a {style} description for a wilderness region with these specifications:
+
+Region Name: {region_name}
+Terrain Theme: {terrain_theme}
+Writing Style: {style}
+Target Length: {length_guides.get(length, "300-500 words")}
+
+Required Sections:
+{sections_text}
+
+Create a comprehensive, immersive description that brings this region to life."""
+            
+            # Make direct request to Ollama
+            request_data = {
+                "model": ollama_model,
+                "prompt": user_content,
+                "stream": False,
+                "options": {
+                    "temperature": 0.7,
+                    "max_tokens": 500
+                }
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{ollama_base_url}/api/generate",
+                    json=request_data,
+                    timeout=30
+                ) as response:
+                    if response.status != 200:
+                        logger.error(f"Ollama request failed with status {response.status}")
+                        return None
+                    
+                    response_data = await response.json()
+                    generated_text = response_data.get("response", "")
+                    
+                    if not generated_text:
+                        logger.error("Ollama returned empty response")
+                        return None
+                    
+                    # Create a structured response similar to PydanticAI format
+                    word_count = len(generated_text.split())
+                    
+                    logger.info("Ollama fallback generation successful")
+                    
+                    return {
+                        "generated_description": generated_text,
+                        "metadata": {
+                            "has_historical_context": False,  # Simple fallback metadata
+                            "has_resource_info": False,
+                            "has_wildlife_info": True,
+                            "has_geological_info": True,
+                            "has_cultural_info": False,
+                            "quality_score": 7.0  # Default score for fallback
+                        },
+                        "word_count": word_count,
+                        "character_count": len(generated_text),
+                        "suggested_quality_score": 7.0,
+                        "region_name": region_name,
+                        "ai_provider": "ollama_fallback",
+                        "key_features": []  # Could be enhanced later
+                    }
+            
+        except Exception as e:
+            logger.error(f"Ollama fallback generation failed: {e}")
             return None
     
     def is_available(self) -> bool:

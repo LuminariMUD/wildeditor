@@ -7,6 +7,7 @@ import json
 import requests
 import ast
 import sys
+import time
 from typing import Dict, Any
 
 MCP_URL = "http://luminarimud.com:8001/mcp"
@@ -97,6 +98,15 @@ def main():
     print("=" * 80)
     print("🎯 CORRECT MCP SERVER TEST - ACTUAL TOOLS ONLY")
     print("=" * 80)
+    
+    # Generate unique VNUMs for this test run
+    timestamp = int(time.time())
+    test_region_vnum = 90000000 + (timestamp % 9999999)  # Use 90M+ range
+    test_path_vnum = 80000000 + (timestamp % 9999999)    # Use 80M+ range
+    
+    print(f"\n🔢 Using unique test VNUMs for this run:")
+    print(f"   Region VNUM: {test_region_vnum}")
+    print(f"   Path VNUM: {test_path_vnum}")
     
     # Get list of actual tools
     print("\n📋 Getting list of actual tools...")
@@ -195,9 +205,9 @@ def main():
             "Create Region (requires auth)",
             "create_region",
             {
-                "vnum": 999999,
+                "vnum": test_region_vnum,
                 "zone_vnum": 10000,
-                "name": "Test Region",
+                "name": f"Test Region {timestamp}",
                 "region_type": 1,  # Geographic
                 "coordinates": [{"x": 0, "y": 0}, {"x": 10, "y": 0}, {"x": 10, "y": 10}, {"x": 0, "y": 10}, {"x": 0, "y": 0}]
             }
@@ -208,9 +218,9 @@ def main():
             "Create Path (requires auth)",
             "create_path",
             {
-                "vnum": 999998,
+                "vnum": test_path_vnum,
                 "zone_vnum": 10000,
-                "name": "Test Path",
+                "name": f"Test Path {timestamp}",
                 "path_type": 1,  # Road
                 "coordinates": [{"x": 0, "y": 0}, {"x": 10, "y": 10}]
             }
@@ -236,7 +246,7 @@ def main():
             {
                 "vnum": 1000004,
                 "region_description": "A test description update",
-                "description_style": "descriptive"
+                "description_style": "practical"
             }
         ))
     
