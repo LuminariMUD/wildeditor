@@ -290,27 +290,27 @@ class ToolRegistry:
             }
         )
         
-        # Validate region connections tool
-        self.register_tool(
-            "validate_connections",
-            self._validate_connections,
-            "Validate that region connections are logical and consistent",
-            {
-                "type": "object",
-                "properties": {
-                    "region_id": {
-                        "type": "integer",
-                        "description": "Region ID to validate connections for"
-                    },
-                    "check_bidirectional": {
-                        "type": "boolean",
-                        "description": "Check if connections are bidirectional",
-                        "default": True
-                    }
-                },
-                "required": ["region_id"]
-            }
-        )
+        # Validate region connections tool - DISABLED: Backend endpoint not implemented
+        # self.register_tool(
+        #     "validate_connections",
+        #     self._validate_connections,
+        #     "Validate that region connections are logical and consistent",
+        #     {
+        #         "type": "object",
+        #         "properties": {
+        #             "region_id": {
+        #                 "type": "integer",
+        #                 "description": "Region ID to validate connections for"
+        #             },
+        #             "check_bidirectional": {
+        #                 "type": "boolean",
+        #                 "description": "Check if connections are bidirectional",
+        #                 "default": True
+        #             }
+        #         },
+        #         "required": ["region_id"]
+        #     }
+        # )
         
         # Real-time terrain analysis tool
         self.register_tool(
