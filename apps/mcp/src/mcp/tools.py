@@ -833,7 +833,17 @@ class ToolRegistry:
                 return response.json()
                 
             except httpx.HTTPError as e:
-                return {"error": f"Failed to create region: {str(e)}"}
+                error_detail = str(e)
+                try:
+                    # Try to extract more detailed error information
+                    if hasattr(e, 'response') and e.response:
+                        if hasattr(e.response, 'text'):
+                            error_detail = f"{str(e)} - Response: {e.response.text()}"
+                        elif hasattr(e.response, 'json'):
+                            error_detail = f"{str(e)} - Detail: {e.response.json().get('detail', 'No details')}"
+                except:
+                    pass  # Use original error if parsing fails
+                return {"error": f"Failed to create region: {error_detail}"}
     
     async def _create_path(self, vnum: int, zone_vnum: int, name: str, 
                           path_type: int, coordinates: List[Dict[str, float]],
@@ -1383,7 +1393,17 @@ class ToolRegistry:
                 return response.json()
                 
             except httpx.HTTPError as e:
-                return {"error": f"Failed to update region description: {str(e)}"}
+                error_detail = str(e)
+                try:
+                    # Try to extract more detailed error information
+                    if hasattr(e, 'response') and e.response:
+                        if hasattr(e.response, 'text'):
+                            error_detail = f"{str(e)} - Response: {e.response.text()}"
+                        elif hasattr(e.response, 'json'):
+                            error_detail = f"{str(e)} - Detail: {e.response.json().get('detail', 'No details')}"
+                except:
+                    pass  # Use original error if parsing fails
+                return {"error": f"Failed to update region description: {error_detail}"}
     
     async def _analyze_description_quality(self, vnum: int, suggest_improvements: bool = True) -> Dict[str, Any]:
         """Analyze description quality and suggest improvements"""
