@@ -38,7 +38,8 @@
       "Bash(pip install:*)",
       "Bash(python3:*)",
       "Bash(source:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(mysql:*)"
     ],
     "deny": []
   }

@@ -154,6 +154,26 @@ class RegionResponse(RegionBase):
     region_type_name: Optional[str] = None
     sector_type_name: Optional[str] = None
     
+    # Description fields
+    region_description: Optional[str] = None
+    description_version: Optional[int] = 1
+    ai_agent_source: Optional[str] = None
+    last_description_update: Optional[datetime] = None
+    description_style: Optional[str] = 'poetic'  # 'poetic', 'practical', 'mysterious', 'dramatic', 'pastoral'
+    description_length: Optional[str] = 'moderate'  # 'brief', 'moderate', 'detailed', 'extensive'
+    
+    # Description metadata flags
+    has_historical_context: Optional[bool] = False
+    has_resource_info: Optional[bool] = False
+    has_wildlife_info: Optional[bool] = False
+    has_geological_info: Optional[bool] = False
+    has_cultural_info: Optional[bool] = False
+    
+    # Quality and review fields
+    description_quality_score: Optional[float] = None  # 0.00 to 9.99
+    requires_review: Optional[bool] = False
+    is_approved: Optional[bool] = False
+    
     class Config:
         from_attributes = True
 
