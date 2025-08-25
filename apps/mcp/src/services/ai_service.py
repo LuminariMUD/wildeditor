@@ -53,7 +53,7 @@ class AIService:
         self.model = self._initialize_model()
         self.agent = self._create_agent() if self.model else None
         
-        logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.3)")
+        logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.4)")
     
     def _get_provider(self) -> AIProvider:
         """Determine which AI provider to use based on environment"""
