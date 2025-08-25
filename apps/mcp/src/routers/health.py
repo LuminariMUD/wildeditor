@@ -19,7 +19,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "wildeditor-mcp-server",
-        "version": "1.0.4",
+        "version": "1.0.5",
         "environment": settings.node_env
     }
 
@@ -69,7 +69,7 @@ async def debug_environment(authenticated: bool = Depends(verify_mcp_key)):
     return {
         "status": "debug",
         "service": "wildeditor-mcp-server",
-        "version": "1.0.4-debug",
+        "version": "1.0.5-debug",
         "environment_variables": env_vars,
         "ollama_connectivity_test": ollama_test,
         "warning": "TEMPORARY DEBUG ENDPOINT - REMOVE AFTER TESTING"
@@ -87,7 +87,7 @@ async def detailed_health_check(authenticated: bool = Depends(verify_mcp_key)):
     return {
         "status": "healthy",
         "service": "wildeditor-mcp-server", 
-        "version": "1.0.4",
+        "version": "1.0.5",
         "environment": settings.node_env,
         "authenticated": True,
         "backend_url": settings.backend_base_url,
