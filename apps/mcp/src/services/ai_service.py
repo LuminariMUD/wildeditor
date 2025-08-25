@@ -288,8 +288,14 @@ Make the description vivid and engaging while maintaining the {style} style thro
                 try:
                     result = await self.agent.run(user_content)
                     
-                    # Extract the structured result
-                    generated = result.data
+                    # Extract the structured result - handle different result formats
+                    if hasattr(result, 'data'):
+                        generated = result.data
+                    elif hasattr(result, 'output'):
+                        generated = result.output
+                    else:
+                        # For DeepSeek or other providers that might return different structure
+                        generated = result
                     
                     return {
                         "generated_description": generated.description_text,
