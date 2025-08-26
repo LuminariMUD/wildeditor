@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   FileText, Settings, CheckCircle, Star, 
   AlertCircle, Mountain, Layers, Lightbulb,
-  Plus, ChevronDown, ChevronRight
+  Plus, ChevronDown, ChevronRight, Edit2, Trash2
 } from 'lucide-react';
 import { Region } from '../types';
 import { apiClient } from '../services/api';
