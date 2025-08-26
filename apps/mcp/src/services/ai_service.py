@@ -249,15 +249,25 @@ class AIService:
                 - Do NOT put other weather types (foggy, misty) in weather_conditions
                 - If a hint is not weather-specific, use an empty list for weather_conditions
                 
-                CRITICAL WEIGHT RULES:
-                - For seasonal hints: Set high weight (1.5-2.0) ONLY for the relevant season, low/zero (0.0-0.5) for others
-                  Example: "Snow blankets the ground" -> seasonal_weight: {"spring": 0.0, "summer": 0.0, "autumn": 0.2, "winter": 2.0}
-                  Example: "Cherry blossoms bloom" -> seasonal_weight: {"spring": 2.0, "summer": 0.5, "autumn": 0.0, "winter": 0.0}
-                - For time hints: Set high weight (1.5-2.0) ONLY for relevant times, normal (0.8-1.0) for others  
-                  Example: "Dawn mist rises" -> time_of_day_weight: {"dawn": 2.0, "morning": 1.2, "midday": 0.5, "afternoon": 0.5, "evening": 0.8, "night": 0.6}
-                  Example: "Nocturnal creatures stir" -> time_of_day_weight: {"dawn": 0.6, "morning": 0.2, "midday": 0.0, "afternoon": 0.2, "evening": 1.2, "night": 2.0}
-                - For general hints: Either omit weights (set to null) or use balanced values around 1.0
-                  Example: "Ancient trees tower overhead" -> seasonal_weight: null, time_of_day_weight: null
+                STRICT WEIGHT RULES - CRITICAL:
+                
+                TIME OF DAY:
+                - EXPLICIT time mentions ("at dusk", "at dawn", "at midnight"): 
+                  ONLY that time gets 2.0, ALL others get 0.0
+                  Example: "At dusk, flowers unfurl" -> {"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 2.0, "night": 0.0}
+                - THEMED time (moonlight, stars, nocturnal, darkness):
+                  Primary time gets 2.0, adjacent gets 0.5, opposite gets 0.0
+                  Example: "Moonlight bathes the forest" -> {"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 0.5, "night": 2.0}
+                  
+                SEASONS:
+                - EXPLICIT season mentions ("in winter", "during spring"):
+                  ONLY that season gets 2.0, ALL others get 0.0
+                  Example: "Winter frost covers everything" -> {"spring": 0.0, "summer": 0.0, "autumn": 0.0, "winter": 2.0}
+                - THEMED season (flowers=spring, snow=winter, harvest=autumn, heat=summer):
+                  Primary season gets 2.0, adjacent gets 0.5 max, opposite gets 0.0
+                  Example: "Flowers bloom" -> {"spring": 2.0, "summer": 0.5, "autumn": 0.0, "winter": 0.0}
+                  
+                GENERAL HINTS: Set both weights to null (not included in output)
                 - Create hints similar to these mosswood examples:
                   * "The profound silence of the moss-covered forest creates an almost sacred atmosphere, where even your footsteps are muffled by the thick emerald carpet beneath your feet."
                   * "Ancient oak and elm trees rise like cathedral pillars, their gnarled branches forming a natural canopy that filters sunlight into dancing patterns of green and gold."
@@ -592,13 +602,27 @@ CRITICAL: Each hint MUST include these fields:
 - seasonal_weight: For seasonal hints, dict like {"spring": 0.0, "summer": 0.0, "autumn": 0.2, "winter": 2.0}
 - time_of_day_weight: For time hints, dict like {"dawn": 2.0, "morning": 1.2, "midday": 0.5, "afternoon": 0.5, "evening": 0.8, "night": 0.6}
 
-WEIGHT RULES - ALWAYS INCLUDE WEIGHTS WHEN RELEVANT:
-- If hint mentions winter/snow/frost: seasonal_weight with winter=2.0, others low
-- If hint mentions spring/bloom/flowers: seasonal_weight with spring=2.0, others low  
-- If hint mentions dawn/sunrise: time_of_day_weight with dawn=2.0, others varied
-- If hint mentions dusk/evening/sunset: time_of_day_weight with evening=2.0, others varied
-- If hint mentions night/moonlight/stars: time_of_day_weight with night=2.0, others low
-- If no specific time/season: set both weights to null
+STRICT WEIGHT RULES - BE VERY SPECIFIC:
+
+TIME WEIGHTS:
+- EXPLICIT mentions (dusk, dawn, noon, etc): ONLY that time gets weight, all others 0.0
+  Example: "At dusk..." → {"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 2.0, "night": 0.0}
+- THEMED (nocturnal, moonlight, darkness): High for primary time, small for adjacent
+  Example: "Moonlight..." → {"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 0.5, "night": 2.0}
+- General hints: null (no time_of_day_weight at all)
+
+SEASON WEIGHTS:
+- EXPLICIT mentions (winter, spring, etc): ONLY that season gets weight, all others 0.0
+  Example: "Winter frost..." → {"spring": 0.0, "summer": 0.0, "autumn": 0.0, "winter": 2.0}
+- THEMED (flowers, snow, harvest): High for primary season, minimal for adjacent
+  Example: "Flowers bloom..." → {"spring": 2.0, "summer": 0.5, "autumn": 0.0, "winter": 0.0}
+- General hints: null (no seasonal_weight at all)
+
+WEATHER CONDITIONS:
+- Only include if EXPLICITLY weather-dependent
+- "When it rains..." → ["rainy"]
+- "During storms..." → ["stormy", "lightning"]
+- General hints: empty array []
 
 Focus on creating vivid, sensory details that bring the environment to life for text-based gameplay."""
 
