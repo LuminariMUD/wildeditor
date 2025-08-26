@@ -68,23 +68,16 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
     setHintsLoading(true);
     setHintsError(null);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints`, {
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setHints(data.hints || []);
-      } else if (response.status === 404) {
+      const data = await apiClient.getHints(region.vnum);
+      setHints(data.hints || []);
+    } catch (error) {
+      // Handle 404 as empty hints (region exists but no hints yet)
+      if (error instanceof Error && error.message.includes('404')) {
         setHints([]);
       } else {
-        throw new Error(`Failed to fetch hints: ${response.status}`);
+        setHintsError(error instanceof Error ? error.message : 'Failed to fetch hints');
+        setHints([]);
       }
-    } catch (error) {
-      setHintsError(error instanceof Error ? error.message : 'Failed to fetch hints');
-      setHints([]);
     } finally {
       setHintsLoading(false);
     }
@@ -166,47 +159,28 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
             // If hints already exist and user confirmed overwrite, delete them first
             if (hints.length > 0) {
               console.log(`Deleting ${hints.length} existing hints before creating new ones...`);
-              const deleteResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints`, {
-                method: 'DELETE',
-                headers: {
-                  'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
-                }
-              });
-              
-              if (!deleteResponse.ok) {
-                console.error('Failed to delete existing hints:', deleteResponse.status);
+              try {
+                await apiClient.deleteAllHints(region.vnum);
+              } catch (error) {
+                console.error('Failed to delete existing hints:', error);
                 throw new Error('Failed to delete existing hints before generating new ones');
               }
               console.log('Successfully deleted existing hints');
             }
             
             // Now create the new hints
-            const storeResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
-              },
-              body: JSON.stringify({
-                hints: formattedHints
-              })
-            });
+            await apiClient.createHints(region.vnum, formattedHints);
 
-            if (storeResponse.ok) {
-              // Refresh hints list
-              await fetchHints();
-              
-              // Expand first category to show results
-              if (hintsData.hints.length > 0) {
-                const firstCategory = hintsData.hints[0].category || hintsData.hints[0].hint_category;
-                setExpandedCategories(new Set([firstCategory]));
-              }
-              
-              console.log(`Successfully generated and stored ${formattedHints.length} hints`);
-            } else {
-              console.error('Failed to store hints:', storeResponse.status, await storeResponse.text());
-              throw new Error('Failed to store generated hints');
+            // Refresh hints list
+            await fetchHints();
+            
+            // Expand first category to show results
+            if (hintsData.hints.length > 0) {
+              const firstCategory = hintsData.hints[0].category || hintsData.hints[0].hint_category;
+              setExpandedCategories(new Set([firstCategory]));
             }
+            
+            console.log(`Successfully generated and stored ${formattedHints.length} hints`);
           } else {
             console.log('Hints data:', hintsData);
             setHintsError('No hints were generated from the description');
@@ -255,62 +229,32 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
     try {
       if (isCreatingHint) {
         // Create new hint
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
-            },
-            body: JSON.stringify({
-              hints: [{
-                hint_category: hintData.hint_category,
-                hint_text: hintData.hint_text,
-                priority: hintData.priority,
-                weather_conditions: hintData.weather_conditions ? hintData.weather_conditions.split(',') : ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'],
-                seasonal_weight: hintData.seasonal_weight,
-                time_of_day_weight: hintData.time_of_day_weight
-              }]
-            })
-          }
-        );
+        await apiClient.createHints(region.vnum, [{
+          hint_category: hintData.hint_category,
+          hint_text: hintData.hint_text,
+          priority: hintData.priority,
+          weather_conditions: hintData.weather_conditions ? hintData.weather_conditions.split(',') : ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'],
+          seasonal_weight: hintData.seasonal_weight,
+          time_of_day_weight: hintData.time_of_day_weight
+        }]);
         
-        if (response.ok) {
-          await fetchHints();
-          setShowHintEditor(false);
-          setEditingHint(null);
-        } else {
-          console.error('Failed to create hint');
-        }
+        await fetchHints();
+        setShowHintEditor(false);
+        setEditingHint(null);
       } else if (editingHint) {
         // Update existing hint
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints/${editingHint.id}`,
-          {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
-            },
-            body: JSON.stringify({
-              hint_text: hintData.hint_text,
-              priority: hintData.priority,
-              weather_conditions: hintData.weather_conditions ? hintData.weather_conditions.split(',') : ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'],
-              seasonal_weight: hintData.seasonal_weight,
-              time_of_day_weight: hintData.time_of_day_weight,
-              is_active: hintData.is_active
-            })
-          }
-        );
+        await apiClient.updateHint(region.vnum, editingHint.id!, {
+          hint_text: hintData.hint_text,
+          priority: hintData.priority,
+          weather_conditions: hintData.weather_conditions ? hintData.weather_conditions.split(',') : ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'],
+          seasonal_weight: hintData.seasonal_weight,
+          time_of_day_weight: hintData.time_of_day_weight,
+          is_active: hintData.is_active
+        });
         
-        if (response.ok) {
-          await fetchHints();
-          setShowHintEditor(false);
-          setEditingHint(null);
-        } else {
-          console.error('Failed to update hint');
-        }
+        await fetchHints();
+        setShowHintEditor(false);
+        setEditingHint(null);
       }
     } catch (error) {
       console.error('Error saving hint:', error);
@@ -972,20 +916,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
                                 onClick={async () => {
                                   if (confirm('Delete this hint?')) {
                                     try {
-                                      const response = await fetch(
-                                        `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints/${hint.id}`,
-                                        {
-                                          method: 'DELETE',
-                                          headers: {
-                                            'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
-                                          }
-                                        }
-                                      );
-                                      if (response.ok) {
-                                        await fetchHints();
-                                      } else {
-                                        console.error('Failed to delete hint');
-                                      }
+                                      await apiClient.deleteHint(region.vnum, hint.id!);
+                                      await fetchHints();
                                     } catch (error) {
                                       console.error('Error deleting hint:', error);
                                     }
