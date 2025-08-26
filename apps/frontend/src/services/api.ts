@@ -149,6 +149,19 @@ const frontendRegionToApi = (region: Omit<Region, 'id'>): Omit<ApiRegionResponse
   region_props: region.region_props,
   region_reset_data: region.region_reset_data || "",
   region_reset_time: region.region_reset_time,
+  // Include description fields
+  region_description: region.region_description,
+  description_style: region.description_style,
+  description_length: region.description_length,
+  has_historical_context: region.has_historical_context,
+  has_resource_info: region.has_resource_info,
+  has_wildlife_info: region.has_wildlife_info,
+  has_geological_info: region.has_geological_info,
+  has_cultural_info: region.has_cultural_info,
+  description_quality_score: region.description_quality_score,
+  requires_review: region.requires_review,
+  is_approved: region.is_approved,
+  ai_agent_source: region.ai_agent_source,
 }); 
 
 const apiPathToFrontend = (apiPath: ApiPathResponse): Path => ({
@@ -304,8 +317,8 @@ class ApiClient {
 
   // Region methods - GET endpoints without trailing slash, POST/PUT/DELETE with trailing slash
   async getRegions(): Promise<Region[]> {
-    // Don't include descriptions when listing regions for performance
-    const response = await this.request<ApiRegionResponse[]>('/regions?include_descriptions=false');
+    // Include descriptions when listing regions so they're available when selected
+    const response = await this.request<ApiRegionResponse[]>('/regions');
     // Convert API format to frontend format
     return Array.isArray(response) ? response.map(apiRegionToFrontend) : [];
   }
@@ -334,6 +347,21 @@ class ApiClient {
     if (updates.coordinates !== undefined) apiUpdates.coordinates = updates.coordinates;
     if (updates.region_props !== undefined) apiUpdates.region_props = updates.region_props;
     if (updates.zone_vnum !== undefined) apiUpdates.zone_vnum = updates.zone_vnum;
+    if (updates.region_reset_data !== undefined) apiUpdates.region_reset_data = updates.region_reset_data;
+    
+    // Include description fields in updates
+    if (updates.region_description !== undefined) apiUpdates.region_description = updates.region_description;
+    if (updates.description_style !== undefined) apiUpdates.description_style = updates.description_style;
+    if (updates.description_length !== undefined) apiUpdates.description_length = updates.description_length;
+    if (updates.has_historical_context !== undefined) apiUpdates.has_historical_context = updates.has_historical_context;
+    if (updates.has_resource_info !== undefined) apiUpdates.has_resource_info = updates.has_resource_info;
+    if (updates.has_wildlife_info !== undefined) apiUpdates.has_wildlife_info = updates.has_wildlife_info;
+    if (updates.has_geological_info !== undefined) apiUpdates.has_geological_info = updates.has_geological_info;
+    if (updates.has_cultural_info !== undefined) apiUpdates.has_cultural_info = updates.has_cultural_info;
+    if (updates.description_quality_score !== undefined) apiUpdates.description_quality_score = updates.description_quality_score;
+    if (updates.requires_review !== undefined) apiUpdates.requires_review = updates.requires_review;
+    if (updates.is_approved !== undefined) apiUpdates.is_approved = updates.is_approved;
+    if (updates.ai_agent_source !== undefined) apiUpdates.ai_agent_source = updates.ai_agent_source;
     
     const vnum = extractRegionVnum(id);
     const response = await this.request<ApiRegionResponse>(`/regions/${vnum}`, {

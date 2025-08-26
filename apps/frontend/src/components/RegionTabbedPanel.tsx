@@ -10,6 +10,7 @@ interface RegionTabbedPanelProps {
   onUpdate: (updates: Partial<Region>) => void;
   onCreateLayer?: (baseRegion: Region, layerType: 'sector' | 'transform') => void;
   relatedRegions?: Region[];
+  onSelectRegion?: (region: Region) => void;
 }
 
 type TabType = 'properties' | 'description' | 'review';
@@ -29,7 +30,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
   region,
   onUpdate,
   onCreateLayer,
-  relatedRegions = []
+  relatedRegions = [],
+  onSelectRegion
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('properties');
 
@@ -219,9 +221,14 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
           <p className="text-gray-300 text-xs font-medium mb-2">Related Regions:</p>
           <ul className="space-y-1">
             {relatedRegions.map(r => (
-              <li key={r.vnum} className="text-gray-400 text-xs flex items-center gap-1">
+              <li 
+                key={r.vnum} 
+                className="text-gray-400 text-xs flex items-center gap-1 hover:text-gray-200 cursor-pointer transition-colors"
+                onClick={() => onSelectRegion?.(r)}
+                title={`Click to select ${r.name}`}
+              >
                 {getRegionIcon(r.region_type)}
-                <span>{r.name}</span>
+                <span className="hover:underline">{r.name}</span>
               </li>
             ))}
           </ul>

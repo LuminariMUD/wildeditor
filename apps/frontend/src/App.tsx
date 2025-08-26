@@ -189,6 +189,7 @@ function App() {
                 onDelete={deleteItem}
                 onCreateLayer={createLayer}
                 relatedRegions={state.selectedItem && 'region_type' in state.selectedItem ? findRelatedRegions(state.selectedItem as Region) : []}
+                onSelectItem={selectItem}
                 isSaving={state.selectedItem ? savingItems.has(
                   ('vnum' in state.selectedItem && state.selectedItem.vnum) 
                     ? state.selectedItem.vnum.toString() 

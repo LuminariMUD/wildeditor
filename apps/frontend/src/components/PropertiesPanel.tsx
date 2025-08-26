@@ -21,6 +21,7 @@ interface PropertiesPanelProps {
   // Region layering
   onCreateLayer?: (baseRegion: Region, layerType: 'sector' | 'transform') => void;
   relatedRegions?: Region[];
+  onSelectItem?: (item: Region | Path | null) => void;
 }
 
 // Helper to get path icon based on type
@@ -69,7 +70,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   isSaving = false,
   hasUnsavedChanges = false,
   onCreateLayer,
-  relatedRegions = []
+  relatedRegions = [],
+  onSelectItem
 }) => {
   const COORDINATE_BOUNDS = { min: -1024, max: 1024 };
   const [pathTypes, setPathTypes] = useState<PathTypesResponse | null>(null);
@@ -199,6 +201,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             onUpdate={onUpdate}
             onCreateLayer={onCreateLayer}
             relatedRegions={relatedRegions}
+            onSelectRegion={onSelectItem as ((region: Region) => void) | undefined}
           />
         </div>
         
