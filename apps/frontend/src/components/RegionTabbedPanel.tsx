@@ -137,9 +137,31 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         const data = await response.json();
         
         if (data.success && data.result) {
-          // Parse the result if it's a string
+          // Parse the result - it may be wrapped in a 'text' field
           let hintsData = data.result;
-          if (typeof hintsData === 'string') {
+          
+          // Check if result has a 'text' field (MCP response format)
+          if (hintsData.text && typeof hintsData.text === 'string') {
+            try {
+              // Try parsing as JSON first
+              hintsData = JSON.parse(hintsData.text);
+            } catch {
+              // If not JSON, try to parse Python dict format
+              // Convert Python dict string to JSON
+              const jsonString = hintsData.text
+                .replace(/'/g, '"')  // Replace single quotes with double quotes
+                .replace(/True/g, 'true')  // Python True to JSON true
+                .replace(/False/g, 'false')  // Python False to JSON false
+                .replace(/None/g, 'null');  // Python None to JSON null
+              
+              try {
+                hintsData = JSON.parse(jsonString);
+              } catch (e) {
+                console.error('Failed to parse hints data:', e);
+                throw new Error('Failed to parse hint generation response');
+              }
+            }
+          } else if (typeof hintsData === 'string') {
             try {
               hintsData = JSON.parse(hintsData);
             } catch {
@@ -150,6 +172,16 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
           
           // Store the generated hints
           if (hintsData.hints && hintsData.hints.length > 0) {
+            // Format hints for backend API (map 'category' to 'hint_category')
+            const formattedHints = hintsData.hints.map((hint: { category?: string; hint_category?: string; text?: string; hint_text?: string; priority?: number; weather_conditions?: string[]; seasonal_weight?: Record<string, number>; time_of_day_weight?: Record<string, number> }) => ({
+              hint_category: hint.category || hint.hint_category,
+              hint_text: hint.text || hint.hint_text,
+              priority: hint.priority || 5,
+              weather_conditions: hint.weather_conditions || ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'],
+              seasonal_weight: hint.seasonal_weight || null,
+              time_of_day_weight: hint.time_of_day_weight || null
+            }));
+            
             const storeResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints`, {
               method: 'POST',
               headers: {
@@ -157,7 +189,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
                 'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
               },
               body: JSON.stringify({
-                hints: hintsData.hints
+                hints: formattedHints
               })
             });
 
@@ -170,10 +202,14 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
                 const firstCategory = hintsData.hints[0].category || hintsData.hints[0].hint_category;
                 setExpandedCategories(new Set([firstCategory]));
               }
+              
+              console.log(`Successfully generated and stored ${formattedHints.length} hints`);
             } else {
+              console.error('Failed to store hints:', storeResponse.status, await storeResponse.text());
               throw new Error('Failed to store generated hints');
             }
           } else {
+            console.log('Hints data:', hintsData);
             setHintsError('No hints were generated from the description');
           }
         } else {
