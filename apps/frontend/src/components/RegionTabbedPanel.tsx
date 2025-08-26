@@ -1112,7 +1112,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         setShowGenerateDialog(false);
         
         // Automatically generate hints from the new description
-        // Use setTimeout to allow the UI to update first
+        // Delete old hints first, then generate new ones from the AI
+        // The false parameter means don't ask for confirmation since we already warned
         setTimeout(() => {
           generateHintsFromDescription(result.generated_description, false);
         }, 500);
@@ -1145,6 +1146,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         regionName={region.name}
         regionType={region.region_type}
         isGenerating={isGenerating}
+        hasExistingDescription={!!region.region_description}
+        hasExistingHints={hints.length > 0}
       />
       
       {/* Hint Editor Dialog */}

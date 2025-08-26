@@ -13,6 +13,8 @@ interface GenerateDescriptionDialogProps {
   regionName: string;
   regionType: number;
   isGenerating: boolean;
+  hasExistingDescription?: boolean;
+  hasExistingHints?: boolean;
 }
 
 export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps> = ({
@@ -21,7 +23,9 @@ export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps>
   onGenerate,
   regionName,
   regionType,
-  isGenerating
+  isGenerating,
+  hasExistingDescription = false,
+  hasExistingHints = false
 }) => {
   const [userPrompt, setUserPrompt] = useState('');
   const [style, setStyle] = useState('poetic');
@@ -107,6 +111,23 @@ export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps>
         {/* Content */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
           <div className="space-y-6">
+            {/* Warning for existing content */}
+            {(hasExistingDescription || hasExistingHints) && (
+              <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Info className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-amber-200">
+                    <p className="font-medium mb-1">This will replace existing content:</p>
+                    <ul className="space-y-1 text-amber-300">
+                      {hasExistingDescription && <li>• Current description will be overwritten</li>}
+                      {hasExistingHints && <li>• All existing hints will be deleted and regenerated</li>}
+                      <li>• New hints will be generated from the new description</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* User Prompt */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
