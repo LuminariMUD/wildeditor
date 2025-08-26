@@ -541,23 +541,23 @@ CRITICAL: Each hint MUST include these fields:
 - text: A complete, standalone descriptive sentence
 - priority: Number from 1-10 based on impact and uniqueness
 - weather_conditions: Array from [clear, cloudy, rainy, stormy, lightning] or empty array
-- seasonal_weight: For seasonal hints, dict like {"spring": 0.0, "summer": 0.0, "autumn": 0.2, "winter": 2.0}
-- time_of_day_weight: For time hints, dict like {"dawn": 2.0, "morning": 1.2, "midday": 0.5, "afternoon": 0.5, "evening": 0.8, "night": 0.6}
+- seasonal_weight: For seasonal hints, dict like {{"spring": 0.0, "summer": 0.0, "autumn": 0.2, "winter": 2.0}}
+- time_of_day_weight: For time hints, dict like {{"dawn": 2.0, "morning": 1.2, "midday": 0.5, "afternoon": 0.5, "evening": 0.8, "night": 0.6}}
 
 STRICT WEIGHT RULES - BE VERY SPECIFIC:
 
 TIME WEIGHTS:
 - EXPLICIT mentions (dusk, dawn, noon, etc): ONLY that time gets weight, all others 0.0
-  Example: "At dusk..." → {"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 2.0, "night": 0.0}
+  Example: "At dusk..." → {{"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 2.0, "night": 0.0}}
 - THEMED (nocturnal, moonlight, darkness): High for primary time, small for adjacent
-  Example: "Moonlight..." → {"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 0.5, "night": 2.0}
+  Example: "Moonlight..." → {{"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 0.5, "night": 2.0}}
 - General hints: null (no time_of_day_weight at all)
 
 SEASON WEIGHTS:
 - EXPLICIT mentions (winter, spring, etc): ONLY that season gets weight, all others 0.0
-  Example: "Winter frost..." → {"spring": 0.0, "summer": 0.0, "autumn": 0.0, "winter": 2.0}
+  Example: "Winter frost..." → {{"spring": 0.0, "summer": 0.0, "autumn": 0.0, "winter": 2.0}}
 - THEMED (flowers, snow, harvest): High for primary season, minimal for adjacent
-  Example: "Flowers bloom..." → {"spring": 2.0, "summer": 0.5, "autumn": 0.0, "winter": 0.0}
+  Example: "Flowers bloom..." → {{"spring": 2.0, "summer": 0.5, "autumn": 0.0, "winter": 0.0}}
 - General hints: null (no seasonal_weight at all)
 
 WEATHER CONDITIONS:
