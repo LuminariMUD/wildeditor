@@ -4,6 +4,8 @@ import {
   AlertCircle, Mountain, Layers
 } from 'lucide-react';
 import { Region } from '../types';
+import { apiClient } from '../services/api';
+import { GenerateDescriptionDialog } from './GenerateDescriptionDialog';
 
 interface RegionTabbedPanelProps {
   region: Region;
@@ -34,6 +36,9 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
   onSelectRegion
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('properties');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
 
   const renderTabs = () => (
     <div className="flex border-b border-gray-700">
@@ -335,14 +340,21 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         </div>
       </div>
 
-      {/* Generate with AI button (placeholder for future) */}
+      {/* Generate with AI button */}
       <button
         className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 text-sm font-medium"
-        onClick={() => console.log('Generate description with AI')}
+        onClick={() => setShowGenerateDialog(true)}
       >
         <Star className="w-4 h-4" />
         Generate with AI
       </button>
+      
+      {/* Error message */}
+      {generationError && (
+        <div className="bg-red-900/20 border border-red-800 rounded-lg p-2">
+          <p className="text-red-400 text-xs">{generationError}</p>
+        </div>
+      )}
     </div>
   );
 
@@ -446,14 +458,88 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
     </div>
   );
 
+  const handleGenerateDescription = async (params: {
+    userPrompt: string;
+    style: string;
+    length: string;
+    includeSections: string[];
+  }) => {
+    setIsGenerating(true);
+    setGenerationError(null);
+    
+    try {
+      // Determine terrain theme based on region type
+      let terrain_theme = 'wilderness';
+      if (region.region_type === 1) terrain_theme = 'geographic';
+      else if (region.region_type === 2) terrain_theme = 'encounter';
+      else if (region.region_type === 3) terrain_theme = 'transform';
+      else if (region.region_type === 4) terrain_theme = 'sector';
+      
+      const result = await apiClient.generateRegionDescription({
+        region_vnum: region.vnum,
+        region_name: region.name,
+        region_type: region.region_type,
+        terrain_theme,
+        description_style: params.style,
+        description_length: params.length,
+        include_sections: params.includeSections,
+        user_prompt: params.userPrompt // Add user prompt to the request
+      });
+      
+      if (result.error) {
+        setGenerationError(result.error);
+      } else if (result.generated_description) {
+        onUpdate({
+          region_description: result.generated_description,
+          description_style: params.style,
+          description_length: params.length,
+          description_quality_score: result.suggested_quality_score || 7.0,
+          ai_agent_source: result.ai_provider || 'mcp'
+        });
+        
+        // Update metadata flags based on included sections
+        const metadataUpdates: Partial<Region> = {};
+        if (params.includeSections.includes('wildlife')) metadataUpdates.has_wildlife_info = true;
+        if (params.includeSections.includes('history')) metadataUpdates.has_historical_context = true;
+        if (params.includeSections.includes('resources')) metadataUpdates.has_resource_info = true;
+        if (params.includeSections.includes('culture')) metadataUpdates.has_cultural_info = true;
+        if (params.includeSections.includes('vegetation')) metadataUpdates.has_geological_info = true;
+        
+        if (Object.keys(metadataUpdates).length > 0) {
+          onUpdate(metadataUpdates);
+        }
+        
+        // Close dialog on success
+        setShowGenerateDialog(false);
+      }
+    } catch (error) {
+      console.error('Failed to generate description:', error);
+      setGenerationError('Failed to connect to AI service');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full">
-      {renderTabs()}
-      <div className="flex-1 p-4 overflow-y-auto">
-        {activeTab === 'properties' && renderPropertiesTab()}
-        {activeTab === 'description' && renderDescriptionTab()}
-        {activeTab === 'review' && renderReviewTab()}
+    <>
+      <div className="flex flex-col h-full">
+        {renderTabs()}
+        <div className="flex-1 p-4 overflow-y-auto">
+          {activeTab === 'properties' && renderPropertiesTab()}
+          {activeTab === 'description' && renderDescriptionTab()}
+          {activeTab === 'review' && renderReviewTab()}
+        </div>
       </div>
-    </div>
+      
+      {/* Generate Description Dialog */}
+      <GenerateDescriptionDialog
+        isOpen={showGenerateDialog}
+        onClose={() => setShowGenerateDialog(false)}
+        onGenerate={handleGenerateDescription}
+        regionName={region.name}
+        regionType={region.region_type}
+        isGenerating={isGenerating}
+      />
+    </>
   );
 };

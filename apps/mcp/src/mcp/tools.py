@@ -497,6 +497,10 @@ class ToolRegistry:
                             "enum": ["overview", "geography", "vegetation", "wildlife", "atmosphere", "seasons", "resources", "history", "culture"]
                         },
                         "description": "Specific sections to include in the description"
+                    },
+                    "user_prompt": {
+                        "type": "string",
+                        "description": "Optional user guidance or specific requirements for the description"
                     }
                 },
                 "required": []
@@ -1318,6 +1322,7 @@ class ToolRegistry:
             style = kwargs.get("description_style", "poetic")
             length = kwargs.get("description_length", "moderate")
             sections = kwargs.get("include_sections", ["overview", "geography", "vegetation", "atmosphere"])
+            user_prompt = kwargs.get("user_prompt", "")
             
             # Try AI generation first
             ai_service = get_ai_service()
@@ -1329,7 +1334,8 @@ class ToolRegistry:
                     terrain_theme=terrain_theme,
                     style=style,
                     length=length,
-                    sections=sections
+                    sections=sections,
+                    user_prompt=user_prompt
                 )
             
             # If AI generation succeeded, use that result
@@ -1343,7 +1349,8 @@ class ToolRegistry:
                 terrain_theme=terrain_theme,
                 style=style,
                 length=length,
-                sections=sections
+                sections=sections,
+                user_prompt=user_prompt
             )
             
             # Analyze generated description for metadata
@@ -1444,7 +1451,7 @@ class ToolRegistry:
                 return {"error": f"Failed to analyze description quality: {str(e)}"}
     
     def _compose_region_description(self, name: str, region_type: int, terrain_theme: str,
-                                   style: str, length: str, sections: List[str]) -> str:
+                                   style: str, length: str, sections: List[str], user_prompt: str = "") -> str:
         """Compose a region description based on parameters"""
         # Length guidelines
         length_targets = {

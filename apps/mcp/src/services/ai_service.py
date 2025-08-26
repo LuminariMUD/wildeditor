@@ -197,7 +197,8 @@ class AIService:
         style: str = "poetic",
         length: str = "moderate",
         sections: List[str] = None,
-        existing_prompt: Dict[str, Any] = None
+        existing_prompt: Dict[str, Any] = None,
+        user_prompt: str = ""
     ) -> Dict[str, Any]:
         """
         Generate a region description using AI
@@ -228,7 +229,7 @@ class AIService:
             ):
                 logger.info(f"Using Ollama for description generation (provider: {self.provider})")
                 result = await self._use_ollama_direct(
-                    region_name, terrain_theme, style, length, sections, existing_prompt
+                    region_name, terrain_theme, style, length, sections, existing_prompt, user_prompt
                 )
                 if result:
                     # Add initialization error info to result
@@ -262,12 +263,17 @@ class AIService:
             sections_list = sections or ["overview", "geography", "vegetation", "atmosphere"]
             sections_text = "\n".join(f"- {section.upper()}" for section in sections_list)
             
+            # Include user prompt if provided
+            user_guidance = ""
+            if user_prompt:
+                user_guidance = f"\n\nAdditional Guidance:\n{user_prompt}\n"
+            
             user_content = f"""Create a {style} description for a wilderness region with these specifications:
 
 Region Name: {region_name}
 Terrain Theme: {terrain_theme}
 Writing Style: {style}
-Target Length: {length_guides.get(length, "300-500 words")}
+Target Length: {length_guides.get(length, "300-500 words")}{user_guidance}
 
 Required Sections:
 {sections_text}
@@ -328,7 +334,7 @@ Make the description vivid and engaging while maintaining the {style} style thro
             if self.provider != AIProvider.OLLAMA:
                 logger.info("Attempting Ollama fallback for description generation")
                 result = await self._use_ollama_direct(
-                    region_name, terrain_theme, style, length, sections, existing_prompt
+                    region_name, terrain_theme, style, length, sections, existing_prompt, user_prompt
                 )
                 if result:
                     # Add error info from primary provider
@@ -348,7 +354,8 @@ Make the description vivid and engaging while maintaining the {style} style thro
         style: str = "poetic",
         length: str = "moderate",
         sections: List[str] = None,
-        existing_prompt: Dict[str, Any] = None
+        existing_prompt: Dict[str, Any] = None,
+        user_prompt: str = ""
     ) -> Optional[Dict[str, Any]]:
         """
         Generate description using direct Ollama HTTP API
@@ -387,12 +394,17 @@ Make the description vivid and engaging while maintaining the {style} style thro
                 sections_list = sections or ["overview", "geography", "vegetation", "atmosphere"]
                 sections_text = "\n".join(f"- {section.upper()}" for section in sections_list)
                 
+                # Include user prompt if provided
+                user_guidance = ""
+                if user_prompt:
+                    user_guidance = f"\n\nAdditional Guidance:\n{user_prompt}\n"
+                
                 user_content = f"""Create a {style} description for a wilderness region with these specifications:
 
 Region Name: {region_name}
 Terrain Theme: {terrain_theme}
 Writing Style: {style}
-Target Length: {length_guides.get(length, "300-500 words")}
+Target Length: {length_guides.get(length, "300-500 words")}{user_guidance}
 
 Required Sections:
 {sections_text}

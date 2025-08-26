@@ -434,6 +434,75 @@ class ApiClient {
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
     return await this.request<{ status: string; timestamp: string }>('/health');
   }
+
+  // Generate description using MCP AI service
+  async generateRegionDescription(params: {
+    region_vnum?: number;
+    region_name?: string;
+    region_type?: number;
+    terrain_theme?: string;
+    description_style?: string;
+    description_length?: string;
+    include_sections?: string[];
+    user_prompt?: string;
+  }): Promise<{
+    generated_description?: string;
+    metadata?: Record<string, unknown>;
+    word_count?: number;
+    character_count?: number;
+    suggested_quality_score?: number;
+    region_vnum?: number;
+    region_name?: string;
+    ai_provider?: string;
+    error?: string;
+  }> {
+    // Call MCP server to generate description
+    const mcpUrl = import.meta.env.VITE_MCP_URL || 'https://luminarimud.com:8001/mcp';
+    const mcpApiKey = import.meta.env.VITE_MCP_API_KEY || 'xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=';
+    
+    try {
+      const response = await fetch(`${mcpUrl}/request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': mcpApiKey
+        },
+        body: JSON.stringify({
+          id: `generate-${Date.now()}`,
+          method: 'tools/call',
+          params: {
+            name: 'generate_region_description',
+            arguments: params
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`MCP request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Extract result from MCP response format
+      if (data.result?.content?.[0]?.text) {
+        // Parse the text result which should be a JSON string
+        try {
+          return JSON.parse(data.result.content[0].text);
+        } catch {
+          // If not JSON, return as plain text
+          return {
+            generated_description: data.result.content[0].text,
+            ai_provider: 'mcp'
+          };
+        }
+      }
+      
+      return data.result || { error: 'No result from MCP' };
+    } catch (error) {
+      console.error('Failed to generate description:', error);
+      return { error: error instanceof Error ? error.message : 'Failed to generate description' };
+    }
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL, API_KEY);
