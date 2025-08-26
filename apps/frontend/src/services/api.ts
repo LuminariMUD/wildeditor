@@ -54,6 +54,39 @@ interface ApiPathResponse {
   path_type_name?: string;
 }
 
+interface PathTypeInfo {
+  name: string;
+  description: string;
+  path_props_usage: string;
+  behavior: string;
+  examples: string[];
+}
+
+interface PathTypesResponse {
+  path_types: {
+    [key: number]: PathTypeInfo;
+  };
+  path_width_system: {
+    description: string;
+    calculation: string;
+    examples: {
+      [key: string]: string;
+    };
+  };
+  coordinate_system: {
+    range: { x: string; y: string };
+    origin: string;
+    directions: { north: string; south: string; east: string; west: string };
+  };
+  processing_order: string[];
+  glyph_system: {
+    description: string;
+    types: {
+      [key: string]: string;
+    };
+  };
+}
+
 // Helper functions to assign colors based on types
 const getRegionColor = (regionType: number): string => {
   switch (regionType) {
@@ -348,6 +381,11 @@ class ApiClient {
     await this.request<void>(`/paths/${vnum}`, {
       method: 'DELETE'
     });
+  }
+
+  // Get available path types and their metadata
+  async getPathTypes(): Promise<PathTypesResponse> {
+    return await this.request<PathTypesResponse>('/paths/types');
   }
 
   // Health check

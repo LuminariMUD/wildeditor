@@ -912,6 +912,64 @@ export const useEditor = () => {
     }
   }, [regions, paths, state.selectedItem, setState]);
 
+  // Create a matching layer region (Sector Override or Transform) from a Geographic region
+  const createLayer = useCallback(async (baseRegion: Region, layerType: 'sector' | 'transform') => {
+    try {
+      // Generate next available vnum
+      const allVnums = [...regions.map(r => r.vnum), ...paths.map(p => p.vnum)];
+      const maxVnum = Math.max(0, ...allVnums);
+      const newVnum = maxVnum + 1;
+      
+      // Create suffix based on type
+      const suffix = layerType === 'sector' ? '(SECTOR)' : '(TRANSFORM)';
+      
+      // Create new region with same coordinates but different type
+      const newRegion: Omit<Region, 'id'> = {
+        vnum: newVnum,
+        zone_vnum: baseRegion.zone_vnum,
+        name: `${baseRegion.name} ${suffix}`,
+        region_type: layerType === 'sector' ? 4 : 3, // 4 = Sector Override, 3 = Transform
+        coordinates: [...baseRegion.coordinates], // Copy coordinates exactly
+        region_props: 0, // User will set this after creation
+        region_reset_data: '',
+        region_reset_time: null,
+        color: layerType === 'sector' ? '#F59E0B' : '#8B5CF6' // Amber for sector, purple for transform
+      };
+      
+      console.log('[CreateLayer] Creating new layer region:', newRegion);
+      
+      // Create via API
+      const createdRegion = await apiClient.createRegion(newRegion);
+      
+      // Add to regions list
+      setRegions(prev => [...prev, createdRegion]);
+      
+      // Select the new region for editing
+      setState(prev => ({ ...prev, selectedItem: createdRegion }));
+      
+      console.log('[CreateLayer] Layer created successfully:', createdRegion);
+    } catch (err) {
+      console.error('[CreateLayer] Failed to create layer:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create layer region');
+    }
+  }, [regions, paths]);
+
+  // Find regions with matching coordinates (for showing related regions)
+  const findRelatedRegions = useCallback((region: Region): Region[] => {
+    if (!region.coordinates || region.coordinates.length === 0) return [];
+    
+    // Convert coordinates to string for comparison
+    const coordsStr = JSON.stringify(region.coordinates);
+    
+    return regions.filter(r => {
+      if (r.vnum === region.vnum) return false; // Don't include self
+      if (!r.coordinates || r.coordinates.length === 0) return false;
+      
+      // Check if coordinates match exactly
+      return JSON.stringify(r.coordinates) === coordsStr;
+    });
+  }, [regions]);
+
   return {
     state,
     regions,
@@ -944,6 +1002,9 @@ export const useEditor = () => {
     saveAllUnsaved,
     discardItem,
     discardAllUnsaved,
-    deleteItem
+    deleteItem,
+    // Region layering
+    createLayer,
+    findRelatedRegions
   };
 };

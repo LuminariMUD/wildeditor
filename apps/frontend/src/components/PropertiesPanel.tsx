@@ -1,6 +1,10 @@
-import React, { useCallback } from 'react';
-import { Save, RotateCcw, Trash2, Plus } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { 
+  Save, RotateCcw, Trash2, Plus, Layers, Mountain,
+  Route, Waves, TreePine, MapPin, AlertCircle 
+} from 'lucide-react';
 import { Region, Path } from '../types';
+import { apiClient } from '../services/api';
 
 interface PropertiesPanelProps {
   selectedItem: Region | Path | null;
@@ -13,7 +17,45 @@ interface PropertiesPanelProps {
   onDelete?: (itemId: string) => void;
   isSaving?: boolean;
   hasUnsavedChanges?: boolean;
+  // Region layering
+  onCreateLayer?: (baseRegion: Region, layerType: 'sector' | 'transform') => void;
+  relatedRegions?: Region[];
 }
+
+// Helper to get path icon based on type
+const getPathIcon = (pathType: number) => {
+  switch (pathType) {
+    case 1: return <MapPin className="w-5 h-5" />; // Paved Road
+    case 2: return <Route className="w-5 h-5" />; // Dirt Road
+    case 3: return <TreePine className="w-5 h-5" />; // Geographic
+    case 5: return <Waves className="w-5 h-5" />; // River
+    case 6: return <Waves className="w-4 h-4" />; // Stream (smaller)
+    default: return <Route className="w-5 h-5" />;
+  }
+};
+
+// Helper to get path color class
+const getPathColorClass = (pathType: number) => {
+  switch (pathType) {
+    case 1: return 'text-gray-400'; // Paved Road
+    case 2: return 'text-amber-600'; // Dirt Road
+    case 3: return 'text-green-500'; // Geographic
+    case 5: return 'text-blue-500'; // River
+    case 6: return 'text-cyan-400'; // Stream
+    default: return 'text-gray-400';
+  }
+};
+
+// Helper to get region icon based on type
+const getRegionIcon = (regionType: number) => {
+  switch (regionType) {
+    case 1: return null; // Geographic - no icon, just text
+    case 2: return <AlertCircle className="w-4 h-4 text-red-400" />; // Encounter
+    case 3: return <Mountain className="w-4 h-4 text-purple-400" />; // Transform
+    case 4: return <Layers className="w-4 h-4 text-amber-400" />; // Sector
+    default: return null;
+  }
+};
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   selectedItem,
@@ -24,9 +66,17 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onDiscard,
   onDelete,
   isSaving = false,
-  hasUnsavedChanges = false
+  hasUnsavedChanges = false,
+  onCreateLayer,
+  relatedRegions = []
 }) => {
   const COORDINATE_BOUNDS = { min: -1024, max: 1024 };
+  const [pathTypes, setPathTypes] = useState<any>(null);
+  
+  // Fetch path types on mount
+  useEffect(() => {
+    apiClient.getPathTypes().then(setPathTypes).catch(console.error);
+  }, []);
   
   // Validation and sanitization functions
   const validateCoordinate = useCallback((value: number): number => {
@@ -91,8 +141,21 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   return (
     <div className="p-4 bg-gray-900 space-y-4 max-h-full overflow-y-auto">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-white">
-          {isRegion ? 'Region' : 'Path'}
+        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+          {isPath && (
+            <>
+              <span className={getPathColorClass((selectedItem as Path).path_type)}>
+                {getPathIcon((selectedItem as Path).path_type)}
+              </span>
+              <span>Path Properties</span>
+            </>
+          )}
+          {isRegion && (
+            <>
+              {getRegionIcon((selectedItem as Region).region_type)}
+              <span>Region Properties</span>
+            </>
+          )}
         </h3>
         <button 
           onClick={() => {
@@ -146,35 +209,120 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
       {/* Type selection */}
       {isRegion && (
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Type</label>
-          <select
-            value={(selectedItem as Region).region_type}
-            onChange={(e) => onUpdate({ region_type: parseInt(e.target.value) as Region['region_type'] })}
-            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value={1}>Geographic</option>
-            <option value={2}>Encounter</option>
-            <option value={3}>Sector Transform</option>
-            <option value={4}>Sector</option>
-          </select>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Type</label>
+            <select
+              value={(selectedItem as Region).region_type}
+              onChange={(e) => onUpdate({ region_type: parseInt(e.target.value) as Region['region_type'] })}
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value={1}>Geographic</option>
+              <option value={2}>Encounter</option>
+              <option value={3}>Sector Transform</option>
+              <option value={4}>Sector Override</option>
+            </select>
+          </div>
+          
+          {/* Region layering for Geographic regions */}
+          {(selectedItem as Region).region_type === 1 && onCreateLayer && (
+            <div className="bg-purple-900/20 border border-purple-800 rounded-lg p-3">
+              <h4 className="text-purple-300 font-medium text-sm mb-2">
+                <Layers className="inline w-4 h-4 mr-1" />
+                Region Layering
+              </h4>
+              <p className="text-purple-200 text-xs mb-3">
+                Geographic regions can be paired with matching layers for terrain control.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onCreateLayer(selectedItem as Region, 'sector')}
+                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs py-2 px-3 rounded flex items-center justify-center gap-1"
+                  title="Create a matching Sector Override region with the same coordinates"
+                >
+                  <Layers className="w-3 h-3" />
+                  Add Sector Layer
+                </button>
+                <button
+                  onClick={() => onCreateLayer(selectedItem as Region, 'transform')}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-xs py-2 px-3 rounded flex items-center justify-center gap-1"
+                  title="Create a matching Transform region for elevation adjustment"
+                >
+                  <Mountain className="w-3 h-3" />
+                  Add Transform Layer
+                </button>
+              </div>
+              
+              {/* Show related regions if any */}
+              {relatedRegions.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-purple-700">
+                  <p className="text-purple-300 text-xs font-medium mb-2">Related Regions:</p>
+                  <ul className="space-y-1">
+                    {relatedRegions.map(r => (
+                      <li key={r.vnum} className="text-purple-200 text-xs flex items-center gap-1">
+                        {getRegionIcon(r.region_type)}
+                        <span>{r.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Warning for Geographic regions */}
+          {(selectedItem as Region).region_type === 1 && (
+            <div className="bg-yellow-900/20 border border-yellow-800 rounded-lg p-2">
+              <p className="text-yellow-300 text-xs flex items-start gap-1">
+                <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                <span>Geographic regions should not overlap with other Geographic regions.</span>
+              </p>
+            </div>
+          )}
         </div>
       )}
 
       {isPath && (
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Type</label>
-          <select
-            value={(selectedItem as Path).path_type}
-            onChange={(e) => onUpdate({ path_type: parseInt(e.target.value) as Path['path_type'] })}
-            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value={1}>Paved Road</option>
-            <option value={2}>Dirt Road</option>
-            <option value={3}>Geographic</option>
-            <option value={5}>River</option>
-            <option value={6}>Stream</option>
-          </select>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Path Type</label>
+            <select
+              value={(selectedItem as Path).path_type}
+              onChange={(e) => onUpdate({ path_type: parseInt(e.target.value) as Path['path_type'] })}
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value={1}>🛣️ Paved Road</option>
+              <option value={2}>🚧 Dirt Road</option>
+              <option value={3}>🌿 Geographic Feature</option>
+              <option value={5}>🌊 River</option>
+              <option value={6}>💧 Stream</option>
+            </select>
+            
+            {/* Show path type description if available */}
+            {pathTypes && pathTypes.path_types[(selectedItem as Path).path_type] && (
+              <div className="mt-2 p-2 bg-gray-800 rounded text-xs text-gray-400">
+                <p className="font-medium text-gray-300">
+                  {pathTypes.path_types[(selectedItem as Path).path_type].name}
+                </p>
+                <p className="mt-1">
+                  {pathTypes.path_types[(selectedItem as Path).path_type].description}
+                </p>
+                <p className="mt-1 text-blue-400">
+                  Behavior: {pathTypes.path_types[(selectedItem as Path).path_type].behavior}
+                </p>
+              </div>
+            )}
+          </div>
+          
+          {/* Path behavior info box */}
+          <div className="bg-blue-900/20 border border-blue-800 rounded-lg p-3">
+            <h4 className="text-blue-300 font-medium text-sm mb-2">Path Behavior</h4>
+            <ul className="text-blue-200 text-xs space-y-1">
+              <li>✓ Overrides underlying terrain sector</li>
+              <li>✓ Replaces room name with: "{selectedItem.name}"</li>
+              <li>✓ Provides movement benefits based on type</li>
+            </ul>
+          </div>
         </div>
       )}
 

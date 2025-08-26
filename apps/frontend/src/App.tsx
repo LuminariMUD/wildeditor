@@ -12,6 +12,7 @@ import { ErrorNotification } from './components/ErrorNotification';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { useEditor } from './hooks/useEditor';
 import { useAuth } from './hooks/useAuth';
+import { Region } from './types';
 import { User, Settings, LogOut } from 'lucide-react';
 
 function App() {
@@ -47,7 +48,9 @@ function App() {
     saveAllUnsaved,
     discardItem,
     discardAllUnsaved,
-    deleteItem 
+    deleteItem,
+    createLayer,
+    findRelatedRegions
   } = useEditor();
 
   // Keyboard shortcuts
@@ -184,6 +187,8 @@ function App() {
                 onSave={saveItem}
                 onDiscard={discardItem}
                 onDelete={deleteItem}
+                onCreateLayer={createLayer}
+                relatedRegions={state.selectedItem && 'region_type' in state.selectedItem ? findRelatedRegions(state.selectedItem as Region) : []}
                 isSaving={state.selectedItem ? savingItems.has(
                   ('vnum' in state.selectedItem && state.selectedItem.vnum) 
                     ? state.selectedItem.vnum.toString() 
