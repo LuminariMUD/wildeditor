@@ -164,26 +164,24 @@ class RegionHintResponse(RegionHintBase):
         
     @classmethod
     def model_validate(cls, obj, **kwargs):
-        """Custom validation to handle missing agent_id field."""
-        if not hasattr(obj, 'agent_id'):
-            # Create a dict from the object if agent_id is missing
-            obj_dict = {
-                'id': obj.id,
-                'region_vnum': obj.region_vnum,
-                'hint_category': obj.hint_category,
-                'hint_text': obj.hint_text,
-                'priority': obj.priority,
-                'seasonal_weight': obj.seasonal_weight,
-                'weather_conditions': obj.weather_conditions.split(',') if isinstance(obj.weather_conditions, str) else obj.weather_conditions,
-                'time_of_day_weight': obj.time_of_day_weight,
-                'resource_triggers': obj.resource_triggers,
-                'agent_id': getattr(obj, 'agent_id', None),  # Use actual value or None
-                'created_at': obj.created_at,
-                'updated_at': obj.updated_at,
-                'is_active': obj.is_active
-            }
-            return super().model_validate(obj_dict, **kwargs)
-        return super().model_validate(obj, **kwargs)
+        """Custom validation to handle weather_conditions conversion and agent_id."""
+        # Always create a dict to handle weather_conditions conversion
+        obj_dict = {
+            'id': obj.id,
+            'region_vnum': obj.region_vnum,
+            'hint_category': obj.hint_category,
+            'hint_text': obj.hint_text,
+            'priority': obj.priority,
+            'seasonal_weight': obj.seasonal_weight,
+            'weather_conditions': obj.weather_conditions.split(',') if isinstance(obj.weather_conditions, str) else obj.weather_conditions,
+            'time_of_day_weight': obj.time_of_day_weight,
+            'resource_triggers': obj.resource_triggers,
+            'agent_id': getattr(obj, 'agent_id', None),  # Use actual value or None
+            'created_at': obj.created_at,
+            'updated_at': obj.updated_at,
+            'is_active': obj.is_active
+        }
+        return super().model_validate(obj_dict, **kwargs)
 
 
 class RegionHintListResponse(BaseModel):
@@ -258,22 +256,20 @@ class RegionProfileResponse(RegionProfileBase):
         
     @classmethod
     def model_validate(cls, obj, **kwargs):
-        """Custom validation to handle missing agent_id field."""
-        if not hasattr(obj, 'agent_id'):
-            # Create a dict from the object if agent_id is missing
-            obj_dict = {
-                'region_vnum': obj.region_vnum,
-                'overall_theme': obj.overall_theme,
-                'dominant_mood': obj.dominant_mood,
-                'key_characteristics': obj.key_characteristics,
-                'description_style': obj.description_style,
-                'complexity_level': obj.complexity_level,
-                'agent_id': getattr(obj, 'agent_id', None),  # Use actual value or None
-                'created_at': obj.created_at,
-                'updated_at': obj.updated_at
-            }
-            return super().model_validate(obj_dict, **kwargs)
-        return super().model_validate(obj, **kwargs)
+        """Custom validation to handle agent_id field."""
+        # Always create a dict for consistency
+        obj_dict = {
+            'region_vnum': obj.region_vnum,
+            'overall_theme': obj.overall_theme,
+            'dominant_mood': obj.dominant_mood,
+            'key_characteristics': obj.key_characteristics,
+            'description_style': obj.description_style,
+            'complexity_level': obj.complexity_level,
+            'agent_id': getattr(obj, 'agent_id', None),  # Use actual value or None
+            'created_at': obj.created_at,
+            'updated_at': obj.updated_at
+        }
+        return super().model_validate(obj_dict, **kwargs)
 
 
 # Generation request schemas
