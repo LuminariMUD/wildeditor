@@ -9,7 +9,7 @@ import os
 import logging
 from typing import Dict, Any, Optional, List
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic_ai import Agent, ModelRetry
 from pydantic_ai.models import Model
 from pydantic_ai.models.openai import OpenAIModel
@@ -54,7 +54,20 @@ class GeneratedHint(BaseModel):
     category: str = Field(description="Hint category (atmosphere, fauna, flora, etc.)")
     text: str = Field(description="Clean descriptive hint text without formatting")
     priority: int = Field(ge=1, le=10, description="Priority level 1-10")
-    weather_conditions: List[str] = Field(default_factory=list, description="Applicable weather conditions")
+    weather_conditions: List[str] = Field(
+        default_factory=list, 
+        description="Applicable weather conditions - ONLY use: clear, cloudy, rainy, stormy, lightning"
+    )
+    
+    @field_validator('weather_conditions')
+    @classmethod
+    def validate_weather(cls, v: List[str]) -> List[str]:
+        """Validate and clean weather conditions"""
+        valid_weather = {'clear', 'cloudy', 'rainy', 'stormy', 'lightning'}
+        # Filter to only valid weather conditions
+        cleaned = [w for w in v if w in valid_weather]
+        # If all conditions were invalid, return empty list
+        return cleaned if cleaned else []
 
 class GeneratedHints(BaseModel):
     """Structured output for generated hints collection"""
@@ -221,6 +234,11 @@ class AIService:
                 - Generate clean, descriptive hints without headers or formatting characters
                 - Each hint should be a complete standalone sentence that enhances immersion
                 - Categorize hints appropriately: atmosphere, fauna, flora, geography, sounds, scents, weather_influence, mystical, landmarks, resources, seasonal_changes, time_of_day
+                - CRITICAL: For weather_conditions, ONLY use these exact values: clear, cloudy, rainy, stormy, lightning
+                - Do NOT put time of day (dawn, evening, night) in weather_conditions
+                - Do NOT put seasons (winter, summer) in weather_conditions  
+                - Do NOT put other weather types (foggy, misty) in weather_conditions
+                - If a hint is not weather-specific, use an empty list for weather_conditions
                 - Create hints similar to these mosswood examples:
                   * "The profound silence of the moss-covered forest creates an almost sacred atmosphere, where even your footsteps are muffled by the thick emerald carpet beneath your feet."
                   * "Ancient oak and elm trees rise like cathedral pillars, their gnarled branches forming a natural canopy that filters sunlight into dancing patterns of green and gold."
@@ -551,7 +569,7 @@ Generate 8-15 categorized hints that enhance player immersion. Each hint should 
 - Similar in style to the mosswood examples provided in instructions
 - Categorized appropriately (atmosphere, fauna, flora, geography, sounds, scents, weather_influence, mystical, landmarks, resources, seasonal_changes, time_of_day)
 - Assigned a priority from 1-10 based on impact and uniqueness
-- Include appropriate weather conditions where relevant
+- Include weather conditions ONLY from: clear, cloudy, rainy, stormy, lightning (or leave empty if not weather-specific)
 
 Focus on creating vivid, sensory details that bring the environment to life for text-based gameplay."""
 
@@ -571,17 +589,29 @@ Focus on creating vivid, sensory details that bring the environment to life for 
                         # For DeepSeek or other providers that might return different structure
                         generated = result
                     
+                    # Validate and clean weather conditions
+                    valid_weather = {'clear', 'cloudy', 'rainy', 'stormy', 'lightning'}
+                    cleaned_hints = []
+                    
+                    for hint in generated.hints:
+                        # Filter out invalid weather conditions
+                        clean_weather = [w for w in hint.weather_conditions if w in valid_weather]
+                        
+                        # If no valid weather conditions remain, use default set
+                        if not clean_weather and hint.weather_conditions:
+                            # Had weather conditions but all were invalid - use defaults
+                            clean_weather = ['clear', 'cloudy', 'rainy', 'stormy', 'lightning']
+                            
+                        cleaned_hints.append({
+                            "category": hint.category,
+                            "text": hint.text,
+                            "priority": hint.priority,
+                            "weather_conditions": clean_weather,
+                            "ai_agent_id": "mcp_ai_hint_generator"
+                        })
+                    
                     return {
-                        "hints": [
-                            {
-                                "category": hint.category,
-                                "text": hint.text,
-                                "priority": hint.priority,
-                                "weather_conditions": hint.weather_conditions,
-                                "ai_agent_id": "mcp_ai_hint_generator"
-                            }
-                            for hint in generated.hints
-                        ],
+                        "hints": cleaned_hints,
                         "total_hints_generated": generated.total_count,
                         "categories_used": generated.categories_used,
                         "ai_provider": self.provider.value,
