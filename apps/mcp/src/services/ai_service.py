@@ -526,9 +526,9 @@ Create a comprehensive, immersive description that brings this region to life.""
             Dictionary with generated hints and metadata
         """
         
-        # Check if we have a model to work with
-        if not self.model:
-            logger.error("No AI model available for hint generation")
+        # Check if we have an agent to work with
+        if not self.agent:
+            logger.error("No AI agent available for hint generation")
             return {
                 "error": "AI service not available for hint generation",
                 "hints": [],
@@ -582,55 +582,79 @@ Focus on creating vivid, sensory details that bring the environment to life for 
             max_retries = 2
             for attempt in range(max_retries):
                 try:
-                    # Create a temporary agent instance with GeneratedHints output type
-                    # using the same model as the description agent
-                    hint_agent = Agent(
-                        model=self.model,
-                        output_type=GeneratedHints,
-                        instructions="""You are an expert wilderness designer for a fantasy MUD game. 
-                        Your task is to analyze region descriptions and generate immersive atmospheric hints.
-                        
-                        Guidelines:
-                        - Generate clean, descriptive hints without headers or formatting characters
-                        - Each hint should be a complete standalone sentence that enhances immersion
-                        - Categorize hints ONLY using these valid categories: atmosphere, fauna, flora, weather_influence, sounds, scents, seasonal_changes, time_of_day, mystical
-                        - DO NOT use: geography, landmarks, resources (map these to atmosphere or flora instead)
-                        - CRITICAL: For weather_conditions, ONLY use these exact values: clear, cloudy, rainy, stormy, lightning
-                        - Do NOT put time of day (dawn, evening, night) in weather_conditions
-                        - Do NOT put seasons (winter, summer) in weather_conditions  
-                        - Do NOT put other weather types (foggy, misty) in weather_conditions
-                        - If a hint is not weather-specific, use an empty list for weather_conditions
-                        
-                        STRICT WEIGHT RULES - CRITICAL:
-                        
-                        TIME OF DAY:
-                        - EXPLICIT time mentions ("at dusk", "at dawn", "at midnight"): 
-                          ONLY that time gets 2.0, ALL others get 0.0
-                          Example: "At dusk, flowers unfurl" -> {"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 2.0, "night": 0.0}
-                        - THEMED time (moonlight, stars, nocturnal, darkness):
-                          Primary time gets 2.0, adjacent gets 0.5, opposite gets 0.0
-                          Example: "Moonlight bathes the forest" -> {"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 0.5, "night": 2.0}
-                          
-                        SEASONS:
-                        - EXPLICIT season mentions ("in winter", "during spring"):
-                          ONLY that season gets 2.0, ALL others get 0.0
-                          Example: "Winter frost covers everything" -> {"spring": 0.0, "summer": 0.0, "autumn": 0.0, "winter": 2.0}
-                        - THEMED season (flowers=spring, snow=winter, harvest=autumn, heat=summer):
-                          Primary season gets 2.0, adjacent gets 0.5 max, opposite gets 0.0
-                          Example: "Flowers bloom" -> {"spring": 2.0, "summer": 0.5, "autumn": 0.0, "winter": 0.0}
-                          
-                        GENERAL HINTS: Set both weights to null (not included in output)
-                        - Create hints similar to these mosswood examples:
-                          * "The profound silence of the moss-covered forest creates an almost sacred atmosphere, where even your footsteps are muffled by the thick emerald carpet beneath your feet."
-                          * "Ancient oak and elm trees rise like cathedral pillars, their gnarled branches forming a natural canopy that filters sunlight into dancing patterns of green and gold."
-                          * "The air carries the rich, earthy scent of decomposing leaves mixed with the fresh, clean smell of growing moss and ferns."
-                        
-                        Your hints should be evocative, detailed, and help players fully immerse in the environment."""
-                    )
-                    
                     logger.info(f"AI hint generation attempt {attempt + 1}, description length: {len(description)}")
-                    result = await hint_agent.run(user_content)
+                    
+                    # Use the existing powerful agent with a detailed prompt for hint generation
+                    hint_prompt = f"""You are an expert wilderness designer. Generate 8-15 categorized hints from the description.
+
+RETURN FORMAT - You MUST return a valid JSON object with this exact structure:
+{{
+  "hints": [
+    {{
+      "category": "atmosphere|fauna|flora|weather_influence|sounds|scents|seasonal_changes|time_of_day|mystical",
+      "text": "Complete descriptive sentence",
+      "priority": 1-10,
+      "weather_conditions": ["clear", "cloudy", "rainy", "stormy", "lightning"] or [],
+      "seasonal_weight": {{"spring": 0.0-2.0, "summer": 0.0-2.0, "autumn": 0.0-2.0, "winter": 0.0-2.0}} or null,
+      "time_of_day_weight": {{"dawn": 0.0-2.0, "morning": 0.0-2.0, "midday": 0.0-2.0, "afternoon": 0.0-2.0, "evening": 0.0-2.0, "night": 0.0-2.0}} or null
+    }}
+  ],
+  "total_count": number,
+  "categories_used": ["list", "of", "categories"]
+}}
+
+RULES:
+- Categories: atmosphere, fauna, flora, weather_influence, sounds, scents, seasonal_changes, time_of_day, mystical
+- Weather: ONLY use clear, cloudy, rainy, stormy, lightning
+- Weights: 0.0=never, 1.0=normal, 2.0=double chance
+- Time/Season specific hints: Set 2.0 for relevant time/season, 0.0 for others
+- General hints: Set weights to null
+
+{user_content}"""
+                    
+                    # Call the existing agent - but we need to handle the fact it returns GeneratedDescription not GeneratedHints
+                    # So we'll ask it to return JSON in the description_text field
+                    result = await self.agent.run(hint_prompt)
                     logger.info(f"AI agent returned result type: {type(result)}")
+                    
+                    # Parse the response - the agent returns GeneratedDescription, hints are in description_text as JSON
+                    if hasattr(result, 'data'):
+                        response_text = result.data.description_text if hasattr(result.data, 'description_text') else str(result.data)
+                    elif hasattr(result, 'output'):
+                        response_text = result.output.description_text if hasattr(result.output, 'description_text') else str(result.output)
+                    else:
+                        response_text = str(result)
+                    
+                    # Try to parse the JSON response
+                    import json as json_lib
+                    try:
+                        generated_dict = json_lib.loads(response_text)
+                        if not isinstance(generated_dict, dict) or 'hints' not in generated_dict:
+                            raise ValueError("Invalid hint response format")
+                        # Create a GeneratedHints object from the dict
+                        generated = GeneratedHints(
+                            hints=[GeneratedHint(**hint) for hint in generated_dict['hints']],
+                            total_count=generated_dict.get('total_count', len(generated_dict['hints'])),
+                            categories_used=generated_dict.get('categories_used', [])
+                        )
+                    except (json_lib.JSONDecodeError, ValueError) as e:
+                        logger.error(f"Failed to parse hint response: {e}")
+                        logger.error(f"Response was: {response_text[:500]}...")
+                        # Try to extract JSON from the response if it's embedded in text
+                        import re
+                        json_match = re.search(r'\{.*"hints".*\}', response_text, re.DOTALL)
+                        if json_match:
+                            try:
+                                generated_dict = json_lib.loads(json_match.group())
+                                generated = GeneratedHints(
+                                    hints=[GeneratedHint(**hint) for hint in generated_dict['hints']],
+                                    total_count=generated_dict.get('total_count', len(generated_dict['hints'])),
+                                    categories_used=generated_dict.get('categories_used', [])
+                                )
+                            except:
+                                raise ValueError(f"Could not parse hints from response")
+                        else:
+                            raise ValueError(f"No JSON found in response")
                     
                     # Extract the structured result - handle different result formats
                     if hasattr(result, 'data'):
