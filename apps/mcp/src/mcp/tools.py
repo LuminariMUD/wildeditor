@@ -1733,27 +1733,35 @@ class ToolRegistry:
             # Check if hint agent specifically is available
             if hasattr(ai_service, 'is_hint_agent_available') and ai_service.is_hint_agent_available():
                 logger.info("Hint agent is available, generating hints")
+                logger.info(f"Description preview: {description[:200]}...")
                 ai_result = await ai_service.generate_hints_from_description(
                     description=description,
                     region_name=region_name
                 )
+                logger.info(f"AI service returned: {type(ai_result)}, has error: {ai_result.get('error') if ai_result else 'N/A'}")
+                if ai_result and 'hints' in ai_result:
+                    logger.info(f"Hints in result: {len(ai_result.get('hints', []))}")
             elif ai_service.is_available():
                 # Fallback to checking general availability
                 logger.warning("Using general AI availability check (hint agent might not be available)")
+                logger.info(f"Description preview: {description[:200]}...")
                 ai_result = await ai_service.generate_hints_from_description(
                     description=description,
                     region_name=region_name
                 )
+                logger.info(f"AI service returned: {type(ai_result)}, has error: {ai_result.get('error') if ai_result else 'N/A'}")
+                if ai_result and 'hints' in ai_result:
+                    logger.info(f"Hints in result: {len(ai_result.get('hints', []))}")
             else:
                 logger.error("AI service not available for hint generation")
                 ai_result = None
-                
-                # If AI generation successful, return hints directly
-                # The AI agent should already have set appropriate weights
-                if ai_result and not ai_result.get("error"):
-                    hints = ai_result.get("hints", [])
-                    logger.info(f"AI generation successful: {len(hints)} hints generated")
-                    return hints
+            
+            # If AI generation successful, return hints directly
+            # The AI agent should already have set appropriate weights
+            if ai_result and not ai_result.get("error"):
+                hints = ai_result.get("hints", [])
+                logger.info(f"AI generation successful: {len(hints)} hints generated")
+                return hints
             
             # If we get here, AI failed or wasn't available
             if not ai_result:
