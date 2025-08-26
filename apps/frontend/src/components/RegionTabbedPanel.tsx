@@ -8,6 +8,7 @@ import { Region } from '../types';
 import { apiClient } from '../services/api';
 import { GenerateDescriptionDialog } from './GenerateDescriptionDialog';
 import { CoordinateEditor } from './CoordinateEditor';
+import { HintEditor } from './HintEditor';
 
 interface RegionTabbedPanelProps {
   region: Region;
