@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, Settings, CheckCircle, Star, 
-  AlertCircle, Mountain, Layers
+  AlertCircle, Mountain, Layers, Lightbulb,
+  Plus, Trash2, Edit2, Filter, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { Region } from '../types';
 import { apiClient } from '../services/api';
@@ -16,7 +17,7 @@ interface RegionTabbedPanelProps {
   onSelectRegion?: (region: Region) => void;
 }
 
-type TabType = 'properties' | 'description' | 'review';
+type TabType = 'properties' | 'description' | 'hints' | 'review';
 
 // Helper to get region icon based on type
 const getRegionIcon = (regionType: number) => {
@@ -40,6 +41,113 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [hints, setHints] = useState<any[]>([]);
+  const [hintsLoading, setHintsLoading] = useState(false);
+  const [hintsError, setHintsError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+  // Fetch hints when hints tab is selected
+  useEffect(() => {
+    if (activeTab === 'hints' && region.vnum) {
+      fetchHints();
+    }
+  }, [activeTab, region.vnum]);
+
+  const fetchHints = async () => {
+    setHintsLoading(true);
+    setHintsError(null);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints`, {
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setHints(data.hints || []);
+      } else if (response.status === 404) {
+        setHints([]);
+      } else {
+        throw new Error(`Failed to fetch hints: ${response.status}`);
+      }
+    } catch (error) {
+      setHintsError(error instanceof Error ? error.message : 'Failed to fetch hints');
+      setHints([]);
+    } finally {
+      setHintsLoading(false);
+    }
+  };
+
+  const generateHintsFromDescription = async () => {
+    if (!region.region_description) {
+      setHintsError('Region needs a description to generate hints');
+      return;
+    }
+
+    setHintsLoading(true);
+    setHintsError(null);
+    
+    try {
+      // First generate hints using MCP
+      const generateResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
+        },
+        body: JSON.stringify({
+          description: region.region_description,
+          region_name: region.name,
+          region_type: region.region_type,
+          target_hint_count: 20,
+          include_profile: true
+        })
+      });
+
+      if (generateResponse.ok) {
+        const generatedData = await generateResponse.json();
+        
+        // Store the generated hints
+        if (generatedData.hints && generatedData.hints.length > 0) {
+          const storeResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
+            },
+            body: JSON.stringify({
+              hints: generatedData.hints
+            })
+          });
+
+          if (storeResponse.ok) {
+            // Refresh hints list
+            await fetchHints();
+          } else {
+            throw new Error('Failed to store generated hints');
+          }
+        }
+      } else {
+        throw new Error('Failed to generate hints from description');
+      }
+    } catch (error) {
+      setHintsError(error instanceof Error ? error.message : 'Failed to generate hints');
+    } finally {
+      setHintsLoading(false);
+    }
+  };
+
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
 
   const renderTabs = () => (
     <div className="flex border-b border-gray-700">
@@ -64,6 +172,17 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
       >
         <FileText className="w-4 h-4" />
         Description
+      </button>
+      <button
+        onClick={() => setActiveTab('hints')}
+        className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
+          activeTab === 'hints'
+            ? 'text-white border-b-2 border-blue-500'
+            : 'text-gray-400 hover:text-white'
+        }`}
+      >
+        <Lightbulb className="w-4 h-4" />
+        Hints
       </button>
       <button
         onClick={() => setActiveTab('review')}
@@ -468,6 +587,180 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
     </div>
   );
 
+  const renderHintsTab = () => {
+    const hintCategories = {
+      atmosphere: { label: 'Atmosphere', icon: '🌫️', color: 'text-blue-400' },
+      fauna: { label: 'Fauna', icon: '🦎', color: 'text-green-400' },
+      flora: { label: 'Flora', icon: '🌿', color: 'text-emerald-400' },
+      geography: { label: 'Geography', icon: '⛰️', color: 'text-amber-400' },
+      weather_influence: { label: 'Weather', icon: '🌦️', color: 'text-cyan-400' },
+      resources: { label: 'Resources', icon: '💎', color: 'text-purple-400' },
+      landmarks: { label: 'Landmarks', icon: '🏛️', color: 'text-pink-400' },
+      sounds: { label: 'Sounds', icon: '🔊', color: 'text-orange-400' },
+      scents: { label: 'Scents', icon: '👃', color: 'text-rose-400' },
+      seasonal_changes: { label: 'Seasonal', icon: '🍂', color: 'text-yellow-400' },
+      time_of_day: { label: 'Time of Day', icon: '🌅', color: 'text-indigo-400' },
+      mystical: { label: 'Mystical', icon: '✨', color: 'text-violet-400' }
+    };
+
+    // Group hints by category
+    const hintsByCategory = hints.reduce((acc, hint) => {
+      const category = hint.hint_category || 'uncategorized';
+      if (!acc[category]) acc[category] = [];
+      acc[category].push(hint);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    // Filter by selected category
+    const filteredCategories = selectedCategory === 'all' 
+      ? Object.entries(hintsByCategory)
+      : Object.entries(hintsByCategory).filter(([cat]) => cat === selectedCategory);
+
+    return (
+      <div className="space-y-3">
+        {/* Header with generate button */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-medium text-gray-300">Region Hints</h3>
+            <span className="text-xs text-gray-500">({hints.length} total)</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* Category filter */}
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="text-xs bg-gray-800 border border-gray-600 rounded px-2 py-1"
+            >
+              <option value="all">All Categories</option>
+              {Object.entries(hintCategories).map(([key, cat]) => (
+                <option key={key} value={key}>{cat.label}</option>
+              ))}
+            </select>
+
+            {/* Generate button */}
+            {region.region_description && (
+              <button
+                onClick={generateHintsFromDescription}
+                disabled={hintsLoading}
+                className="text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 px-3 py-1 rounded flex items-center gap-1"
+              >
+                {hintsLoading ? (
+                  <>Generating...</>
+                ) : (
+                  <>
+                    <Plus className="w-3 h-3" />
+                    Generate from Description
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Error message */}
+        {hintsError && (
+          <div className="bg-red-900/20 border border-red-800 rounded-lg p-2">
+            <p className="text-red-300 text-xs">{hintsError}</p>
+          </div>
+        )}
+
+        {/* Loading state */}
+        {hintsLoading && hints.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-gray-400 text-sm">Loading hints...</p>
+          </div>
+        )}
+
+        {/* No hints message */}
+        {!hintsLoading && hints.length === 0 && (
+          <div className="bg-gray-800 rounded-lg p-4 text-center">
+            <Lightbulb className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+            <p className="text-gray-400 text-sm mb-2">No hints found for this region</p>
+            {region.region_description ? (
+              <p className="text-gray-500 text-xs">
+                Click "Generate from Description" to create hints from the region's description
+              </p>
+            ) : (
+              <p className="text-gray-500 text-xs">
+                Add a description to this region first, then generate hints
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Hints list grouped by category */}
+        {filteredCategories.length > 0 && (
+          <div className="space-y-2">
+            {filteredCategories.map(([category, categoryHints]) => {
+              const catInfo = hintCategories[category as keyof typeof hintCategories] || 
+                { label: category, icon: '❓', color: 'text-gray-400' };
+              const isExpanded = expandedCategories.has(category);
+
+              return (
+                <div key={category} className="bg-gray-800 rounded-lg overflow-hidden">
+                  {/* Category header */}
+                  <button
+                    onClick={() => toggleCategory(category)}
+                    className="w-full px-3 py-2 flex items-center justify-between hover:bg-gray-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>{catInfo.icon}</span>
+                      <span className={`text-sm font-medium ${catInfo.color}`}>
+                        {catInfo.label}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        ({categoryHints.length})
+                      </span>
+                    </div>
+                    {isExpanded ? (
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    )}
+                  </button>
+
+                  {/* Hints in this category */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-700 p-2 space-y-1">
+                      {categoryHints.map((hint) => (
+                        <div key={hint.id} className="bg-gray-900 rounded p-2">
+                          <p className="text-xs text-gray-300 leading-relaxed">
+                            {hint.hint_text}
+                          </p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <span className="text-xs text-gray-500">
+                              Priority: {hint.priority}/10
+                            </span>
+                            {hint.seasonal_weight && (
+                              <span className="text-xs text-gray-500">
+                                🍂 Seasonal
+                              </span>
+                            )}
+                            {hint.time_of_day_weight && (
+                              <span className="text-xs text-gray-500">
+                                🌅 Time-based
+                              </span>
+                            )}
+                            {hint.weather_conditions && hint.weather_conditions !== 'clear,cloudy,rainy,stormy,lightning' && (
+                              <span className="text-xs text-gray-500">
+                                🌦️ Weather-specific
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const handleGenerateDescription = async (params: {
     userPrompt: string;
     style: string;
@@ -537,6 +830,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         <div className="flex-1 p-4 overflow-y-auto">
           {activeTab === 'properties' && renderPropertiesTab()}
           {activeTab === 'description' && renderDescriptionTab()}
+          {activeTab === 'hints' && renderHintsTab()}
           {activeTab === 'review' && renderReviewTab()}
         </div>
       </div>
