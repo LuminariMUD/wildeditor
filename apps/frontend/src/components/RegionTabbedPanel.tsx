@@ -68,7 +68,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
     setHintsLoading(true);
     setHintsError(null);
     try {
-      const data = await apiClient.getHints(region.vnum);
+      const data = await apiClient.getRegionHints(region.vnum);
       setHints(data.hints || []);
     } catch (error) {
       // Handle 404 as empty hints (region exists but no hints yet)
