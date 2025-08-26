@@ -360,3 +360,73 @@ For comprehensive information beyond this technical overview, refer to:
 - **[docs/AUDIT.md](docs/AUDIT.md)** - Code quality assessment and recommendations
 
 All documentation is kept up-to-date and reflects the current Python FastAPI backend architecture.
+
+## Region Hints System
+
+### Overview
+The Region Hints system provides AI-generated dynamic descriptions for wilderness regions. Hints are categorized descriptive elements that can be combined based on weather, time of day, and season to create immersive, contextual descriptions.
+
+### Database Tables
+- **region_hints**: Stores categorized hints with weather/time/season conditions
+  - Categories: atmosphere, fauna, flora, geography, weather_influence, resources, landmarks, sounds, scents, seasonal_changes, time_of_day, mystical
+  - Weather conditions: MySQL SET type ('clear', 'cloudy', 'rainy', 'stormy', 'lightning')
+  - Weight ranges: 0-2 (0 = never, 1 = normal, 2 = double probability)
+  - **Note**: Column is `agent_id` not `ai_agent_id` in production
+- **region_profiles**: Stores overall theme and mood for regions
+- **hint_usage_log**: Optional analytics tracking
+
+### API Endpoints
+- `GET /api/regions/{vnum}/hints` - List all hints for a region
+- `POST /api/regions/{vnum}/hints` - Create hints (batch)
+- `PUT /api/regions/{vnum}/hints/{id}` - Update a specific hint
+- `DELETE /api/regions/{vnum}/hints/{id}` - Delete a specific hint
+- `DELETE /api/regions/{vnum}/hints` - Delete all hints for a region
+- `POST /api/regions/{vnum}/hints/generate` - Generate hints from description (uses MCP)
+
+### Frontend Components
+- **RegionTabbedPanel**: Main component with Hints tab for viewing/managing hints
+- **HintEditor**: Modal component for creating/editing individual hints
+  - Weights displayed as percentages (0-200%) in UI
+  - Converted to decimals (0.0-2.0) when saving
+  - Supports seasonal and time-of-day weight multipliers
+
+### Known Issues & Solutions
+
+#### Weight Validation Range
+- **Issue**: Database stores weights as 0-2, frontend was validating for 0-1
+- **Solution**: Updated validation to accept 0-2 range in `schemas/region_hints.py`
+
+#### Weather Conditions Format
+- **Issue**: MySQL SET type needs conversion from string to array
+- **Solution**: Custom validation in `RegionHintResponse.model_validate()` splits comma-separated string
+
+#### Column Name Mismatch
+- **Issue**: Model used `ai_agent_id` but database has `agent_id`
+- **Solution**: Updated models and schemas to use `agent_id`
+
+#### API Client Method Name
+- **Issue**: Frontend called `getHints` but method is `getRegionHints`
+- **Solution**: Fixed method name in `RegionTabbedPanel.tsx`
+
+### MCP Integration
+The system integrates with Model Context Protocol (MCP) for AI-powered hint generation:
+- Endpoint: `/api/mcp/generate-hints`
+- Uses DeepSeek or fallback AI models
+- Generates categorized hints from region descriptions
+- Validates weather conditions against allowed set
+
+### Development Commands
+```bash
+# Check if hints tables exist in database
+cd apps/backend/src
+python3 check_hints_tables.py
+
+# Run migrations to create tables (if needed)
+mysql -h localhost -u luminari_mud -p'password' luminari_mudprod < apps/backend/migrations/002_add_region_hints_tables.sql
+```
+
+### Important Notes
+1. **Always run linter before committing**: `npm run lint`
+2. **Test locally first**: Backend runs on port 8000, frontend on 5173
+3. **CORS errors with 500 status**: Usually means backend is crashing - check detailed error messages
+4. **Weight ranges**: 0-2 throughout the system (not 0-1)
