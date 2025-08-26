@@ -99,8 +99,12 @@ class AIService:
         # Create separate hint agent with same model but different output type
         self.hint_agent = self._create_hint_agent() if self.model else None
         
-        logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.10)")
+        logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.11)")
         logger.info(f"Model: {self.model is not None}, Description Agent: {self.agent is not None}, Hint Agent: {self.hint_agent is not None}")
+        if self.hint_agent:
+            logger.info(f"Hint agent created successfully with model: {type(self.model)}")
+        else:
+            logger.warning(f"Failed to create hint agent - model available: {self.model is not None}")
         logger.info(f"Using two specialized agents with the same powerful model")
     
     def _get_provider(self) -> AIProvider:
@@ -628,10 +632,12 @@ Focus on creating vivid, sensory details that bring the environment to life for 
             for attempt in range(max_retries):
                 try:
                     logger.info(f"AI hint generation attempt {attempt + 1}, description length: {len(description)}")
+                    logger.debug(f"Sending to hint agent: {user_content[:500]}...")
                     
                     # Call the hint agent directly with the user content
                     result = await self.hint_agent.run(user_content)
                     logger.info(f"Hint agent returned result type: {type(result)}")
+                    logger.debug(f"Raw result: {str(result)[:500]}...")
                     
                     # Extract the structured result - handle different result formats
                     if hasattr(result, 'data'):
@@ -646,6 +652,16 @@ Focus on creating vivid, sensory details that bring the environment to life for 
                         logger.info(f"Using raw result: {type(generated)}")
                     
                     logger.info(f"Generated object has {len(generated.hints) if hasattr(generated, 'hints') else 'NO'} hints")
+                    
+                    # If no hints were generated, log why
+                    if hasattr(generated, 'hints') and len(generated.hints) == 0:
+                        logger.warning("Hint agent returned 0 hints - checking why...")
+                        logger.warning(f"Generated object type: {type(generated)}")
+                        logger.warning(f"Generated attributes: {dir(generated)}")
+                        if hasattr(generated, 'total_count'):
+                            logger.warning(f"Total count: {generated.total_count}")
+                        if hasattr(generated, 'categories_used'):
+                            logger.warning(f"Categories used: {generated.categories_used}")
                     
                     # Validate and clean weather conditions
                     valid_weather = {'clear', 'cloudy', 'rainy', 'stormy', 'lightning'}
