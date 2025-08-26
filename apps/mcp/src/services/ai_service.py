@@ -631,16 +631,23 @@ Focus on creating vivid, sensory details that bring the environment to life for 
             max_retries = 2
             for attempt in range(max_retries):
                 try:
+                    logger.info(f"AI hint generation attempt {attempt + 1}, description length: {len(description)}")
                     result = await self.hint_agent.run(user_content)
+                    logger.info(f"AI agent returned result type: {type(result)}")
                     
                     # Extract the structured result - handle different result formats
                     if hasattr(result, 'data'):
                         generated = result.data
+                        logger.info(f"Using result.data: {type(generated)}")
                     elif hasattr(result, 'output'):
                         generated = result.output
+                        logger.info(f"Using result.output: {type(generated)}")
                     else:
                         # For DeepSeek or other providers that might return different structure
                         generated = result
+                        logger.info(f"Using raw result: {type(generated)}")
+                    
+                    logger.info(f"Generated object has {len(generated.hints) if hasattr(generated, 'hints') else 'NO'} hints")
                     
                     # Validate and clean weather conditions
                     valid_weather = {'clear', 'cloudy', 'rainy', 'stormy', 'lightning'}
@@ -673,14 +680,22 @@ Focus on creating vivid, sensory details that bring the environment to life for 
                     }
                     
                 except ModelRetry as e:
+                    logger.error(f"ModelRetry exception on attempt {attempt + 1}: {e}")
                     if attempt == max_retries - 1:
                         logger.error(f"Max retries exceeded for hint generation: {e}")
                         raise
                     logger.warning(f"Retrying hint generation (attempt {attempt + 1}): {e}")
                     continue
+                except Exception as inner_e:
+                    logger.error(f"Exception during hint generation attempt {attempt + 1}: {inner_e}")
+                    if attempt == max_retries - 1:
+                        raise
+                    continue
                     
         except Exception as e:
+            import traceback
             logger.error(f"AI hint generation failed: {e}")
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return {
                 "error": f"Failed to generate hints: {str(e)}",
                 "hints": [],
