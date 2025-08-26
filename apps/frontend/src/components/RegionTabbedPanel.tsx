@@ -848,7 +848,11 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
 
             {/* Add hint button */}
             <button
-              onClick={() => console.log('Add new hint')}
+              onClick={() => {
+                setEditingHint(null);
+                setIsCreatingHint(true);
+                setShowHintEditor(true);
+              }}
               className="text-xs bg-green-600 hover:bg-green-700 px-2 py-1 rounded flex items-center gap-1"
               title="Add a new hint manually"
             >
@@ -954,7 +958,11 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
                             </p>
                             <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
-                                onClick={() => console.log('Edit hint:', hint.id)}
+                                onClick={() => {
+                                  setEditingHint(hint);
+                                  setIsCreatingHint(false);
+                                  setShowHintEditor(true);
+                                }}
                                 className="p-1 text-gray-400 hover:text-blue-400 transition-colors"
                                 title="Edit hint"
                               >
