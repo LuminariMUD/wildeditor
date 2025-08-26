@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   FileText, Settings, CheckCircle, Star, 
-  AlertCircle, Mountain, Layers, Hash
+  AlertCircle, Mountain, Layers
 } from 'lucide-react';
 import { Region } from '../types';
 
@@ -32,22 +32,6 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
   relatedRegions = []
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('properties');
-  
-  // Extended region interface with description fields
-  const extendedRegion = region as Region & {
-    region_description?: string;
-    description_style?: string;
-    description_length?: string;
-    has_historical_context?: boolean;
-    has_resource_info?: boolean;
-    has_wildlife_info?: boolean;
-    has_geological_info?: boolean;
-    has_cultural_info?: boolean;
-    description_quality_score?: number;
-    requires_review?: boolean;
-    is_approved?: boolean;
-    ai_agent_source?: string;
-  };
 
   const renderTabs = () => (
     <div className="flex border-b border-gray-700">
@@ -254,8 +238,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
           Region Description
         </label>
         <textarea
-          value={extendedRegion.region_description || ''}
-          onChange={(e) => onUpdate({ region_description: e.target.value } as any)}
+          value={region.region_description || ''}
+          onChange={(e) => onUpdate({ region_description: e.target.value })}
           className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[120px] resize-y"
           placeholder="Enter a detailed description of this region..."
         />
@@ -266,8 +250,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-1">Style</label>
           <select
-            value={extendedRegion.description_style || 'poetic'}
-            onChange={(e) => onUpdate({ description_style: e.target.value } as any)}
+            value={region.description_style || 'poetic'}
+            onChange={(e) => onUpdate({ description_style: e.target.value })}
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-2 py-1 text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="poetic">Poetic</option>
@@ -280,8 +264,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-1">Length</label>
           <select
-            value={extendedRegion.description_length || 'moderate'}
-            onChange={(e) => onUpdate({ description_length: e.target.value } as any)}
+            value={region.description_length || 'moderate'}
+            onChange={(e) => onUpdate({ description_length: e.target.value })}
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-2 py-1 text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="brief">Brief</option>
@@ -299,8 +283,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
-              checked={extendedRegion.has_historical_context || false}
-              onChange={(e) => onUpdate({ has_historical_context: e.target.checked } as any)}
+              checked={region.has_historical_context || false}
+              onChange={(e) => onUpdate({ has_historical_context: e.target.checked })}
               className="rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-300">Historical Context</span>
@@ -308,8 +292,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
-              checked={extendedRegion.has_resource_info || false}
-              onChange={(e) => onUpdate({ has_resource_info: e.target.checked } as any)}
+              checked={region.has_resource_info || false}
+              onChange={(e) => onUpdate({ has_resource_info: e.target.checked })}
               className="rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-300">Resource Information</span>
@@ -317,8 +301,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
-              checked={extendedRegion.has_wildlife_info || false}
-              onChange={(e) => onUpdate({ has_wildlife_info: e.target.checked } as any)}
+              checked={region.has_wildlife_info || false}
+              onChange={(e) => onUpdate({ has_wildlife_info: e.target.checked })}
               className="rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-300">Wildlife Details</span>
@@ -326,8 +310,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
-              checked={extendedRegion.has_geological_info || false}
-              onChange={(e) => onUpdate({ has_geological_info: e.target.checked } as any)}
+              checked={region.has_geological_info || false}
+              onChange={(e) => onUpdate({ has_geological_info: e.target.checked })}
               className="rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-300">Geological Features</span>
@@ -335,8 +319,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
-              checked={extendedRegion.has_cultural_info || false}
-              onChange={(e) => onUpdate({ has_cultural_info: e.target.checked } as any)}
+              checked={region.has_cultural_info || false}
+              onChange={(e) => onUpdate({ has_cultural_info: e.target.checked })}
               className="rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-300">Cultural Information</span>
@@ -368,12 +352,12 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
             min="0"
             max="9.99"
             step="0.01"
-            value={extendedRegion.description_quality_score || 0}
-            onChange={(e) => onUpdate({ description_quality_score: parseFloat(e.target.value) } as any)}
+            value={region.description_quality_score || 0}
+            onChange={(e) => onUpdate({ description_quality_score: parseFloat(e.target.value) })}
             className="flex-1"
           />
           <span className="text-white font-medium w-12 text-right">
-            {(extendedRegion.description_quality_score || 0).toFixed(2)}
+            {(region.description_quality_score || 0).toFixed(2)}
           </span>
         </div>
         <div className="flex justify-between text-xs text-gray-400 mt-1">
@@ -387,8 +371,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
-            checked={extendedRegion.requires_review || false}
-            onChange={(e) => onUpdate({ requires_review: e.target.checked } as any)}
+            checked={region.requires_review || false}
+            onChange={(e) => onUpdate({ requires_review: e.target.checked })}
             className="rounded bg-gray-800 border-gray-600 text-yellow-500 focus:ring-yellow-500"
           />
           <span className="text-sm text-gray-300">Requires Review</span>
@@ -396,8 +380,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
-            checked={extendedRegion.is_approved || false}
-            onChange={(e) => onUpdate({ is_approved: e.target.checked } as any)}
+            checked={region.is_approved || false}
+            onChange={(e) => onUpdate({ is_approved: e.target.checked })}
             className="rounded bg-gray-800 border-gray-600 text-green-500 focus:ring-green-500"
           />
           <span className="text-sm text-gray-300">Approved</span>
@@ -411,8 +395,8 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         </label>
         <input
           type="text"
-          value={extendedRegion.ai_agent_source || ''}
-          onChange={(e) => onUpdate({ ai_agent_source: e.target.value } as any)}
+          value={region.ai_agent_source || ''}
+          onChange={(e) => onUpdate({ ai_agent_source: e.target.value })}
           className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           placeholder="manual, mcp, agent, etc."
         />
@@ -424,29 +408,29 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         <div className="space-y-1">
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-400">Description:</span>
-            <span className={extendedRegion.region_description ? 'text-green-400' : 'text-red-400'}>
-              {extendedRegion.region_description ? 'Present' : 'Missing'}
+            <span className={region.region_description ? 'text-green-400' : 'text-red-400'}>
+              {region.region_description ? 'Present' : 'Missing'}
             </span>
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-400">Quality:</span>
             <span className={
-              (extendedRegion.description_quality_score || 0) >= 7 ? 'text-green-400' :
-              (extendedRegion.description_quality_score || 0) >= 4 ? 'text-yellow-400' :
+              (region.description_quality_score || 0) >= 7 ? 'text-green-400' :
+              (region.description_quality_score || 0) >= 4 ? 'text-yellow-400' :
               'text-red-400'
             }>
-              {(extendedRegion.description_quality_score || 0).toFixed(1)}/10
+              {(region.description_quality_score || 0).toFixed(1)}/10
             </span>
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-400">Review:</span>
             <span className={
-              extendedRegion.is_approved ? 'text-green-400' :
-              extendedRegion.requires_review ? 'text-yellow-400' :
+              region.is_approved ? 'text-green-400' :
+              region.requires_review ? 'text-yellow-400' :
               'text-gray-400'
             }>
-              {extendedRegion.is_approved ? 'Approved' :
-               extendedRegion.requires_review ? 'Pending' :
+              {region.is_approved ? 'Approved' :
+               region.requires_review ? 'Pending' :
                'Not Required'}
             </span>
           </div>

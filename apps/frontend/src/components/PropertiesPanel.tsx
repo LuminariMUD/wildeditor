@@ -4,7 +4,7 @@ import {
   Route, Waves, TreePine, MapPin, AlertCircle 
 } from 'lucide-react';
 import { Region, Path } from '../types';
-import { apiClient } from '../services/api';
+import { apiClient, type PathTypesResponse } from '../services/api';
 import { RegionTabbedPanel } from './RegionTabbedPanel';
 
 interface PropertiesPanelProps {
@@ -72,7 +72,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   relatedRegions = []
 }) => {
   const COORDINATE_BOUNDS = { min: -1024, max: 1024 };
-  const [pathTypes, setPathTypes] = useState<any>(null);
+  const [pathTypes, setPathTypes] = useState<PathTypesResponse | null>(null);
   
   // Fetch path types on mount
   useEffect(() => {

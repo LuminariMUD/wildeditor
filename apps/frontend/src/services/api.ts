@@ -76,7 +76,7 @@ interface PathTypeInfo {
   examples: string[];
 }
 
-interface PathTypesResponse {
+export interface PathTypesResponse {
   path_types: {
     [key: number]: PathTypeInfo;
   };
