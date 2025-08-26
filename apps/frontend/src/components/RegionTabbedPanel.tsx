@@ -41,6 +41,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   interface RegionHint {
     id: number;
     region_vnum: number;
@@ -211,6 +212,22 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
     setExpandedCategories(newExpanded);
   };
 
+  const toggleSection = (section: string) => {
+    const newCollapsed = new Set(collapsedSections);
+    if (newCollapsed.has(section)) {
+      newCollapsed.delete(section);
+    } else {
+      newCollapsed.add(section);
+    }
+    setCollapsedSections(newCollapsed);
+  };
+
+  // Check if a sector layer already exists for this region
+  const hasSectorLayer = relatedRegions.some(
+    r => r.region_type === 4 && 
+    JSON.stringify(r.coordinates) === JSON.stringify(region.coordinates)
+  );
+
   const renderTabs = () => (
     <div className="flex border-b border-gray-700">
       <button
@@ -300,8 +317,41 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
               The name appears in room descriptions.
             </p>
           </div>
+
+          {/* Related regions - moved up and made collapsible */}
+          {relatedRegions.length > 0 && (
+            <div className="bg-gray-800 rounded-lg overflow-hidden">
+              <button
+                onClick={() => toggleSection('related')}
+                className="w-full px-3 py-2 flex items-center justify-between text-gray-300 hover:bg-gray-700 transition-colors"
+              >
+                <span className="text-xs font-medium flex items-center gap-1">
+                  <Layers className="w-4 h-4" />
+                  Related Regions ({relatedRegions.length})
+                </span>
+                {collapsedSections.has('related') ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              {!collapsedSections.has('related') && (
+                <div className="px-3 pb-3">
+                  <ul className="space-y-1">
+                    {relatedRegions.map(r => (
+                      <li 
+                        key={r.vnum} 
+                        className="text-gray-400 text-xs flex items-center gap-1 hover:text-gray-200 cursor-pointer transition-colors"
+                        onClick={() => onSelectRegion?.(r)}
+                        title={`Click to select ${r.name}`}
+                      >
+                        {getRegionIcon(r.region_type)}
+                        <span className="hover:underline">{r.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
           
-          {/* Layering options */}
+          {/* Region Layering - moved after related regions */}
           {onCreateLayer && (
             <div className="bg-purple-900/20 border border-purple-800 rounded-lg p-3">
               <h4 className="text-purple-300 font-medium text-sm mb-2">
@@ -311,9 +361,15 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
               <div className="flex gap-2">
                 <button
                   onClick={() => onCreateLayer(region, 'sector')}
-                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs py-2 px-3 rounded"
+                  disabled={hasSectorLayer}
+                  className={`flex-1 text-white text-xs py-2 px-3 rounded ${
+                    hasSectorLayer 
+                      ? 'bg-gray-600 cursor-not-allowed opacity-50' 
+                      : 'bg-amber-600 hover:bg-amber-700'
+                  }`}
+                  title={hasSectorLayer ? 'A sector layer already exists for this region' : 'Add a sector override layer'}
                 >
-                  Add Sector Layer
+                  {hasSectorLayer ? 'Sector Layer Exists' : 'Add Sector Layer'}
                 </button>
                 <button
                   onClick={() => onCreateLayer(region, 'transform')}
@@ -402,34 +458,27 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         </>
       )}
 
-      {/* Coordinate Editor */}
-      <div className="border-t border-gray-700 pt-3 mt-3">
-        <CoordinateEditor
-          coordinates={region.coordinates}
-          onChange={(newCoords) => onUpdate({ coordinates: newCoords })}
-          minPoints={3}
-        />
+      {/* Coordinate Editor - made collapsible */}
+      <div className="border-t border-gray-700 mt-3">
+        <button
+          onClick={() => toggleSection('coordinates')}
+          className="w-full py-2 flex items-center justify-between text-gray-300 hover:bg-gray-800 transition-colors rounded"
+        >
+          <span className="text-sm font-medium flex items-center gap-1">
+            Polygon Point Editor
+          </span>
+          {collapsedSections.has('coordinates') ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        {!collapsedSections.has('coordinates') && (
+          <div className="pt-2">
+            <CoordinateEditor
+              coordinates={region.coordinates}
+              onChange={(newCoords) => onUpdate({ coordinates: newCoords })}
+              minPoints={3}
+            />
+          </div>
+        )}
       </div>
-
-      {/* Related regions */}
-      {relatedRegions.length > 0 && (
-        <div className="bg-gray-800 rounded-lg p-3">
-          <p className="text-gray-300 text-xs font-medium mb-2">Related Regions:</p>
-          <ul className="space-y-1">
-            {relatedRegions.map(r => (
-              <li 
-                key={r.vnum} 
-                className="text-gray-400 text-xs flex items-center gap-1 hover:text-gray-200 cursor-pointer transition-colors"
-                onClick={() => onSelectRegion?.(r)}
-                title={`Click to select ${r.name}`}
-              >
-                {getRegionIcon(r.region_type)}
-                <span className="hover:underline">{r.name}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 
