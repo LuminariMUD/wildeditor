@@ -108,7 +108,7 @@ class RegionHintBase(BaseModel):
 # Request schemas
 class RegionHintCreate(RegionHintBase):
     """Schema for creating a new region hint."""
-    ai_agent_id: Optional[str] = Field(
+    agent_id: Optional[str] = Field(
         default=None,
         max_length=100,
         description="Identifier of the AI agent creating this hint"
@@ -154,7 +154,7 @@ class RegionHintResponse(RegionHintBase):
     """Schema for region hint responses."""
     id: int
     region_vnum: int
-    ai_agent_id: Optional[str] = None  # Default to None if not in DB
+    agent_id: Optional[str] = None  # Default to None if not in DB
     created_at: datetime
     updated_at: datetime
     is_active: bool
@@ -164,9 +164,9 @@ class RegionHintResponse(RegionHintBase):
         
     @classmethod
     def model_validate(cls, obj, **kwargs):
-        """Custom validation to handle missing ai_agent_id field."""
-        if not hasattr(obj, 'ai_agent_id'):
-            # Create a dict from the object if ai_agent_id is missing
+        """Custom validation to handle missing agent_id field."""
+        if not hasattr(obj, 'agent_id'):
+            # Create a dict from the object if agent_id is missing
             obj_dict = {
                 'id': obj.id,
                 'region_vnum': obj.region_vnum,
@@ -177,7 +177,7 @@ class RegionHintResponse(RegionHintBase):
                 'weather_conditions': obj.weather_conditions.split(',') if isinstance(obj.weather_conditions, str) else obj.weather_conditions,
                 'time_of_day_weight': obj.time_of_day_weight,
                 'resource_triggers': obj.resource_triggers,
-                'ai_agent_id': None,  # Default value
+                'agent_id': getattr(obj, 'agent_id', None),  # Use actual value or None
                 'created_at': obj.created_at,
                 'updated_at': obj.updated_at,
                 'is_active': obj.is_active
@@ -230,7 +230,7 @@ class RegionProfileBase(BaseModel):
 
 class RegionProfileCreate(RegionProfileBase):
     """Schema for creating a region profile."""
-    ai_agent_id: Optional[str] = Field(
+    agent_id: Optional[str] = Field(
         default=None,
         max_length=100,
         description="AI agent identifier"
@@ -249,7 +249,7 @@ class RegionProfileUpdate(BaseModel):
 class RegionProfileResponse(RegionProfileBase):
     """Schema for region profile responses."""
     region_vnum: int
-    ai_agent_id: Optional[str] = None  # Default to None if not in DB
+    agent_id: Optional[str] = None  # Default to None if not in DB
     created_at: datetime
     updated_at: datetime
     
@@ -258,9 +258,9 @@ class RegionProfileResponse(RegionProfileBase):
         
     @classmethod
     def model_validate(cls, obj, **kwargs):
-        """Custom validation to handle missing ai_agent_id field."""
-        if not hasattr(obj, 'ai_agent_id'):
-            # Create a dict from the object if ai_agent_id is missing
+        """Custom validation to handle missing agent_id field."""
+        if not hasattr(obj, 'agent_id'):
+            # Create a dict from the object if agent_id is missing
             obj_dict = {
                 'region_vnum': obj.region_vnum,
                 'overall_theme': obj.overall_theme,
@@ -268,7 +268,7 @@ class RegionProfileResponse(RegionProfileBase):
                 'key_characteristics': obj.key_characteristics,
                 'description_style': obj.description_style,
                 'complexity_level': obj.complexity_level,
-                'ai_agent_id': None,  # Default value
+                'agent_id': getattr(obj, 'agent_id', None),  # Use actual value or None
                 'created_at': obj.created_at,
                 'updated_at': obj.updated_at
             }
