@@ -11,6 +11,9 @@ from typing import Dict, Any, Optional
 import httpx
 import os
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -185,6 +188,9 @@ async def call_mcp_tool(request: MCPRequest):
                         # If that fails too, return as plain text
                         result = {"text": result_text}
                 
+                # Log the result for debugging hint generation
+                if request.tool_name == "generate_hints_from_description":
+                    logger.info(f"MCP returned hints result: {json.dumps(result, indent=2)[:500]}...")
                 return MCPResponse(success=True, result=result)
             elif "error" in data:
                 return MCPResponse(success=False, error=data["error"].get("message", "Unknown error"))

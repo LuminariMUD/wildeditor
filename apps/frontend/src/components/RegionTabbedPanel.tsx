@@ -153,7 +153,25 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
             const formattedHints = hintsData.hints.map((hint: { category?: string; hint_category?: string; text?: string; hint_text?: string; priority?: number; weather_conditions?: string[]; seasonal_weight?: Record<string, number>; time_of_day_weight?: Record<string, number> }) => {
               // Normalize category to lowercase and replace spaces with underscores
               const rawCategory = (hint.category || hint.hint_category || 'atmosphere');
-              const normalizedCategory = rawCategory.toLowerCase().replace(/\s+/g, '_');
+              let normalizedCategory = rawCategory.toLowerCase().replace(/\s+/g, '_');
+              
+              // Map common variations to valid database categories
+              const categoryMap: Record<string, string> = {
+                'atmosphere': 'atmosphere',
+                'fauna': 'fauna',
+                'flora': 'flora',
+                'geography': 'atmosphere', // Map geography to atmosphere since it's not in DB
+                'weather_influence': 'weather_influence',
+                'resources': 'flora', // Map resources to flora since it's not in DB
+                'landmarks': 'atmosphere', // Map landmarks to atmosphere since it's not in DB
+                'sounds': 'sounds',
+                'scents': 'scents',
+                'seasonal_changes': 'seasonal_changes',
+                'time_of_day': 'time_of_day',
+                'mystical': 'mystical'
+              };
+              
+              normalizedCategory = categoryMap[normalizedCategory] || 'atmosphere';
               
               // Ensure hint_text meets minimum length requirement (10 characters)
               const hintText = hint.text || hint.hint_text || '';
@@ -162,13 +180,56 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
                 return null; // Skip this hint
               }
               
+              // Normalize time_of_day_weight keys to match database format
+              let timeWeight = hint.time_of_day_weight;
+              if (timeWeight) {
+                const normalizedTimeWeight: Record<string, number> = {};
+                const timeKeyMap: Record<string, string> = {
+                  'dawn': 'dawn',
+                  'morning': 'morning',
+                  'midday': 'midday',
+                  'noon': 'midday', // Map noon to midday
+                  'afternoon': 'afternoon',
+                  'evening': 'evening',
+                  'dusk': 'evening', // Map dusk to evening
+                  'night': 'night'
+                };
+                for (const [key, value] of Object.entries(timeWeight)) {
+                  const mappedKey = timeKeyMap[key.toLowerCase()] || key.toLowerCase();
+                  if (['dawn', 'morning', 'midday', 'afternoon', 'evening', 'night'].includes(mappedKey)) {
+                    normalizedTimeWeight[mappedKey] = value;
+                  }
+                }
+                timeWeight = Object.keys(normalizedTimeWeight).length > 0 ? normalizedTimeWeight : null;
+              }
+              
+              // Ensure seasonal_weight uses correct keys
+              let seasonWeight = hint.seasonal_weight;
+              if (seasonWeight) {
+                const normalizedSeasonWeight: Record<string, number> = {};
+                const seasonKeyMap: Record<string, string> = {
+                  'spring': 'spring',
+                  'summer': 'summer',
+                  'autumn': 'autumn',
+                  'fall': 'autumn', // Map fall to autumn
+                  'winter': 'winter'
+                };
+                for (const [key, value] of Object.entries(seasonWeight)) {
+                  const mappedKey = seasonKeyMap[key.toLowerCase()] || key.toLowerCase();
+                  if (['spring', 'summer', 'autumn', 'winter'].includes(mappedKey)) {
+                    normalizedSeasonWeight[mappedKey] = value;
+                  }
+                }
+                seasonWeight = Object.keys(normalizedSeasonWeight).length > 0 ? normalizedSeasonWeight : null;
+              }
+              
               return {
                 hint_category: normalizedCategory,
                 hint_text: hintText,
                 priority: Math.min(10, Math.max(1, hint.priority || 5)), // Ensure priority is between 1-10
                 weather_conditions: hint.weather_conditions || ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'],
-                seasonal_weight: hint.seasonal_weight || null,
-                time_of_day_weight: hint.time_of_day_weight || null
+                seasonal_weight: seasonWeight,
+                time_of_day_weight: timeWeight
               };
             }).filter(hint => hint !== null); // Remove any null hints
             
