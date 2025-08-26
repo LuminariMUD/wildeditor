@@ -5,6 +5,7 @@ from .routers.paths import router as paths_router
 from .routers.points import router as points_router
 from .routers.terrain import router as terrain_router
 from .routers.wilderness import router as wilderness_router
+from .routers.region_hints import router as region_hints_router
 from .middleware.auth import verify_api_key
 from .services.terrain_bridge import is_terrain_bridge_available
 import os
@@ -39,6 +40,9 @@ app.include_router(paths_router, prefix="/api/paths", tags=["Paths"])
 app.include_router(points_router, prefix="/api/points", tags=["Points"])
 app.include_router(terrain_router, prefix="/api/terrain", tags=["Terrain"])
 app.include_router(wilderness_router, prefix="/api/wilderness", tags=["Wilderness"])
+
+# Include region hints router - nested under regions
+app.include_router(region_hints_router, prefix="/api/regions", tags=["Region Hints"])
 
 
 @app.get("/api/health")
