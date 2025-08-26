@@ -572,6 +572,114 @@ class ToolRegistry:
             }
         )
         
+        # Generate hints from description tool
+        self.register_tool(
+            "generate_hints_from_description",
+            self._generate_hints_from_description,
+            "Analyze a region description and generate categorized hints for the dynamic description engine",
+            {
+                "type": "object",
+                "properties": {
+                    "region_vnum": {
+                        "type": "integer",
+                        "description": "VNUM of the region (for fetching existing description)"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Region description to analyze (if not using vnum)"
+                    },
+                    "region_name": {
+                        "type": "string",
+                        "description": "Name of the region"
+                    },
+                    "target_hint_count": {
+                        "type": "integer",
+                        "description": "Target number of hints to generate (5-30)",
+                        "default": 15
+                    },
+                    "include_profile": {
+                        "type": "boolean",
+                        "description": "Also generate a region personality profile",
+                        "default": True
+                    }
+                },
+                "required": []
+            }
+        )
+        
+        # Store generated hints tool
+        self.register_tool(
+            "store_region_hints",
+            self._store_region_hints,
+            "Store generated hints in the database for a region",
+            {
+                "type": "object",
+                "properties": {
+                    "region_vnum": {
+                        "type": "integer",
+                        "description": "VNUM of the region"
+                    },
+                    "hints": {
+                        "type": "array",
+                        "description": "Array of hint objects to store",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "category": {"type": "string"},
+                                "text": {"type": "string"},
+                                "priority": {"type": "integer"},
+                                "seasonal_weight": {"type": "object"},
+                                "weather_conditions": {"type": "array"},
+                                "time_of_day_weight": {"type": "object"}
+                            },
+                            "required": ["category", "text"]
+                        }
+                    },
+                    "profile": {
+                        "type": "object",
+                        "description": "Optional region profile to store",
+                        "properties": {
+                            "overall_theme": {"type": "string"},
+                            "dominant_mood": {"type": "string"},
+                            "key_characteristics": {"type": "array"},
+                            "description_style": {"type": "string"},
+                            "complexity_level": {"type": "integer"}
+                        }
+                    }
+                },
+                "required": ["region_vnum", "hints"]
+            }
+        )
+        
+        # Get existing hints tool
+        self.register_tool(
+            "get_region_hints",
+            self._get_region_hints,
+            "Retrieve existing hints for a region from the database",
+            {
+                "type": "object",
+                "properties": {
+                    "region_vnum": {
+                        "type": "integer",
+                        "description": "VNUM of the region"
+                    },
+                    "category": {
+                        "type": "string",
+                        "description": "Optional category filter",
+                        "enum": ["atmosphere", "fauna", "flora", "geography", "weather_influence", 
+                                "resources", "landmarks", "sounds", "scents", "seasonal_changes", 
+                                "time_of_day", "mystical"]
+                    },
+                    "active_only": {
+                        "type": "boolean",
+                        "description": "Only return active hints",
+                        "default": True
+                    }
+                },
+                "required": ["region_vnum"]
+            }
+        )
+        
         # Spatial search tool - searches for regions and paths by coordinates
         self.register_tool(
             "search_by_coordinates",
@@ -1552,3 +1660,328 @@ class ToolRegistry:
             suggestions.append("Describe the atmospheric qualities and mood of the region")
         
         return suggestions
+    
+    async def _generate_hints_from_description(self, **kwargs) -> Dict[str, Any]:
+        """Generate categorized hints from a region description"""
+        try:
+            # Get description either from vnum or directly
+            description = kwargs.get("description", "")
+            region_vnum = kwargs.get("region_vnum")
+            region_name = kwargs.get("region_name", "Unknown Region")
+            target_count = kwargs.get("target_hint_count", 15)
+            include_profile = kwargs.get("include_profile", True)
+            
+            # If vnum provided but no description, fetch it
+            if region_vnum and not description:
+                async with httpx.AsyncClient() as client:
+                    headers = {"Authorization": f"Bearer {settings.api_key}"}
+                    response = await client.get(
+                        f"{settings.backend_base_url}/regions/{region_vnum}",
+                        headers=headers
+                    )
+                    if response.status_code == 200:
+                        region_data = response.json()
+                        description = region_data.get("region_description", "")
+                        region_name = region_data.get("name", region_name)
+            
+            if not description:
+                return {"error": "No description provided or found for region"}
+            
+            # Analyze description and extract hints
+            hints = self._extract_hints_from_description(description)
+            
+            # Generate profile if requested
+            profile = None
+            if include_profile:
+                profile = self._generate_profile_from_description(description, region_name)
+            
+            return {
+                "hints": hints[:target_count],  # Limit to target count
+                "profile": profile,
+                "total_hints_found": len(hints),
+                "region_name": region_name,
+                "description_length": len(description)
+            }
+            
+        except Exception as e:
+            return {"error": f"Failed to generate hints: {str(e)}"}
+    
+    def _extract_hints_from_description(self, description: str) -> List[Dict[str, Any]]:
+        """Extract categorized hints from description text"""
+        hints = []
+        sentences = description.split('.')
+        
+        # Categories and their keyword patterns
+        category_patterns = {
+            "atmosphere": ["atmosphere", "feeling", "mood", "ambiance", "air", "presence"],
+            "fauna": ["animal", "creature", "bird", "insect", "wildlife", "beast"],
+            "flora": ["tree", "plant", "flower", "moss", "vine", "leaf", "grass"],
+            "geography": ["terrain", "landscape", "rock", "hill", "valley", "cliff"],
+            "sounds": ["sound", "echo", "noise", "rustle", "call", "whisper"],
+            "scents": ["smell", "scent", "aroma", "fragrance", "odor"],
+            "weather_influence": ["rain", "mist", "fog", "storm", "wind", "cloud"],
+            "mystical": ["magical", "mystical", "ethereal", "supernatural", "enchanted"],
+            "landmarks": ["landmark", "monument", "structure", "formation", "feature"],
+            "resources": ["resource", "material", "ore", "water", "spring"],
+            "seasonal_changes": ["spring", "summer", "autumn", "winter", "seasonal"],
+            "time_of_day": ["dawn", "morning", "noon", "evening", "dusk", "night"]
+        }
+        
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if len(sentence) < 20:  # Skip very short sentences
+                continue
+                
+            sentence_lower = sentence.lower()
+            
+            # Determine category based on keywords
+            for category, keywords in category_patterns.items():
+                if any(keyword in sentence_lower for keyword in keywords):
+                    # Assign priority based on sentence quality
+                    priority = self._calculate_hint_priority(sentence)
+                    
+                    # Determine weather conditions
+                    weather_conditions = self._determine_weather_conditions(sentence_lower)
+                    
+                    # Create hint
+                    hint = {
+                        "category": category,
+                        "text": sentence + "." if not sentence.endswith('.') else sentence,
+                        "priority": priority,
+                        "weather_conditions": weather_conditions,
+                        "ai_agent_id": "mcp_hint_extractor"
+                    }
+                    
+                    # Add seasonal weight if relevant
+                    if "seasonal" in category or any(season in sentence_lower for season in ["spring", "summer", "autumn", "winter"]):
+                        hint["seasonal_weight"] = self._calculate_seasonal_weight(sentence_lower)
+                    
+                    # Add time weight if relevant
+                    if "time" in category or any(time in sentence_lower for time in ["dawn", "morning", "evening", "night"]):
+                        hint["time_of_day_weight"] = self._calculate_time_weight(sentence_lower)
+                    
+                    hints.append(hint)
+                    break  # Only assign one category per sentence
+        
+        return hints
+    
+    def _calculate_hint_priority(self, sentence: str) -> int:
+        """Calculate priority for a hint based on quality indicators"""
+        priority = 5  # Base priority
+        
+        # Increase for vivid/descriptive language
+        if len(sentence) > 100:
+            priority += 1
+        if any(word in sentence.lower() for word in ["beautiful", "magnificent", "ancient", "mystical"]):
+            priority += 1
+        if sentence.count(',') > 2:  # Complex sentence structure
+            priority += 1
+        
+        return min(10, max(1, priority))
+    
+    def _determine_weather_conditions(self, text: str) -> List[str]:
+        """Determine applicable weather conditions for a hint"""
+        conditions = []
+        
+        weather_mapping = {
+            "clear": ["sun", "bright", "clear", "blue sky"],
+            "cloudy": ["cloud", "overcast", "grey sky", "gray sky"],
+            "rainy": ["rain", "drizzle", "wet", "precipitation"],
+            "stormy": ["storm", "thunder", "tempest", "gale"],
+            "lightning": ["lightning", "electric", "flash"]
+        }
+        
+        for condition, keywords in weather_mapping.items():
+            if any(keyword in text for keyword in keywords):
+                conditions.append(condition)
+        
+        # Default to all weather if none specified
+        return conditions if conditions else ["clear", "cloudy", "rainy", "stormy", "lightning"]
+    
+    def _calculate_seasonal_weight(self, text: str) -> Dict[str, float]:
+        """Calculate seasonal weights based on text content"""
+        weights = {"spring": 0.8, "summer": 0.8, "autumn": 0.8, "winter": 0.8}
+        
+        if "spring" in text or "bloom" in text or "blossom" in text:
+            weights["spring"] = 1.2
+        if "summer" in text or "hot" in text or "warm" in text:
+            weights["summer"] = 1.2
+        if "autumn" in text or "fall" in text or "leaves" in text:
+            weights["autumn"] = 1.2
+        if "winter" in text or "snow" in text or "cold" in text:
+            weights["winter"] = 1.2
+            
+        return weights
+    
+    def _calculate_time_weight(self, text: str) -> Dict[str, float]:
+        """Calculate time of day weights based on text content"""
+        weights = {"dawn": 0.8, "morning": 0.8, "midday": 0.8, "afternoon": 0.8, "evening": 0.8, "night": 0.8}
+        
+        if "dawn" in text or "sunrise" in text:
+            weights["dawn"] = 1.2
+        if "morning" in text:
+            weights["morning"] = 1.2
+        if "noon" in text or "midday" in text:
+            weights["midday"] = 1.2
+        if "afternoon" in text:
+            weights["afternoon"] = 1.2
+        if "evening" in text or "dusk" in text or "sunset" in text:
+            weights["evening"] = 1.2
+        if "night" in text or "darkness" in text or "moonlight" in text:
+            weights["night"] = 1.2
+            
+        return weights
+    
+    def _generate_profile_from_description(self, description: str, region_name: str) -> Dict[str, Any]:
+        """Generate a region personality profile from description"""
+        desc_lower = description.lower()
+        
+        # Determine overall theme (first 200 chars of description as summary)
+        theme = description[:200].strip()
+        if not theme.endswith('.'):
+            theme = theme.rsplit('.', 1)[0] + '.' if '.' in theme else theme + '...'
+        
+        # Determine dominant mood
+        mood_keywords = {
+            "serene": ["peaceful", "calm", "tranquil", "quiet"],
+            "mysterious": ["mysterious", "enigmatic", "strange", "unknown"],
+            "vibrant": ["vibrant", "lively", "bustling", "active"],
+            "ancient": ["ancient", "old", "timeless", "primordial"],
+            "magical": ["magical", "enchanted", "mystical", "ethereal"]
+        }
+        
+        dominant_mood = "neutral"
+        for mood, keywords in mood_keywords.items():
+            if any(keyword in desc_lower for keyword in keywords):
+                dominant_mood = mood
+                break
+        
+        # Extract key characteristics
+        characteristics = []
+        if "forest" in desc_lower: characteristics.append("forested")
+        if "mountain" in desc_lower: characteristics.append("mountainous")
+        if "river" in desc_lower or "stream" in desc_lower: characteristics.append("water_features")
+        if "ancient" in desc_lower: characteristics.append("ancient_features")
+        if "magical" in desc_lower: characteristics.append("magical_elements")
+        if "wildlife" in desc_lower: characteristics.append("rich_wildlife")
+        if "ruin" in desc_lower: characteristics.append("ruins")
+        
+        # Determine style
+        style = "poetic"  # Default
+        if len(description) < 500:
+            style = "practical"
+        elif any(word in desc_lower for word in ["mysterious", "strange", "unknown"]):
+            style = "mysterious"
+        elif any(word in desc_lower for word in ["dramatic", "magnificent", "spectacular"]):
+            style = "dramatic"
+        
+        return {
+            "overall_theme": theme,
+            "dominant_mood": dominant_mood,
+            "key_characteristics": characteristics[:10],  # Limit to 10
+            "description_style": style,
+            "complexity_level": min(5, max(1, len(description) // 200)),  # Based on length
+            "ai_agent_id": "mcp_profile_generator"
+        }
+    
+    async def _store_region_hints(self, **kwargs) -> Dict[str, Any]:
+        """Store hints and profile in the database"""
+        try:
+            region_vnum = kwargs.get("region_vnum")
+            hints = kwargs.get("hints", [])
+            profile = kwargs.get("profile")
+            
+            if not region_vnum:
+                return {"error": "region_vnum is required"}
+            
+            if not hints:
+                return {"error": "No hints provided to store"}
+            
+            async with httpx.AsyncClient() as client:
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                
+                # Store hints
+                hints_payload = {
+                    "hints": hints
+                }
+                
+                response = await client.post(
+                    f"{settings.backend_base_url}/regions/{region_vnum}/hints",
+                    headers=headers,
+                    json=hints_payload,
+                    timeout=30.0
+                )
+                
+                if response.status_code not in [200, 201]:
+                    return {"error": f"Failed to store hints: {response.status_code}"}
+                
+                stored_hints = response.json()
+                
+                # Store profile if provided
+                stored_profile = None
+                if profile:
+                    profile_response = await client.post(
+                        f"{settings.backend_base_url}/regions/{region_vnum}/profile",
+                        headers=headers,
+                        json=profile,
+                        timeout=30.0
+                    )
+                    
+                    if profile_response.status_code in [200, 201]:
+                        stored_profile = profile_response.json()
+                
+                return {
+                    "success": True,
+                    "hints_stored": len(stored_hints) if isinstance(stored_hints, list) else 1,
+                    "profile_stored": stored_profile is not None,
+                    "region_vnum": region_vnum
+                }
+                
+        except Exception as e:
+            return {"error": f"Failed to store hints: {str(e)}"}
+    
+    async def _get_region_hints(self, **kwargs) -> Dict[str, Any]:
+        """Retrieve existing hints for a region"""
+        try:
+            region_vnum = kwargs.get("region_vnum")
+            category = kwargs.get("category")
+            active_only = kwargs.get("active_only", True)
+            
+            if not region_vnum:
+                return {"error": "region_vnum is required"}
+            
+            async with httpx.AsyncClient() as client:
+                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                
+                # Build query parameters
+                params = {}
+                if category:
+                    params["category"] = category
+                if active_only:
+                    params["is_active"] = "true"
+                
+                response = await client.get(
+                    f"{settings.backend_base_url}/regions/{region_vnum}/hints",
+                    headers=headers,
+                    params=params,
+                    timeout=30.0
+                )
+                
+                if response.status_code == 404:
+                    return {"hints": [], "message": "No hints found for this region"}
+                
+                if response.status_code != 200:
+                    return {"error": f"Failed to retrieve hints: {response.status_code}"}
+                
+                data = response.json()
+                
+                return {
+                    "hints": data.get("hints", []),
+                    "total_count": data.get("total_count", 0),
+                    "active_count": data.get("active_count", 0),
+                    "categories": data.get("categories", {}),
+                    "region_vnum": region_vnum
+                }
+                
+        except Exception as e:
+            return {"error": f"Failed to retrieve hints: {str(e)}"}
