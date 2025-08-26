@@ -94,8 +94,28 @@ def list_region_hints(
         if hint.is_active:
             active_count += 1
     
+    # Convert hints to response format manually to avoid validation issues
+    hint_responses = []
+    for hint in hints:
+        hint_dict = {
+            'id': hint.id,
+            'region_vnum': hint.region_vnum,
+            'hint_category': hint.hint_category,
+            'hint_text': hint.hint_text,
+            'priority': hint.priority,
+            'seasonal_weight': hint.seasonal_weight,
+            'weather_conditions': hint.weather_conditions.split(',') if hint.weather_conditions else [],
+            'time_of_day_weight': hint.time_of_day_weight,
+            'resource_triggers': hint.resource_triggers,
+            'agent_id': hint.agent_id,
+            'created_at': hint.created_at,
+            'updated_at': hint.updated_at,
+            'is_active': hint.is_active
+        }
+        hint_responses.append(hint_dict)
+    
     return RegionHintListResponse(
-        hints=[RegionHintResponse.model_validate(hint) for hint in hints],
+        hints=hint_responses,
         total_count=len(hints),
         active_count=active_count,
         categories=category_counts
