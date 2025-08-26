@@ -248,16 +248,16 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
             // Now create the new hints
             try {
               await apiClient.createHints(region.vnum, formattedHints);
-            } catch (error: any) {
+            } catch (error) {
               console.error('Failed to create hints:', error);
               // Try to extract validation errors from the response
-              if (error.message && error.message.includes('[')) {
+              if (error instanceof Error && error.message && error.message.includes('[')) {
                 try {
                   const errorDetails = JSON.parse(error.message);
                   console.error('Validation errors:', errorDetails);
                   const firstError = errorDetails[0];
                   throw new Error(`Validation error: ${firstError.msg} at ${firstError.loc.join('.')}`);  
-                } catch (parseError) {
+                } catch {
                   // If we can't parse the error, throw the original
                   throw error;
                 }
