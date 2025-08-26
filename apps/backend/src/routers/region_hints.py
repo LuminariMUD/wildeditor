@@ -21,6 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 from datetime import datetime
+import logging
 
 from ..config.config_database import get_db
 from ..models.region import Region
@@ -42,6 +43,7 @@ from ..schemas.region_hints import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -222,6 +224,48 @@ def update_region_hint(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update hint: {str(e)}"
+        )
+
+
+@router.delete("/{vnum}/hints", status_code=status.HTTP_204_NO_CONTENT)
+def delete_all_region_hints(
+    vnum: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Delete all hints for a region.
+    
+    Args:
+        vnum: Region VNUM
+        db: Database session
+    
+    Returns:
+        No content on success
+    """
+    # Check if region exists
+    region = db.query(Region).filter(Region.vnum == vnum).first()
+    if not region:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Region with vnum {vnum} not found"
+        )
+    
+    try:
+        # Delete all hints for this region
+        deleted_count = db.query(RegionHint).filter(
+            RegionHint.region_vnum == vnum
+        ).delete()
+        
+        db.commit()
+        
+        # Log the deletion for audit purposes
+        logger.info(f"Deleted {deleted_count} hints for region {vnum}")
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete hints: {str(e)}"
         )
 
 

@@ -159,6 +159,24 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
               time_of_day_weight: hint.time_of_day_weight || null
             }));
             
+            // If hints already exist and user confirmed overwrite, delete them first
+            if (hints.length > 0) {
+              console.log(`Deleting ${hints.length} existing hints before creating new ones...`);
+              const deleteResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
+                }
+              });
+              
+              if (!deleteResponse.ok) {
+                console.error('Failed to delete existing hints:', deleteResponse.status);
+                throw new Error('Failed to delete existing hints before generating new ones');
+              }
+              console.log('Successfully deleted existing hints');
+            }
+            
+            // Now create the new hints
             const storeResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints`, {
               method: 'POST',
               headers: {
@@ -757,6 +775,16 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
               ))}
             </select>
 
+            {/* Add hint button */}
+            <button
+              onClick={() => console.log('Add new hint')}
+              className="text-xs bg-green-600 hover:bg-green-700 px-2 py-1 rounded flex items-center gap-1"
+              title="Add a new hint manually"
+            >
+              <Plus className="w-3 h-3" />
+              Add
+            </button>
+
             {/* Generate button */}
             {region.region_description && (
               <button
@@ -848,10 +876,49 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
                   {isExpanded && (
                     <div className="border-t border-gray-700 p-2 space-y-1">
                       {categoryHints.map((hint) => (
-                        <div key={hint.id} className="bg-gray-900 rounded p-2">
-                          <p className="text-xs text-gray-300 leading-relaxed">
-                            {hint.hint_text}
-                          </p>
+                        <div key={hint.id} className="bg-gray-900 rounded p-2 group hover:bg-gray-800 transition-colors">
+                          <div className="flex justify-between items-start">
+                            <p className="text-xs text-gray-300 leading-relaxed flex-1">
+                              {hint.hint_text}
+                            </p>
+                            <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => console.log('Edit hint:', hint.id)}
+                                className="p-1 text-gray-400 hover:text-blue-400 transition-colors"
+                                title="Edit hint"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (confirm('Delete this hint?')) {
+                                    try {
+                                      const response = await fetch(
+                                        `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints/${hint.id}`,
+                                        {
+                                          method: 'DELETE',
+                                          headers: {
+                                            'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
+                                          }
+                                        }
+                                      );
+                                      if (response.ok) {
+                                        await fetchHints();
+                                      } else {
+                                        console.error('Failed to delete hint');
+                                      }
+                                    } catch (error) {
+                                      console.error('Error deleting hint:', error);
+                                    }
+                                  }
+                                }}
+                                className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                                title="Delete hint"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-xs text-gray-500">
                               Priority: {hint.priority}/10
