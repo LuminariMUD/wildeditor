@@ -61,16 +61,32 @@ export const HintEditor: React.FC<HintEditorProps> = ({
     return ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'];
   });
   const [useSeasonalWeight, setUseSeasonalWeight] = useState(!!hint?.seasonal_weight);
-  const [seasonalWeights, setSeasonalWeights] = useState<Record<string, number>>(
-    hint?.seasonal_weight || { spring: 1.0, summer: 1.0, autumn: 1.0, winter: 1.0 }
-  );
-  const [useTimeWeight, setUseTimeWeight] = useState(!!hint?.time_of_day_weight);
-  const [timeWeights, setTimeWeights] = useState<Record<string, number>>(
-    hint?.time_of_day_weight || { 
-      dawn: 1.0, morning: 1.0, midday: 1.0, 
-      afternoon: 1.0, evening: 1.0, night: 1.0 
+  // Store as percentages in UI (0-100), convert to decimals (0-1) when saving
+  const [seasonalWeights, setSeasonalWeights] = useState<Record<string, number>>(() => {
+    if (hint?.seasonal_weight) {
+      const weights: Record<string, number> = {};
+      for (const [key, val] of Object.entries(hint.seasonal_weight)) {
+        weights[key] = val * 100; // Convert from decimal to percentage for UI
+      }
+      return weights;
     }
-  );
+    return { spring: 100, summer: 100, autumn: 100, winter: 100 };
+  });
+  const [useTimeWeight, setUseTimeWeight] = useState(!!hint?.time_of_day_weight);
+  // Store as percentages in UI (0-100), convert to decimals (0-1) when saving
+  const [timeWeights, setTimeWeights] = useState<Record<string, number>>(() => {
+    if (hint?.time_of_day_weight) {
+      const weights: Record<string, number> = {};
+      for (const [key, val] of Object.entries(hint.time_of_day_weight)) {
+        weights[key] = val * 100; // Convert from decimal to percentage for UI
+      }
+      return weights;
+    }
+    return { 
+      dawn: 100, morning: 100, midday: 100, 
+      afternoon: 100, evening: 100, night: 100 
+    };
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -88,11 +104,19 @@ export const HintEditor: React.FC<HintEditorProps> = ({
       }
       setUseSeasonalWeight(!!hint.seasonal_weight);
       if (hint.seasonal_weight) {
-        setSeasonalWeights(hint.seasonal_weight);
+        const weights: Record<string, number> = {};
+        for (const [key, val] of Object.entries(hint.seasonal_weight)) {
+          weights[key] = val * 100; // Convert from decimal to percentage for UI
+        }
+        setSeasonalWeights(weights);
       }
       setUseTimeWeight(!!hint.time_of_day_weight);
       if (hint.time_of_day_weight) {
-        setTimeWeights(hint.time_of_day_weight);
+        const weights: Record<string, number> = {};
+        for (const [key, val] of Object.entries(hint.time_of_day_weight)) {
+          weights[key] = val * 100; // Convert from decimal to percentage for UI
+        }
+        setTimeWeights(weights);
       }
     }
   }, [hint]);
@@ -123,13 +147,28 @@ export const HintEditor: React.FC<HintEditorProps> = ({
   const handleSave = () => {
     if (!validate()) return;
     
+    // Convert percentages back to decimals for backend
+    const convertedSeasonalWeights = useSeasonalWeight ? {} as Record<string, number> : null;
+    if (useSeasonalWeight) {
+      for (const [key, val] of Object.entries(seasonalWeights)) {
+        convertedSeasonalWeights![key] = val / 100; // Convert percentage to decimal
+      }
+    }
+    
+    const convertedTimeWeights = useTimeWeight ? {} as Record<string, number> : null;
+    if (useTimeWeight) {
+      for (const [key, val] of Object.entries(timeWeights)) {
+        convertedTimeWeights![key] = val / 100; // Convert percentage to decimal
+      }
+    }
+    
     const hintData: Omit<RegionHint, 'id' | 'region_vnum'> = {
       hint_category: category,
       hint_text: text.trim(),
       priority,
       weather_conditions: selectedWeather.join(','),
-      seasonal_weight: useSeasonalWeight ? seasonalWeights : null,
-      time_of_day_weight: useTimeWeight ? timeWeights : null,
+      seasonal_weight: convertedSeasonalWeights,
+      time_of_day_weight: convertedTimeWeights,
       is_active: true
     };
     
@@ -263,48 +302,56 @@ export const HintEditor: React.FC<HintEditorProps> = ({
                 onChange={(e) => setUseSeasonalWeight(e.target.checked)}
                 className="rounded"
               />
-              Seasonal Weights (0.0 = never, 1.0 = normal, 2.0 = double chance)
+              Seasonal Weights (0% = never, 100% = normal)
             </label>
             {useSeasonalWeight && (
               <div className="bg-gray-800 rounded p-3 space-y-3">
-                {SEASONS.map(season => (
-                  <div key={season} className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300 capitalize font-medium">
-                        🍂 {season}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="0"
-                          max="2"
-                          step="0.1"
-                          value={seasonalWeights[season] || 1.0}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value);
-                            if (!isNaN(val) && val >= 0 && val <= 2) {
-                              updateSeasonalWeight(season, val);
-                            }
-                          }}
-                          className="w-16 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm text-center"
-                        />
-                        <span className="text-xs text-gray-500">×</span>
+                {SEASONS.map(season => {
+                  const seasonIcons: Record<string, string> = {
+                    spring: '🌸',
+                    summer: '☀️',
+                    autumn: '🍂',
+                    winter: '❄️'
+                  };
+                  return (
+                    <div key={season} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-300 capitalize font-medium">
+                          {seasonIcons[season]} {season}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={Math.round(seasonalWeights[season] || 100)}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value);
+                              if (!isNaN(val) && val >= 0 && val <= 100) {
+                                updateSeasonalWeight(season, val);
+                              }
+                            }}
+                            className="w-16 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm text-center"
+                          />
+                          <span className="text-xs text-gray-500">%</span>
+                        </div>
                       </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={seasonalWeights[season] || 100}
+                        onChange={(e) => updateSeasonalWeight(season, parseInt(e.target.value))}
+                        className="w-full h-1"
+                        style={{
+                          background: `linear-gradient(to right, #ef4444 0%, #eab308 50%, #22c55e 100%)`
+                        }}
+                      />
                     </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      value={seasonalWeights[season] || 1.0}
-                      onChange={(e) => updateSeasonalWeight(season, parseFloat(e.target.value))}
-                      className="w-full h-1"
-                      style={{
-                        background: `linear-gradient(to right, #ef4444 0%, #eab308 50%, #22c55e 100%)`
-                      }}
-                    />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -318,7 +365,7 @@ export const HintEditor: React.FC<HintEditorProps> = ({
                 onChange={(e) => setUseTimeWeight(e.target.checked)}
                 className="rounded"
               />
-              Time of Day Weights (0.0 = never, 1.0 = normal, 2.0 = double chance)
+              Time of Day Weights (0% = never, 100% = normal)
             </label>
             {useTimeWeight && (
               <div className="bg-gray-800 rounded p-3 grid grid-cols-2 gap-3">
@@ -337,28 +384,31 @@ export const HintEditor: React.FC<HintEditorProps> = ({
                         <span className="text-sm text-gray-300 capitalize">
                           {icons[time]} {time}
                         </span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="2"
-                          step="0.1"
-                          value={timeWeights[time] || 1.0}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value);
-                            if (!isNaN(val) && val >= 0 && val <= 2) {
-                              updateTimeWeight(time, val);
-                            }
-                          }}
-                          className="w-14 bg-gray-700 border border-gray-600 rounded px-1 py-0.5 text-white text-sm text-center"
-                        />
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={Math.round(timeWeights[time] || 100)}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value);
+                              if (!isNaN(val) && val >= 0 && val <= 100) {
+                                updateTimeWeight(time, val);
+                              }
+                            }}
+                            className="w-12 bg-gray-700 border border-gray-600 rounded px-1 py-0.5 text-white text-sm text-center"
+                          />
+                          <span className="text-xs text-gray-500">%</span>
+                        </div>
                       </div>
                       <input
                         type="range"
                         min="0"
-                        max="2"
-                        step="0.1"
-                        value={timeWeights[time] || 1.0}
-                        onChange={(e) => updateTimeWeight(time, parseFloat(e.target.value))}
+                        max="100"
+                        step="5"
+                        value={timeWeights[time] || 100}
+                        onChange={(e) => updateTimeWeight(time, parseInt(e.target.value))}
                         className="w-full h-1"
                       />
                     </div>

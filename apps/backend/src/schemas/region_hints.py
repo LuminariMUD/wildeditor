@@ -89,8 +89,8 @@ class RegionHintBase(BaseModel):
             valid_seasons = {"spring", "summer", "autumn", "winter"}
             if not all(season in valid_seasons for season in v.keys()):
                 raise ValueError("Seasonal weights must use: spring, summer, autumn, winter")
-            if not all(0 <= weight <= 2 for weight in v.values()):
-                raise ValueError("Seasonal weights must be between 0 and 2")
+            if not all(0 <= weight <= 1 for weight in v.values()):
+                raise ValueError("Seasonal weights must be between 0 and 1")
         return v
     
     @validator('time_of_day_weight')
@@ -100,8 +100,8 @@ class RegionHintBase(BaseModel):
             valid_times = {"dawn", "morning", "midday", "afternoon", "evening", "night"}
             if not all(time in valid_times for time in v.keys()):
                 raise ValueError(f"Time weights must use: {valid_times}")
-            if not all(0 <= weight <= 2 for weight in v.values()):
-                raise ValueError("Time weights must be between 0 and 2")
+            if not all(0 <= weight <= 1 for weight in v.values()):
+                raise ValueError("Time weights must be between 0 and 1")
         return v
 
 
