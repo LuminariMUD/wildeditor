@@ -246,7 +246,6 @@ async def call_mcp_tool(request: MCPRequest):
                 except json.JSONDecodeError:
                     # If not JSON, try to parse Python dict format
                     try:
-                        import ast
                         result = ast.literal_eval(result_text)
                     except (ValueError, SyntaxError):
                         # If that fails too, return as plain text
