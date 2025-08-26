@@ -137,37 +137,13 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         const data = await response.json();
         
         if (data.success && data.result) {
-          // Parse the result - it may be wrapped in a 'text' field
+          // The backend should have already parsed the result properly
           let hintsData = data.result;
           
-          // Check if result has a 'text' field (MCP response format)
-          if (hintsData.text && typeof hintsData.text === 'string') {
-            try {
-              // Try parsing as JSON first
-              hintsData = JSON.parse(hintsData.text);
-            } catch {
-              // If not JSON, try to parse Python dict format
-              // Convert Python dict string to JSON
-              const jsonString = hintsData.text
-                .replace(/'/g, '"')  // Replace single quotes with double quotes
-                .replace(/True/g, 'true')  // Python True to JSON true
-                .replace(/False/g, 'false')  // Python False to JSON false
-                .replace(/None/g, 'null');  // Python None to JSON null
-              
-              try {
-                hintsData = JSON.parse(jsonString);
-              } catch (e) {
-                console.error('Failed to parse hints data:', e);
-                throw new Error('Failed to parse hint generation response');
-              }
-            }
-          } else if (typeof hintsData === 'string') {
-            try {
-              hintsData = JSON.parse(hintsData);
-            } catch {
-              // If not JSON, assume it's an error message
-              throw new Error(hintsData);
-            }
+          // Handle legacy format where result might still be wrapped in text
+          if (hintsData.text && !hintsData.hints) {
+            console.warn('Received legacy text format from backend, this should not happen');
+            throw new Error('Backend returned unparsed text format');
           }
           
           // Store the generated hints

@@ -174,11 +174,16 @@ async def call_mcp_tool(request: MCPRequest):
             if "result" in data and "content" in data["result"]:
                 result_text = data["result"]["content"][0]["text"]
                 try:
-                    # Try to parse as JSON
+                    # Try to parse as JSON first
                     result = json.loads(result_text)
                 except json.JSONDecodeError:
-                    # Return as plain text if not JSON
-                    result = {"text": result_text}
+                    # If not JSON, try to parse Python dict format
+                    try:
+                        import ast
+                        result = ast.literal_eval(result_text)
+                    except (ValueError, SyntaxError):
+                        # If that fails too, return as plain text
+                        result = {"text": result_text}
                 
                 return MCPResponse(success=True, result=result)
             elif "error" in data:
