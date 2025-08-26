@@ -71,69 +71,35 @@ def list_region_hints(
     Returns:
         RegionHintListResponse with hints and metadata
     """
-    try:
-        # Check if region exists
-        region = db.query(Region).filter(Region.vnum == vnum).first()
-        if not region:
-            # Return empty hints for non-existent region (common case)
-            return RegionHintListResponse(
-                hints=[],
-                total_count=0,
-                active_count=0,
-                categories={}
-            )
-        
-        # Build query
-        query = db.query(RegionHint).filter(RegionHint.region_vnum == vnum)
-        
-        if category:
-            query = query.filter(RegionHint.hint_category == category)
-        
-        if is_active is not None:
-            query = query.filter(RegionHint.is_active == is_active)
-        
-        if min_priority:
-            query = query.filter(RegionHint.priority >= min_priority)
-        
-        # Get hints
-        hints = query.order_by(RegionHint.priority.desc(), RegionHint.created_at.desc()).all()
-        
-        # Calculate category distribution
-        category_counts = {}
-        active_count = 0
-        for hint in hints:
-            category_counts[hint.hint_category] = category_counts.get(hint.hint_category, 0) + 1
-            if hint.is_active:
-                active_count += 1
-        
-        return RegionHintListResponse(
-            hints=[RegionHintResponse.model_validate(hint) for hint in hints],
-            total_count=len(hints),
-            active_count=active_count,
-            categories=category_counts
-        )
-        
-    except Exception as e:
-        # Log the error but return empty response
-        logger.error(f"Error fetching hints for region {vnum}: {e}")
-        
-        # If the table doesn't exist, return empty response
-        if "doesn't exist" in str(e).lower() or "no such table" in str(e).lower():
-            logger.warning(f"Region hints table not found in database")
-            return RegionHintListResponse(
-                hints=[],
-                total_count=0,
-                active_count=0,
-                categories={}
-            )
-        
-        # For other errors, still return empty to avoid breaking the frontend
-        return RegionHintListResponse(
-            hints=[],
-            total_count=0,
-            active_count=0,
-            categories={}
-        )
+    # Build query - no need to check if region exists, just get hints
+    query = db.query(RegionHint).filter(RegionHint.region_vnum == vnum)
+    
+    if category:
+        query = query.filter(RegionHint.hint_category == category)
+    
+    if is_active is not None:
+        query = query.filter(RegionHint.is_active == is_active)
+    
+    if min_priority:
+        query = query.filter(RegionHint.priority >= min_priority)
+    
+    # Get hints
+    hints = query.order_by(RegionHint.priority.desc(), RegionHint.created_at.desc()).all()
+    
+    # Calculate category distribution
+    category_counts = {}
+    active_count = 0
+    for hint in hints:
+        category_counts[hint.hint_category] = category_counts.get(hint.hint_category, 0) + 1
+        if hint.is_active:
+            active_count += 1
+    
+    return RegionHintListResponse(
+        hints=[RegionHintResponse.model_validate(hint) for hint in hints],
+        total_count=len(hints),
+        active_count=active_count,
+        categories=category_counts
+    )
 
 
 @router.post("/{vnum}/hints", response_model=List[RegionHintResponse], status_code=status.HTTP_201_CREATED)
