@@ -582,20 +582,23 @@ Region Description:
 
 {f'Region Name: {region_name}' if region_name else ''}
 
-Generate 8-15 categorized hints that enhance player immersion. Each hint should be:
-- A complete, standalone descriptive sentence
-- Clean text without headers, formatting, or bullet points
-- Similar in style to the mosswood examples provided in instructions
-- Categorized using ONLY: atmosphere, fauna, flora, weather_influence, sounds, scents, seasonal_changes, time_of_day, mystical
-- Assigned a priority from 1-10 based on impact and uniqueness
-- Include weather conditions ONLY from: clear, cloudy, rainy, stormy, lightning (or leave empty if not weather-specific)
-- Include seasonal_weight for seasonal hints (e.g., snow=winter heavy, flowers=spring heavy)
-- Include time_of_day_weight for time-specific hints (e.g., dawn mist, nocturnal sounds)
+Generate 8-15 categorized hints that enhance player immersion. 
 
-REMEMBER THE WEIGHT RULES:
-- Seasonal hints: High weight ONLY for relevant season (e.g., winter: 2.0), low/zero for others
-- Time hints: High weight ONLY for relevant times (e.g., dawn: 2.0), normal for others
-- General hints: Omit weights or use balanced values
+CRITICAL: Each hint MUST include these fields:
+- category: One of: atmosphere, fauna, flora, weather_influence, sounds, scents, seasonal_changes, time_of_day, mystical
+- text: A complete, standalone descriptive sentence
+- priority: Number from 1-10 based on impact and uniqueness
+- weather_conditions: Array from [clear, cloudy, rainy, stormy, lightning] or empty array
+- seasonal_weight: For seasonal hints, dict like {"spring": 0.0, "summer": 0.0, "autumn": 0.2, "winter": 2.0}
+- time_of_day_weight: For time hints, dict like {"dawn": 2.0, "morning": 1.2, "midday": 0.5, "afternoon": 0.5, "evening": 0.8, "night": 0.6}
+
+WEIGHT RULES - ALWAYS INCLUDE WEIGHTS WHEN RELEVANT:
+- If hint mentions winter/snow/frost: seasonal_weight with winter=2.0, others low
+- If hint mentions spring/bloom/flowers: seasonal_weight with spring=2.0, others low  
+- If hint mentions dawn/sunrise: time_of_day_weight with dawn=2.0, others varied
+- If hint mentions dusk/evening/sunset: time_of_day_weight with evening=2.0, others varied
+- If hint mentions night/moonlight/stars: time_of_day_weight with night=2.0, others low
+- If no specific time/season: set both weights to null
 
 Focus on creating vivid, sensory details that bring the environment to life for text-based gameplay."""
 
