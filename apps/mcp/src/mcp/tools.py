@@ -1666,6 +1666,7 @@ class ToolRegistry:
     
     async def _generate_hints_from_description(self, **kwargs) -> Dict[str, Any]:
         """Generate categorized hints from a region description"""
+        debug_log = []  # Collect debug information
         try:
             # Get description either from vnum or directly
             description = kwargs.get("description", "")
@@ -1674,10 +1675,12 @@ class ToolRegistry:
             target_count = kwargs.get("target_hint_count", 15)
             include_profile = kwargs.get("include_profile", True)
             
+            debug_log.append(f"Starting hint generation - vnum: {region_vnum}, desc length: {len(description)}")
             logger.info(f"Generating hints - vnum: {region_vnum}, description length: {len(description) if description else 0}")
             
             # If vnum provided but no description, fetch it
             if region_vnum and not description:
+                debug_log.append(f"Fetching description for vnum {region_vnum}")
                 async with httpx.AsyncClient() as client:
                     headers = {"Authorization": f"Bearer {settings.api_key}"}
                     response = await client.get(
@@ -1688,34 +1691,49 @@ class ToolRegistry:
                         region_data = response.json()
                         description = region_data.get("region_description", "")
                         region_name = region_data.get("name", region_name)
+                        debug_log.append(f"Fetched description: {len(description)} chars")
             
             if not description:
-                return {"error": "No description provided or found for region"}
+                debug_log.append("ERROR: No description provided or found")
+                return {"error": "No description provided or found for region", "debug_log": debug_log}
             
             # Analyze description and extract hints
+            debug_log.append(f"Calling _extract_hints_from_description...")
             logger.info(f"Calling AI service with description: {description[:100]}...")
-            hints = await self._extract_hints_from_description(description, region_name)
+            hints = await self._extract_hints_from_description(description, region_name, debug_log)
+            debug_log.append(f"AI service returned {len(hints)} hints")
             logger.info(f"AI service returned {len(hints)} hints")
             
             # Generate profile if requested
             profile = None
             if include_profile:
+                debug_log.append("Generating profile...")
                 profile = self._generate_profile_from_description(description, region_name)
+                debug_log.append(f"Profile generated: mood={profile.get('dominant_mood')}")
             
             return {
                 "hints": hints[:target_count],  # Limit to target count
                 "profile": profile,
                 "total_hints_found": len(hints),
                 "region_name": region_name,
-                "description_length": len(description)
+                "description_length": len(description),
+                "debug_log": debug_log
             }
             
         except Exception as e:
-            return {"error": f"Failed to generate hints: {str(e)}"}
+            import traceback
+            debug_log.append(f"EXCEPTION: {str(e)}")
+            debug_log.append(f"Traceback: {traceback.format_exc()}")
+            return {"error": f"Failed to generate hints: {str(e)}", "debug_log": debug_log}
     
-    async def _extract_hints_from_description(self, description: str, region_name: str = "") -> List[Dict[str, Any]]:
+    async def _extract_hints_from_description(self, description: str, region_name: str = "", debug_log: List[str] = None) -> List[Dict[str, Any]]:
         """Extract categorized hints from description text using AI"""
+        if debug_log is None:
+            debug_log = []
+        
         try:
+            debug_log.append("Entering _extract_hints_from_description")
+            
             # Import AI service dynamically to avoid circular imports
             try:
                 from ..services.ai_service import get_ai_service
@@ -1726,33 +1744,47 @@ class ToolRegistry:
                 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
                 from services.ai_service import get_ai_service
             
+            debug_log.append("AI service imported successfully")
+            
             # Try AI generation first
             ai_service = get_ai_service()
             ai_result = None
             
+            debug_log.append(f"AI service provider: {ai_service.provider.value if hasattr(ai_service, 'provider') else 'unknown'}")
+            debug_log.append(f"AI service available: {ai_service.is_available() if hasattr(ai_service, 'is_available') else 'unknown'}")
+            
             # Check if hint agent specifically is available
             if hasattr(ai_service, 'is_hint_agent_available') and ai_service.is_hint_agent_available():
+                debug_log.append("Hint agent IS AVAILABLE - calling generate_hints_from_description")
                 logger.info("Hint agent is available, generating hints")
                 logger.info(f"Description preview: {description[:200]}...")
                 ai_result = await ai_service.generate_hints_from_description(
                     description=description,
                     region_name=region_name
                 )
+                debug_log.append(f"AI returned type: {type(ai_result)}, has error: {ai_result.get('error') if ai_result else 'N/A'}")
+                if ai_result:
+                    debug_log.append(f"AI result keys: {list(ai_result.keys())}")
+                    if 'hints' in ai_result:
+                        debug_log.append(f"Number of hints: {len(ai_result.get('hints', []))}")
                 logger.info(f"AI service returned: {type(ai_result)}, has error: {ai_result.get('error') if ai_result else 'N/A'}")
                 if ai_result and 'hints' in ai_result:
                     logger.info(f"Hints in result: {len(ai_result.get('hints', []))}")
             elif ai_service.is_available():
                 # Fallback to checking general availability
+                debug_log.append("Using GENERAL availability check - calling generate_hints_from_description")
                 logger.warning("Using general AI availability check (hint agent might not be available)")
                 logger.info(f"Description preview: {description[:200]}...")
                 ai_result = await ai_service.generate_hints_from_description(
                     description=description,
                     region_name=region_name
                 )
+                debug_log.append(f"AI returned type: {type(ai_result)}, has error: {ai_result.get('error') if ai_result else 'N/A'}")
                 logger.info(f"AI service returned: {type(ai_result)}, has error: {ai_result.get('error') if ai_result else 'N/A'}")
                 if ai_result and 'hints' in ai_result:
                     logger.info(f"Hints in result: {len(ai_result.get('hints', []))}")
             else:
+                debug_log.append("AI service NOT AVAILABLE")
                 logger.error("AI service not available for hint generation")
                 ai_result = None
             
@@ -1760,21 +1792,26 @@ class ToolRegistry:
             # The AI agent should already have set appropriate weights
             if ai_result and not ai_result.get("error"):
                 hints = ai_result.get("hints", [])
+                debug_log.append(f"SUCCESS: Returning {len(hints)} hints")
                 logger.info(f"AI generation successful: {len(hints)} hints generated")
                 return hints
             
             # If we get here, AI failed or wasn't available
             if not ai_result:
+                debug_log.append("FAILURE: No AI result obtained")
                 logger.error("No AI result obtained - service unavailable")
             else:
+                debug_log.append(f"FAILURE: AI error: {ai_result.get('error')}")
                 logger.error(f"AI result has error: {ai_result.get('error')}")
                 logger.error(f"Full AI result: {ai_result}")
             return []
             
         except Exception as e:
+            debug_log.append(f"EXCEPTION in _extract_hints: {str(e)}")
             logger.error(f"AI hint extraction failed: {e}")
             # Return error instead of fallback to templates
             import traceback
+            debug_log.append(f"Traceback: {traceback.format_exc()}")
             logger.error(f"Full traceback: {traceback.format_exc()}")
             return []
 
