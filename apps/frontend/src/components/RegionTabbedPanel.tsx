@@ -80,57 +80,95 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
     }
   };
 
-  const generateHintsFromDescription = async () => {
-    if (!region.region_description) {
+  const generateHintsFromDescription = async (description?: string, askConfirmation: boolean = true) => {
+    const descToUse = description || region.region_description;
+    
+    if (!descToUse) {
       setHintsError('Region needs a description to generate hints');
       return;
+    }
+
+    // Ask for confirmation if hints already exist
+    if (askConfirmation && hints.length > 0) {
+      const confirmOverwrite = window.confirm(
+        `This region already has ${hints.length} hints. Generating new hints will overwrite them. Continue?`
+      );
+      if (!confirmOverwrite) {
+        return;
+      }
     }
 
     setHintsLoading(true);
     setHintsError(null);
     
     try {
-      // First generate hints using MCP
-      const generateResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints/generate`, {
+      // Call the backend proxy endpoint that will forward to MCP
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/mcp/call-tool`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
         },
         body: JSON.stringify({
-          description: region.region_description,
-          region_name: region.name,
-          region_type: region.region_type,
-          target_hint_count: 20,
-          include_profile: true
+          tool_name: 'generate_hints_from_description',
+          arguments: {
+            region_vnum: region.vnum,
+            region_name: region.name,
+            description: descToUse,
+            target_hint_count: 20,
+            include_profile: true
+          }
         })
       });
 
-      if (generateResponse.ok) {
-        const generatedData = await generateResponse.json();
+      if (response.ok) {
+        const data = await response.json();
         
-        // Store the generated hints
-        if (generatedData.hints && generatedData.hints.length > 0) {
-          const storeResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
-            },
-            body: JSON.stringify({
-              hints: generatedData.hints
-            })
-          });
-
-          if (storeResponse.ok) {
-            // Refresh hints list
-            await fetchHints();
-          } else {
-            throw new Error('Failed to store generated hints');
+        if (data.success && data.result) {
+          // Parse the result if it's a string
+          let hintsData = data.result;
+          if (typeof hintsData === 'string') {
+            try {
+              hintsData = JSON.parse(hintsData);
+            } catch {
+              // If not JSON, assume it's an error message
+              throw new Error(hintsData);
+            }
           }
+          
+          // Store the generated hints
+          if (hintsData.hints && hintsData.hints.length > 0) {
+            const storeResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
+              },
+              body: JSON.stringify({
+                hints: hintsData.hints
+              })
+            });
+
+            if (storeResponse.ok) {
+              // Refresh hints list
+              await fetchHints();
+              
+              // Expand first category to show results
+              if (hintsData.hints.length > 0) {
+                const firstCategory = hintsData.hints[0].category || hintsData.hints[0].hint_category;
+                setExpandedCategories(new Set([firstCategory]));
+              }
+            } else {
+              throw new Error('Failed to store generated hints');
+            }
+          } else {
+            setHintsError('No hints were generated from the description');
+          }
+        } else {
+          throw new Error(data.error || 'Failed to generate hints');
         }
       } else {
-        throw new Error('Failed to generate hints from description');
+        throw new Error(`Failed to generate hints: ${response.status}`);
       }
     } catch (error) {
       setHintsError(error instanceof Error ? error.message : 'Failed to generate hints');
@@ -477,6 +515,14 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         <Star className="w-4 h-4" />
         Generate with AI
       </button>
+
+      {/* Hint generation note */}
+      <div className="bg-blue-900/20 border border-blue-800 rounded-lg p-2">
+        <p className="text-blue-300 text-xs flex items-center gap-1">
+          <Lightbulb className="w-3 h-3" />
+          Hints will be automatically generated after creating a description
+        </p>
+      </div>
       
       {/* Error message */}
       {generationError && (
@@ -641,16 +687,17 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
             {/* Generate button */}
             {region.region_description && (
               <button
-                onClick={generateHintsFromDescription}
+                onClick={() => generateHintsFromDescription()}
                 disabled={hintsLoading}
                 className="text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 px-3 py-1 rounded flex items-center gap-1"
+                title={hints.length > 0 ? 'This will replace existing hints' : 'Generate hints from description'}
               >
                 {hintsLoading ? (
                   <>Generating...</>
                 ) : (
                   <>
                     <Plus className="w-3 h-3" />
-                    Generate from Description
+                    {hints.length > 0 ? 'Regenerate Hints' : 'Generate Hints'}
                   </>
                 )}
               </button>
@@ -814,6 +861,12 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         
         // Close dialog on success
         setShowGenerateDialog(false);
+        
+        // Automatically generate hints from the new description
+        // Use setTimeout to allow the UI to update first
+        setTimeout(() => {
+          generateHintsFromDescription(result.generated_description, false);
+        }, 500);
       }
     } catch (error) {
       console.error('Failed to generate description:', error);
