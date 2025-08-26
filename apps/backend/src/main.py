@@ -6,6 +6,7 @@ from .routers.points import router as points_router
 from .routers.terrain import router as terrain_router
 from .routers.wilderness import router as wilderness_router
 from .routers.region_hints import router as region_hints_router
+from .routers.mcp_proxy import router as mcp_proxy_router
 from .middleware.auth import verify_api_key
 from .services.terrain_bridge import is_terrain_bridge_available
 import os
@@ -43,6 +44,9 @@ app.include_router(wilderness_router, prefix="/api/wilderness", tags=["Wildernes
 
 # Include region hints router - nested under regions
 app.include_router(region_hints_router, prefix="/api/regions", tags=["Region Hints"])
+
+# Include MCP proxy router for AI services
+app.include_router(mcp_proxy_router, prefix="/api/mcp", tags=["MCP Proxy"])
 
 
 @app.get("/api/health")

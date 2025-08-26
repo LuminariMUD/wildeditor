@@ -435,7 +435,7 @@ class ApiClient {
     return await this.request<{ status: string; timestamp: string }>('/health');
   }
 
-  // Generate description using MCP AI service
+  // Generate description using MCP AI service via backend proxy
   async generateRegionDescription(params: {
     region_vnum?: number;
     region_name?: string;
@@ -456,48 +456,31 @@ class ApiClient {
     ai_provider?: string;
     error?: string;
   }> {
-    // Call MCP server to generate description
-    const mcpUrl = import.meta.env.VITE_MCP_URL || 'https://luminarimud.com:8001/mcp';
-    const mcpApiKey = import.meta.env.VITE_MCP_API_KEY || 'xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=';
-    
     try {
-      const response = await fetch(`${mcpUrl}/request`, {
+      // Call backend proxy endpoint which will forward to MCP
+      const response = await this.request<{
+        success: boolean;
+        result?: {
+          generated_description?: string;
+          metadata?: Record<string, unknown>;
+          word_count?: number;
+          character_count?: number;
+          suggested_quality_score?: number;
+          region_vnum?: number;
+          region_name?: string;
+          ai_provider?: string;
+        };
+        error?: string;
+      }>('/mcp/generate-description', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': mcpApiKey
-        },
-        body: JSON.stringify({
-          id: `generate-${Date.now()}`,
-          method: 'tools/call',
-          params: {
-            name: 'generate_region_description',
-            arguments: params
-          }
-        })
+        body: JSON.stringify(params)
       });
 
-      if (!response.ok) {
-        throw new Error(`MCP request failed: ${response.status}`);
+      if (response.success && response.result) {
+        return response.result;
+      } else {
+        return { error: response.error || 'Failed to generate description' };
       }
-
-      const data = await response.json();
-      
-      // Extract result from MCP response format
-      if (data.result?.content?.[0]?.text) {
-        // Parse the text result which should be a JSON string
-        try {
-          return JSON.parse(data.result.content[0].text);
-        } catch {
-          // If not JSON, return as plain text
-          return {
-            generated_description: data.result.content[0].text,
-            ai_provider: 'mcp'
-          };
-        }
-      }
-      
-      return data.result || { error: 'No result from MCP' };
     } catch (error) {
       console.error('Failed to generate description:', error);
       return { error: error instanceof Error ? error.message : 'Failed to generate description' };
