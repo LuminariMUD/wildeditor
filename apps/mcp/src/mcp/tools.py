@@ -7,6 +7,9 @@ the wilderness system through the backend API.
 
 from typing import Dict, Any, List, Optional
 import httpx
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     # Try relative import (when run as module)
@@ -1688,7 +1691,7 @@ class ToolRegistry:
                 return {"error": "No description provided or found for region"}
             
             # Analyze description and extract hints
-            hints = self._extract_hints_from_description(description)
+            hints = await self._extract_hints_from_description(description, region_name)
             
             # Generate profile if requested
             profile = None
@@ -1706,8 +1709,58 @@ class ToolRegistry:
         except Exception as e:
             return {"error": f"Failed to generate hints: {str(e)}"}
     
-    def _extract_hints_from_description(self, description: str) -> List[Dict[str, Any]]:
-        """Extract categorized hints from description text"""
+    async def _extract_hints_from_description(self, description: str, region_name: str = "") -> List[Dict[str, Any]]:
+        """Extract categorized hints from description text using AI"""
+        try:
+            # Import AI service dynamically to avoid circular imports
+            try:
+                from ..services.ai_service import get_ai_service
+            except ImportError:
+                # Fallback for different import contexts
+                import sys
+                import os
+                sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+                from services.ai_service import get_ai_service
+            
+            # Try AI generation first
+            ai_service = get_ai_service()
+            ai_result = None
+            
+            if ai_service.is_available():
+                ai_result = await ai_service.generate_hints_from_description(
+                    description=description,
+                    region_name=region_name
+                )
+                
+                # If AI generation successful, return processed hints
+                if ai_result and not ai_result.get("error"):
+                    hints = ai_result.get("hints", [])
+                    
+                    # Add additional weights for seasonal and time-based hints
+                    for hint in hints:
+                        category = hint.get("category", "")
+                        text_lower = hint.get("text", "").lower()
+                        
+                        # Add seasonal weight if relevant
+                        if "seasonal" in category or any(season in text_lower for season in ["spring", "summer", "autumn", "winter"]):
+                            hint["seasonal_weight"] = self._calculate_seasonal_weight(text_lower)
+                        
+                        # Add time weight if relevant  
+                        if "time" in category or any(time in text_lower for time in ["dawn", "morning", "evening", "night"]):
+                            hint["time_of_day_weight"] = self._calculate_time_weight(text_lower)
+                    
+                    return hints
+            
+            # Fallback to template-based parsing if AI not available
+            return await self._extract_hints_fallback(description)
+            
+        except Exception as e:
+            logger.error(f"AI hint extraction failed: {e}")
+            # Fallback to template-based parsing
+            return await self._extract_hints_fallback(description)
+
+    async def _extract_hints_fallback(self, description: str) -> List[Dict[str, Any]]:
+        """Fallback hint extraction using template-based parsing"""
         hints = []
         sentences = description.split('.')
         
@@ -1749,7 +1802,7 @@ class ToolRegistry:
                         "text": sentence + "." if not sentence.endswith('.') else sentence,
                         "priority": priority,
                         "weather_conditions": weather_conditions,
-                        "ai_agent_id": "mcp_hint_extractor"
+                        "ai_agent_id": "mcp_hint_extractor_fallback"
                     }
                     
                     # Add seasonal weight if relevant

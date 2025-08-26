@@ -49,6 +49,19 @@ class GeneratedDescription(BaseModel):
     metadata: DescriptionMetadata = Field(description="Metadata about the description")
     word_count: int = Field(description="Number of words in description")
 
+class GeneratedHint(BaseModel):
+    """Structured output for a single generated hint"""
+    category: str = Field(description="Hint category (atmosphere, fauna, flora, etc.)")
+    text: str = Field(description="Clean descriptive hint text without formatting")
+    priority: int = Field(ge=1, le=10, description="Priority level 1-10")
+    weather_conditions: List[str] = Field(default_factory=list, description="Applicable weather conditions")
+
+class GeneratedHints(BaseModel):
+    """Structured output for generated hints collection"""
+    hints: List[GeneratedHint] = Field(description="List of generated categorized hints")
+    total_count: int = Field(description="Total number of hints generated")
+    categories_used: List[str] = Field(description="Categories that were used")
+
 class AIService:
     """
     AI Service for generating region descriptions
@@ -62,6 +75,7 @@ class AIService:
         self.initialization_error = None
         self.model = self._initialize_model()
         self.agent = self._create_agent() if self.model else None
+        self.hint_agent = self._create_hint_agent() if self.model else None
         
         logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.10)")
     
@@ -188,6 +202,37 @@ class AIService:
             
         except Exception as e:
             logger.error(f"Failed to create AI agent: {e}")
+            return None
+
+    def _create_hint_agent(self) -> Optional[Agent]:
+        """Create PydanticAI agent for hint generation"""
+        if not self.model:
+            return None
+        
+        try:
+            # Create agent with structured hint output
+            hint_agent = Agent(
+                model=self.model,
+                output_type=GeneratedHints,
+                instructions="""You are an expert wilderness designer for a fantasy MUD game. 
+                Your task is to analyze region descriptions and generate immersive atmospheric hints.
+                
+                Guidelines:
+                - Generate clean, descriptive hints without headers or formatting characters
+                - Each hint should be a complete standalone sentence that enhances immersion
+                - Categorize hints appropriately: atmosphere, fauna, flora, geography, sounds, scents, weather_influence, mystical, landmarks, resources, seasonal_changes, time_of_day
+                - Create hints similar to these mosswood examples:
+                  * "The profound silence of the moss-covered forest creates an almost sacred atmosphere, where even your footsteps are muffled by the thick emerald carpet beneath your feet."
+                  * "Ancient oak and elm trees rise like cathedral pillars, their gnarled branches forming a natural canopy that filters sunlight into dancing patterns of green and gold."
+                  * "The air carries the rich, earthy scent of decomposing leaves mixed with the fresh, clean smell of growing moss and ferns."
+                
+                Your hints should be evocative, detailed, and help players fully immerse in the environment."""
+            )
+            
+            return hint_agent
+            
+        except Exception as e:
+            logger.error(f"Failed to create hint agent: {e}")
             return None
     
     async def generate_description(
@@ -470,6 +515,94 @@ Create a comprehensive, immersive description that brings this region to life.""
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             return None
+
+    async def generate_hints_from_description(self, description: str, region_name: str = "") -> Dict[str, Any]:
+        """
+        Generate categorized hints from a region description using AI
+        
+        Args:
+            description: The region description text to analyze
+            region_name: Optional region name for context
+            
+        Returns:
+            Dictionary with generated hints and metadata
+        """
+        
+        # If no AI available, return error
+        if not self.hint_agent:
+            logger.warning("Hint agent not available, falling back to template parsing")
+            return {
+                "error": "AI service not available for hint generation",
+                "hints": [],
+                "ai_provider": "none"
+            }
+        
+        # Create the prompt for hint generation
+        user_content = f"""Analyze this wilderness region description and generate immersive atmospheric hints.
+
+Region Description:
+{description}
+
+{f'Region Name: {region_name}' if region_name else ''}
+
+Generate 8-15 categorized hints that enhance player immersion. Each hint should be:
+- A complete, standalone descriptive sentence
+- Clean text without headers, formatting, or bullet points
+- Similar in style to the mosswood examples provided in instructions
+- Categorized appropriately (atmosphere, fauna, flora, geography, sounds, scents, weather_influence, mystical, landmarks, resources, seasonal_changes, time_of_day)
+- Assigned a priority from 1-10 based on impact and uniqueness
+- Include appropriate weather conditions where relevant
+
+Focus on creating vivid, sensory details that bring the environment to life for text-based gameplay."""
+
+        try:
+            # Generate with retry logic
+            max_retries = 2
+            for attempt in range(max_retries):
+                try:
+                    result = await self.hint_agent.run(user_content)
+                    
+                    # Extract the structured result - handle different result formats
+                    if hasattr(result, 'data'):
+                        generated = result.data
+                    elif hasattr(result, 'output'):
+                        generated = result.output
+                    else:
+                        # For DeepSeek or other providers that might return different structure
+                        generated = result
+                    
+                    return {
+                        "hints": [
+                            {
+                                "category": hint.category,
+                                "text": hint.text,
+                                "priority": hint.priority,
+                                "weather_conditions": hint.weather_conditions,
+                                "ai_agent_id": "mcp_ai_hint_generator"
+                            }
+                            for hint in generated.hints
+                        ],
+                        "total_hints_generated": generated.total_count,
+                        "categories_used": generated.categories_used,
+                        "ai_provider": self.provider.value,
+                        "region_name": region_name,
+                        "description_length": len(description)
+                    }
+                    
+                except ModelRetry as e:
+                    if attempt == max_retries - 1:
+                        logger.error(f"Max retries exceeded for hint generation: {e}")
+                        raise
+                    logger.warning(f"Retrying hint generation (attempt {attempt + 1}): {e}")
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"AI hint generation failed: {e}")
+            return {
+                "error": f"Failed to generate hints: {str(e)}",
+                "hints": [],
+                "ai_provider": self.provider.value
+            }
     
     def is_available(self) -> bool:
         """Check if AI service is available"""

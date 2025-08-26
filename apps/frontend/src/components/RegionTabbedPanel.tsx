@@ -711,7 +711,11 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
             {/* Generate button */}
             {region.region_description && (
               <button
-                onClick={() => generateHintsFromDescription()}
+                onClick={() => {
+                  // Log the current description to help debug
+                  console.log('[Hints] Starting hint generation with description:', region.region_description?.substring(0, 100));
+                  generateHintsFromDescription();
+                }}
                 disabled={hintsLoading}
                 className="text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 px-3 py-1 rounded flex items-center gap-1"
                 title={hints.length > 0 ? 'This will replace existing hints' : 'Generate hints from description'}
