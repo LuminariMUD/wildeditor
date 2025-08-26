@@ -17,11 +17,13 @@ Endpoints:
 """
 
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 from datetime import datetime
 import logging
+from pydantic import ValidationError
 
 from ..config.config_database import get_db
 from ..models.region import Region
@@ -44,6 +46,7 @@ from ..schemas.region_hints import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 
 # ============================================================================
@@ -148,6 +151,11 @@ def create_region_hints(
     Returns:
         List of created hints
     """
+    # Log the incoming request for debugging
+    logger.debug(f"Creating hints for region {vnum}")
+    logger.debug(f"Number of hints: {len(request.hints)}")
+    for i, hint in enumerate(request.hints):
+        logger.debug(f"Hint {i}: category={hint.hint_category}, text_len={len(hint.hint_text)}, priority={hint.priority}")
     # Check if region exists
     region = db.query(Region).filter(Region.vnum == vnum).first()
     if not region:

@@ -1,5 +1,8 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+import logging
 from .routers.regions import router as regions_router
 from .routers.paths import router as paths_router
 from .routers.points import router as points_router
@@ -10,6 +13,8 @@ from .routers.mcp_proxy import router as mcp_proxy_router
 from .middleware.auth import verify_api_key
 from .services.terrain_bridge import is_terrain_bridge_available
 import os
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Wildeditor Backend API",
@@ -78,3 +83,20 @@ def root():
         "docs_url": "/docs",
         "health_url": "/api/health"
     }
+
+# Add validation error handler for better debugging
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Log validation errors for debugging"""
+    logger.error(f"Validation error for {request.url.path}")
+    logger.error(f"Request body: {await request.body()}")
+    logger.error(f"Validation errors: {exc.errors()}")
+    
+    # Return detailed error for debugging
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": exc.errors(),
+            "body": str(exc.body) if hasattr(exc, 'body') else None
+        }
+    )

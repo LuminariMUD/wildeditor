@@ -144,17 +144,33 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
             throw new Error('Backend returned unparsed text format');
           }
           
+          // Log the generated hints for debugging
+          console.log('Generated hints from MCP:', hintsData);
+          
           // Store the generated hints
           if (hintsData.hints && hintsData.hints.length > 0) {
             // Format hints for backend API (map 'category' to 'hint_category')
-            const formattedHints = hintsData.hints.map((hint: { category?: string; hint_category?: string; text?: string; hint_text?: string; priority?: number; weather_conditions?: string[]; seasonal_weight?: Record<string, number>; time_of_day_weight?: Record<string, number> }) => ({
-              hint_category: hint.category || hint.hint_category,
-              hint_text: hint.text || hint.hint_text,
-              priority: hint.priority || 5,
-              weather_conditions: hint.weather_conditions || ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'],
-              seasonal_weight: hint.seasonal_weight || null,
-              time_of_day_weight: hint.time_of_day_weight || null
-            }));
+            const formattedHints = hintsData.hints.map((hint: { category?: string; hint_category?: string; text?: string; hint_text?: string; priority?: number; weather_conditions?: string[]; seasonal_weight?: Record<string, number>; time_of_day_weight?: Record<string, number> }) => {
+              // Normalize category to lowercase and replace spaces with underscores
+              const rawCategory = (hint.category || hint.hint_category || 'atmosphere');
+              const normalizedCategory = rawCategory.toLowerCase().replace(/\s+/g, '_');
+              
+              // Ensure hint_text meets minimum length requirement (10 characters)
+              const hintText = hint.text || hint.hint_text || '';
+              if (hintText.length < 10) {
+                console.warn(`Hint text too short (${hintText.length} chars): "${hintText}"`);
+                return null; // Skip this hint
+              }
+              
+              return {
+                hint_category: normalizedCategory,
+                hint_text: hintText,
+                priority: Math.min(10, Math.max(1, hint.priority || 5)), // Ensure priority is between 1-10
+                weather_conditions: hint.weather_conditions || ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'],
+                seasonal_weight: hint.seasonal_weight || null,
+                time_of_day_weight: hint.time_of_day_weight || null
+              };
+            }).filter(hint => hint !== null); // Remove any null hints
             
             // If hints already exist and user confirmed overwrite, delete them first
             if (hints.length > 0) {
@@ -169,7 +185,24 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
             }
             
             // Now create the new hints
-            await apiClient.createHints(region.vnum, formattedHints);
+            try {
+              await apiClient.createHints(region.vnum, formattedHints);
+            } catch (error: any) {
+              console.error('Failed to create hints:', error);
+              // Try to extract validation errors from the response
+              if (error.message && error.message.includes('[')) {
+                try {
+                  const errorDetails = JSON.parse(error.message);
+                  console.error('Validation errors:', errorDetails);
+                  const firstError = errorDetails[0];
+                  throw new Error(`Validation error: ${firstError.msg} at ${firstError.loc.join('.')}`);  
+                } catch (parseError) {
+                  // If we can't parse the error, throw the original
+                  throw error;
+                }
+              }
+              throw error;
+            }
 
             // Refresh hints list
             await fetchHints();
