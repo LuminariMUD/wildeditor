@@ -59,6 +59,9 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
   const [hintsError, setHintsError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [editingHint, setEditingHint] = useState<RegionHint | null>(null);
+  const [showHintEditor, setShowHintEditor] = useState(false);
+  const [isCreatingHint, setIsCreatingHint] = useState(false);
 
   const fetchHints = useCallback(async () => {
     setHintsLoading(true);
@@ -245,6 +248,73 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
     r => r.region_type === 4 && 
     JSON.stringify(r.coordinates) === JSON.stringify(region.coordinates)
   );
+
+  // Handle hint saving (create or update)
+  const handleSaveHint = async (hintData: Omit<RegionHint, 'id' | 'region_vnum'>) => {
+    try {
+      if (isCreatingHint) {
+        // Create new hint
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
+            },
+            body: JSON.stringify({
+              hints: [{
+                hint_category: hintData.hint_category,
+                hint_text: hintData.hint_text,
+                priority: hintData.priority,
+                weather_conditions: hintData.weather_conditions?.split(',') || ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'],
+                seasonal_weight: hintData.seasonal_weight,
+                time_of_day_weight: hintData.time_of_day_weight
+              }]
+            })
+          }
+        );
+        
+        if (response.ok) {
+          await fetchHints();
+          setShowHintEditor(false);
+          setEditingHint(null);
+        } else {
+          console.error('Failed to create hint');
+        }
+      } else if (editingHint) {
+        // Update existing hint
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/regions/${region.vnum}/hints/${editingHint.id}`,
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
+            },
+            body: JSON.stringify({
+              hint_text: hintData.hint_text,
+              priority: hintData.priority,
+              weather_conditions: hintData.weather_conditions?.split(',') || ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'],
+              seasonal_weight: hintData.seasonal_weight,
+              time_of_day_weight: hintData.time_of_day_weight,
+              is_active: hintData.is_active
+            })
+          }
+        );
+        
+        if (response.ok) {
+          await fetchHints();
+          setShowHintEditor(false);
+          setEditingHint(null);
+        } else {
+          console.error('Failed to update hint');
+        }
+      }
+    } catch (error) {
+      console.error('Error saving hint:', error);
+    }
+  };
 
   const renderTabs = () => (
     <div className="flex border-b border-gray-700">
@@ -1040,6 +1110,19 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         regionName={region.name}
         regionType={region.region_type}
         isGenerating={isGenerating}
+      />
+      
+      {/* Hint Editor Dialog */}
+      <HintEditor
+        hint={editingHint || undefined}
+        regionVnum={region.vnum}
+        isOpen={showHintEditor}
+        onSave={handleSaveHint}
+        onCancel={() => {
+          setShowHintEditor(false);
+          setEditingHint(null);
+          setIsCreatingHint(false);
+        }}
       />
     </>
   );

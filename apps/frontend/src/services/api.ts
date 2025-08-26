@@ -486,6 +486,78 @@ class ApiClient {
       return { error: error instanceof Error ? error.message : 'Failed to generate description' };
     }
   }
+
+  // Region Hints API Methods
+  async getRegionHints(vnum: number): Promise<{
+    hints: Array<{
+      id: number;
+      region_vnum: number;
+      hint_category: string;
+      hint_text: string;
+      priority: number;
+      seasonal_weight?: Record<string, number> | null;
+      weather_conditions?: string | null;
+      time_of_day_weight?: Record<string, number> | null;
+      is_active?: boolean;
+    }>;
+    total_count: number;
+    active_count: number;
+    categories: Record<string, number>;
+  }> {
+    return this.request(`/regions/${vnum}/hints`);
+  }
+
+  async createHints(vnum: number, hints: Array<{
+    hint_category: string;
+    hint_text: string;
+    priority: number;
+    weather_conditions?: string[];
+    seasonal_weight?: Record<string, number> | null;
+    time_of_day_weight?: Record<string, number> | null;
+  }>): Promise<Array<{
+    id: number;
+    region_vnum: number;
+    hint_category: string;
+    hint_text: string;
+    priority: number;
+  }>> {
+    return this.request(`/regions/${vnum}/hints`, {
+      method: 'POST',
+      body: JSON.stringify({ hints })
+    });
+  }
+
+  async updateHint(vnum: number, hintId: number, updates: {
+    hint_text?: string;
+    priority?: number;
+    weather_conditions?: string[];
+    seasonal_weight?: Record<string, number> | null;
+    time_of_day_weight?: Record<string, number> | null;
+    is_active?: boolean;
+  }): Promise<{
+    id: number;
+    region_vnum: number;
+    hint_category: string;
+    hint_text: string;
+    priority: number;
+  }> {
+    return this.request(`/regions/${vnum}/hints/${hintId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
+  }
+
+  async deleteHint(vnum: number, hintId: number): Promise<void> {
+    await this.request(`/regions/${vnum}/hints/${hintId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async deleteAllHints(vnum: number): Promise<void> {
+    await this.request(`/regions/${vnum}/hints`, {
+      method: 'DELETE'
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL, API_KEY);
