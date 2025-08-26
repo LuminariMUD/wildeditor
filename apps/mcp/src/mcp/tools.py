@@ -1738,105 +1738,18 @@ class ToolRegistry:
                     hints = ai_result.get("hints", [])
                     return hints
             
-            # Fallback to template-based parsing if AI not available
-            return await self._extract_hints_fallback(description)
+            # AI service not available - return error instead of fallback
+            logger.error("AI service not available for hint generation")
+            return []
             
         except Exception as e:
             logger.error(f"AI hint extraction failed: {e}")
-            # Fallback to template-based parsing
-            return await self._extract_hints_fallback(description)
+            # Return error instead of fallback to templates
+            return []
 
-    async def _extract_hints_fallback(self, description: str) -> List[Dict[str, Any]]:
-        """Fallback hint extraction using template-based parsing"""
-        hints = []
-        sentences = description.split('.')
-        
-        # Categories and their keyword patterns
-        category_patterns = {
-            "atmosphere": ["atmosphere", "feeling", "mood", "ambiance", "air", "presence"],
-            "fauna": ["animal", "creature", "bird", "insect", "wildlife", "beast"],
-            "flora": ["tree", "plant", "flower", "moss", "vine", "leaf", "grass"],
-            "geography": ["terrain", "landscape", "rock", "hill", "valley", "cliff"],
-            "sounds": ["sound", "echo", "noise", "rustle", "call", "whisper"],
-            "scents": ["smell", "scent", "aroma", "fragrance", "odor"],
-            "weather_influence": ["rain", "mist", "fog", "storm", "wind", "cloud"],
-            "mystical": ["magical", "mystical", "ethereal", "supernatural", "enchanted"],
-            "landmarks": ["landmark", "monument", "structure", "formation", "feature"],
-            "resources": ["resource", "material", "ore", "water", "spring"],
-            "seasonal_changes": ["spring", "summer", "autumn", "winter", "seasonal"],
-            "time_of_day": ["dawn", "morning", "noon", "evening", "dusk", "night"]
-        }
-        
-        for sentence in sentences:
-            sentence = sentence.strip()
-            if len(sentence) < 20:  # Skip very short sentences
-                continue
-                
-            sentence_lower = sentence.lower()
-            
-            # Determine category based on keywords
-            for category, keywords in category_patterns.items():
-                if any(keyword in sentence_lower for keyword in keywords):
-                    # Assign priority based on sentence quality
-                    priority = self._calculate_hint_priority(sentence)
-                    
-                    # Determine weather conditions
-                    weather_conditions = self._determine_weather_conditions(sentence_lower)
-                    
-                    # Create hint
-                    hint = {
-                        "category": category,
-                        "text": sentence + "." if not sentence.endswith('.') else sentence,
-                        "priority": priority,
-                        "weather_conditions": weather_conditions,
-                        "ai_agent_id": "mcp_hint_extractor_fallback"
-                    }
-                    
-                    # Add seasonal weight if relevant
-                    if "seasonal" in category or any(season in sentence_lower for season in ["spring", "summer", "autumn", "winter"]):
-                        hint["seasonal_weight"] = self._calculate_seasonal_weight(sentence_lower)
-                    
-                    # Add time weight if relevant
-                    if "time" in category or any(time in sentence_lower for time in ["dawn", "morning", "evening", "night"]):
-                        hint["time_of_day_weight"] = self._calculate_time_weight(sentence_lower)
-                    
-                    hints.append(hint)
-                    break  # Only assign one category per sentence
-        
-        return hints
+    # REMOVED: _extract_hints_fallback - We only use AI agents for hint generation
     
-    def _calculate_hint_priority(self, sentence: str) -> int:
-        """Calculate priority for a hint based on quality indicators"""
-        priority = 5  # Base priority
-        
-        # Increase for vivid/descriptive language
-        if len(sentence) > 100:
-            priority += 1
-        if any(word in sentence.lower() for word in ["beautiful", "magnificent", "ancient", "mystical"]):
-            priority += 1
-        if sentence.count(',') > 2:  # Complex sentence structure
-            priority += 1
-        
-        return min(10, max(1, priority))
-    
-    def _determine_weather_conditions(self, text: str) -> List[str]:
-        """Determine applicable weather conditions for a hint"""
-        conditions = []
-        
-        weather_mapping = {
-            "clear": ["sun", "bright", "clear", "blue sky"],
-            "cloudy": ["cloud", "overcast", "grey sky", "gray sky"],
-            "rainy": ["rain", "drizzle", "wet", "precipitation"],
-            "stormy": ["storm", "thunder", "tempest", "gale"],
-            "lightning": ["lightning", "electric", "flash"]
-        }
-        
-        for condition, keywords in weather_mapping.items():
-            if any(keyword in text for keyword in keywords):
-                conditions.append(condition)
-        
-        # Default to all weather if none specified
-        return conditions if conditions else ["clear", "cloudy", "rainy", "stormy", "lightning"]
+    # REMOVED: _calculate_hint_priority, _determine_weather_conditions - Only used by fallback
     
     def _calculate_seasonal_weight(self, text: str) -> Dict[str, float]:
         """Calculate seasonal weights based on text content - LOGICAL weights"""

@@ -577,7 +577,7 @@ Create a comprehensive, immersive description that brings this region to life.""
         
         # If no AI available, return error
         if not self.hint_agent:
-            logger.warning("Hint agent not available, falling back to template parsing")
+            logger.error("Hint agent not available - will not generate hints")
             return {
                 "error": "AI service not available for hint generation",
                 "hints": [],
