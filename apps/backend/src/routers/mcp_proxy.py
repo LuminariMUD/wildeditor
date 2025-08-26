@@ -113,6 +113,60 @@ async def generate_region_description(request: GenerateDescriptionRequest):
                 try:
                     # Try to parse as JSON
                     result = json.loads(result_text)
+                    
+                    # Check if the result contains a stringified JSON
+                    if isinstance(result, dict) and "generated_description" in result:
+                        if isinstance(result["generated_description"], str) and result["generated_description"].startswith("{"):
+                            try:
+                                # The generated_description is a stringified JSON object, parse it
+                                parsed = json.loads(result["generated_description"])
+                                
+                                # Extract the actual description text
+                                description_text = parsed.get("generated_description", "")
+                                
+                                # Build metadata section to append
+                                metadata_parts = []
+                                if parsed.get("metadata"):
+                                    meta = parsed["metadata"]
+                                    metadata_parts.append("\n\n---\n## Region Metadata")
+                                    if meta.get("quality_score"):
+                                        metadata_parts.append(f"**Quality Score:** {meta['quality_score']}/10")
+                                    if meta.get("has_historical_context"):
+                                        metadata_parts.append("**Historical Context:** Yes")
+                                    if meta.get("has_wildlife_info"):
+                                        metadata_parts.append("**Wildlife Information:** Yes")
+                                    if meta.get("has_geological_info"):
+                                        metadata_parts.append("**Geological Features:** Yes")
+                                    if meta.get("has_cultural_info"):
+                                        metadata_parts.append("**Cultural Elements:** Yes")
+                                    if meta.get("has_resource_info"):
+                                        metadata_parts.append("**Resource Information:** Yes")
+                                
+                                if parsed.get("key_features"):
+                                    metadata_parts.append(f"\n**Key Features:** {', '.join(parsed['key_features'])}")
+                                
+                                if parsed.get("word_count"):
+                                    metadata_parts.append(f"\n**Word Count:** {parsed['word_count']}")
+                                
+                                # Combine description with metadata
+                                full_description = description_text
+                                if metadata_parts:
+                                    full_description += "\n".join(metadata_parts)
+                                
+                                # Return properly structured result
+                                result = {
+                                    "generated_description": full_description,
+                                    "metadata": parsed.get("metadata", {}),
+                                    "word_count": parsed.get("word_count"),
+                                    "character_count": parsed.get("character_count"),
+                                    "suggested_quality_score": parsed.get("suggested_quality_score", 7.0),
+                                    "region_name": parsed.get("region_name"),
+                                    "ai_provider": parsed.get("ai_provider", "mcp"),
+                                    "key_features": parsed.get("key_features", [])
+                                }
+                            except json.JSONDecodeError:
+                                # If parsing fails, use the original text
+                                pass
                 except json.JSONDecodeError:
                     # Return as plain text if not JSON
                     result = {
