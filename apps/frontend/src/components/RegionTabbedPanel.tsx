@@ -6,6 +6,7 @@ import {
 import { Region } from '../types';
 import { apiClient } from '../services/api';
 import { GenerateDescriptionDialog } from './GenerateDescriptionDialog';
+import { CoordinateEditor } from './CoordinateEditor';
 
 interface RegionTabbedPanelProps {
   region: Region;
@@ -219,6 +220,15 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
           </div>
         </>
       )}
+
+      {/* Coordinate Editor */}
+      <div className="border-t border-gray-700 pt-3 mt-3">
+        <CoordinateEditor
+          coordinates={region.coordinates}
+          onChange={(newCoords) => onUpdate({ coordinates: newCoords })}
+          minPoints={3}
+        />
+      </div>
 
       {/* Related regions */}
       {relatedRegions.length > 0 && (
