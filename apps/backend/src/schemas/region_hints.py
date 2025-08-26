@@ -154,13 +154,36 @@ class RegionHintResponse(RegionHintBase):
     """Schema for region hint responses."""
     id: int
     region_vnum: int
-    ai_agent_id: Optional[str]
+    ai_agent_id: Optional[str] = None  # Default to None if not in DB
     created_at: datetime
     updated_at: datetime
     is_active: bool
     
     class Config:
         from_attributes = True
+        
+    @classmethod
+    def model_validate(cls, obj, **kwargs):
+        """Custom validation to handle missing ai_agent_id field."""
+        if not hasattr(obj, 'ai_agent_id'):
+            # Create a dict from the object if ai_agent_id is missing
+            obj_dict = {
+                'id': obj.id,
+                'region_vnum': obj.region_vnum,
+                'hint_category': obj.hint_category,
+                'hint_text': obj.hint_text,
+                'priority': obj.priority,
+                'seasonal_weight': obj.seasonal_weight,
+                'weather_conditions': obj.weather_conditions.split(',') if isinstance(obj.weather_conditions, str) else obj.weather_conditions,
+                'time_of_day_weight': obj.time_of_day_weight,
+                'resource_triggers': obj.resource_triggers,
+                'ai_agent_id': None,  # Default value
+                'created_at': obj.created_at,
+                'updated_at': obj.updated_at,
+                'is_active': obj.is_active
+            }
+            return super().model_validate(obj_dict, **kwargs)
+        return super().model_validate(obj, **kwargs)
 
 
 class RegionHintListResponse(BaseModel):
@@ -226,12 +249,31 @@ class RegionProfileUpdate(BaseModel):
 class RegionProfileResponse(RegionProfileBase):
     """Schema for region profile responses."""
     region_vnum: int
-    ai_agent_id: Optional[str]
+    ai_agent_id: Optional[str] = None  # Default to None if not in DB
     created_at: datetime
     updated_at: datetime
     
     class Config:
         from_attributes = True
+        
+    @classmethod
+    def model_validate(cls, obj, **kwargs):
+        """Custom validation to handle missing ai_agent_id field."""
+        if not hasattr(obj, 'ai_agent_id'):
+            # Create a dict from the object if ai_agent_id is missing
+            obj_dict = {
+                'region_vnum': obj.region_vnum,
+                'overall_theme': obj.overall_theme,
+                'dominant_mood': obj.dominant_mood,
+                'key_characteristics': obj.key_characteristics,
+                'description_style': obj.description_style,
+                'complexity_level': obj.complexity_level,
+                'ai_agent_id': None,  # Default value
+                'created_at': obj.created_at,
+                'updated_at': obj.updated_at
+            }
+            return super().model_validate(obj_dict, **kwargs)
+        return super().model_validate(obj, **kwargs)
 
 
 # Generation request schemas

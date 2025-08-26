@@ -148,8 +148,8 @@ def create_region_hints(
                 seasonal_weight=hint_data.seasonal_weight,
                 weather_conditions=weather_str,
                 time_of_day_weight=hint_data.time_of_day_weight,
-                resource_triggers=hint_data.resource_triggers,
-                ai_agent_id=hint_data.ai_agent_id
+                resource_triggers=hint_data.resource_triggers
+                # ai_agent_id=hint_data.ai_agent_id  # Temporarily disabled - column not in production yet
             )
             db.add(hint)
             created_hints.append(hint)
@@ -390,22 +390,22 @@ async def generate_region_hints(
             hint_text="Crystalline formations cast prismatic light throughout the cavern, creating rainbow patterns on the walls.",
             priority=8,
             seasonal_weight={"spring": 1.0, "summer": 1.0, "autumn": 1.0, "winter": 1.0},
-            weather_conditions=["clear", "cloudy"],
-            ai_agent_id="test_generator"
+            weather_conditions=["clear", "cloudy"]
+            # ai_agent_id="test_generator"
         ),
         RegionHintCreate(
             hint_category=HintCategory.SOUNDS,
             hint_text="The gentle ping of water droplets echoes musically off the crystal surfaces.",
             priority=7,
-            time_of_day_weight={"dawn": 0.8, "day": 1.0, "dusk": 0.9, "night": 1.0},
-            ai_agent_id="test_generator"
+            time_of_day_weight={"dawn": 0.8, "day": 1.0, "dusk": 0.9, "night": 1.0}
+            # ai_agent_id="test_generator"
         ),
         RegionHintCreate(
             hint_category=HintCategory.FLORA,
             hint_text="Bioluminescent fungi cling to the crystal formations, their soft blue glow pulsing gently.",
             priority=6,
-            weather_conditions=["cloudy", "rainy"],
-            ai_agent_id="test_generator"
+            weather_conditions=["cloudy", "rainy"]
+            # ai_agent_id="test_generator"
         )
     ]
     
@@ -416,8 +416,8 @@ async def generate_region_hints(
             dominant_mood="mystical_wonder",
             key_characteristics=["crystal_formations", "prismatic_light", "echo_chamber", "bioluminescent_fungi"],
             description_style="mysterious",
-            complexity_level=4,
-            ai_agent_id="test_generator"
+            complexity_level=4
+            # ai_agent_id="test_generator"
         )
     
     return GenerateHintsResponse(

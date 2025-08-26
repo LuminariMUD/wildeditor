@@ -117,11 +117,11 @@ class RegionHint(Base):
     )
     
     # Metadata
-    ai_agent_id = Column(
-        String(100),
-        default=None,
-        doc="Identifier of the AI agent/model that created this hint"
-    )
+    # ai_agent_id = Column(
+    #     String(100),
+    #     default=None,
+    #     doc="Identifier of the AI agent/model that created this hint"
+    # )  # Temporarily disabled - column not in production DB yet
     
     created_at = Column(
         TIMESTAMP,
@@ -210,10 +210,10 @@ class RegionProfile(Base):
     )
     
     # Metadata
-    ai_agent_id = Column(
-        String(100),
-        doc="Identifier of the AI agent/model that created this profile"
-    )
+    # ai_agent_id = Column(
+    #     String(100),
+    #     doc="Identifier of the AI agent/model that created this profile"
+    # )  # Temporarily disabled - column not in production DB yet
     
     created_at = Column(
         TIMESTAMP,
