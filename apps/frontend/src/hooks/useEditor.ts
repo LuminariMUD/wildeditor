@@ -205,17 +205,43 @@ export const useEditor = () => {
     return false;
   }, [hiddenFolders]);
 
-  const selectItem = useCallback((item: Region | Path | null) => {
+  const selectItem = useCallback(async (item: Region | Path | null) => {
     if (item) {
       console.log('[Selection] Item selected:', {
         type: 'coordinates' in item ? ('vnum' in item ? 'region/path' : 'unknown') : 'point',
         id: item.id,
         name: 'name' in item ? item.name : 'unknown'
       });
+      
+      // If it's a region, fetch full details including description
+      if (item && 'region_type' in item && item.id) {
+        try {
+          console.log('[Selection] Fetching full region details for:', item.id);
+          const fullRegion = await apiClient.getRegion(item.id);
+          console.log('[Selection] Full region data loaded:', {
+            vnum: fullRegion.vnum,
+            has_description: !!fullRegion.region_description,
+            description_length: fullRegion.region_description?.length
+          });
+          setState(prev => ({ ...prev, selectedItem: fullRegion }));
+          
+          // Also update the region in the regions array
+          setRegions(prev => prev.map(r => 
+            r.vnum === fullRegion.vnum ? fullRegion : r
+          ));
+        } catch (error) {
+          console.error('[Selection] Failed to fetch full region details:', error);
+          // Fall back to setting the item as-is
+          setState(prev => ({ ...prev, selectedItem: item }));
+        }
+      } else {
+        // For paths and other items, just set directly
+        setState(prev => ({ ...prev, selectedItem: item }));
+      }
     } else {
       console.log('[Selection] Selection cleared');
+      setState(prev => ({ ...prev, selectedItem: null }));
     }
-    setState(prev => ({ ...prev, selectedItem: item }));
   }, []);
 
   const handleCanvasClick = useCallback((coordinate: Coordinate) => {
