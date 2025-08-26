@@ -51,12 +51,20 @@ class GeneratedDescription(BaseModel):
 
 class GeneratedHint(BaseModel):
     """Structured output for a single generated hint"""
-    category: str = Field(description="Hint category (atmosphere, fauna, flora, etc.)")
+    category: str = Field(description="Hint category - MUST be one of: atmosphere, fauna, flora, weather_influence, sounds, scents, seasonal_changes, time_of_day, mystical")
     text: str = Field(description="Clean descriptive hint text without formatting")
     priority: int = Field(ge=1, le=10, description="Priority level 1-10")
     weather_conditions: List[str] = Field(
         default_factory=list, 
         description="Applicable weather conditions - ONLY use: clear, cloudy, rainy, stormy, lightning"
+    )
+    seasonal_weight: Optional[Dict[str, float]] = Field(
+        default=None,
+        description="Seasonal weights dict with keys: spring, summer, autumn, winter. Values 0.0-2.0 where 0=never, 1=normal, 2=double chance. Set higher values for relevant seasons, lower/zero for others."
+    )
+    time_of_day_weight: Optional[Dict[str, float]] = Field(
+        default=None,
+        description="Time weights dict with keys: dawn, morning, midday, afternoon, evening, night. Values 0.0-2.0 where 0=never, 1=normal, 2=double chance."
     )
     
     @field_validator('weather_conditions')
@@ -233,12 +241,23 @@ class AIService:
                 Guidelines:
                 - Generate clean, descriptive hints without headers or formatting characters
                 - Each hint should be a complete standalone sentence that enhances immersion
-                - Categorize hints appropriately: atmosphere, fauna, flora, geography, sounds, scents, weather_influence, mystical, landmarks, resources, seasonal_changes, time_of_day
+                - Categorize hints ONLY using these valid categories: atmosphere, fauna, flora, weather_influence, sounds, scents, seasonal_changes, time_of_day, mystical
+                - DO NOT use: geography, landmarks, resources (map these to atmosphere or flora instead)
                 - CRITICAL: For weather_conditions, ONLY use these exact values: clear, cloudy, rainy, stormy, lightning
                 - Do NOT put time of day (dawn, evening, night) in weather_conditions
                 - Do NOT put seasons (winter, summer) in weather_conditions  
                 - Do NOT put other weather types (foggy, misty) in weather_conditions
                 - If a hint is not weather-specific, use an empty list for weather_conditions
+                
+                CRITICAL WEIGHT RULES:
+                - For seasonal hints: Set high weight (1.5-2.0) ONLY for the relevant season, low/zero (0.0-0.5) for others
+                  Example: "Snow blankets the ground" -> seasonal_weight: {"spring": 0.0, "summer": 0.0, "autumn": 0.2, "winter": 2.0}
+                  Example: "Cherry blossoms bloom" -> seasonal_weight: {"spring": 2.0, "summer": 0.5, "autumn": 0.0, "winter": 0.0}
+                - For time hints: Set high weight (1.5-2.0) ONLY for relevant times, normal (0.8-1.0) for others  
+                  Example: "Dawn mist rises" -> time_of_day_weight: {"dawn": 2.0, "morning": 1.2, "midday": 0.5, "afternoon": 0.5, "evening": 0.8, "night": 0.6}
+                  Example: "Nocturnal creatures stir" -> time_of_day_weight: {"dawn": 0.6, "morning": 0.2, "midday": 0.0, "afternoon": 0.2, "evening": 1.2, "night": 2.0}
+                - For general hints: Either omit weights (set to null) or use balanced values around 1.0
+                  Example: "Ancient trees tower overhead" -> seasonal_weight: null, time_of_day_weight: null
                 - Create hints similar to these mosswood examples:
                   * "The profound silence of the moss-covered forest creates an almost sacred atmosphere, where even your footsteps are muffled by the thick emerald carpet beneath your feet."
                   * "Ancient oak and elm trees rise like cathedral pillars, their gnarled branches forming a natural canopy that filters sunlight into dancing patterns of green and gold."
@@ -567,9 +586,16 @@ Generate 8-15 categorized hints that enhance player immersion. Each hint should 
 - A complete, standalone descriptive sentence
 - Clean text without headers, formatting, or bullet points
 - Similar in style to the mosswood examples provided in instructions
-- Categorized appropriately (atmosphere, fauna, flora, geography, sounds, scents, weather_influence, mystical, landmarks, resources, seasonal_changes, time_of_day)
+- Categorized using ONLY: atmosphere, fauna, flora, weather_influence, sounds, scents, seasonal_changes, time_of_day, mystical
 - Assigned a priority from 1-10 based on impact and uniqueness
 - Include weather conditions ONLY from: clear, cloudy, rainy, stormy, lightning (or leave empty if not weather-specific)
+- Include seasonal_weight for seasonal hints (e.g., snow=winter heavy, flowers=spring heavy)
+- Include time_of_day_weight for time-specific hints (e.g., dawn mist, nocturnal sounds)
+
+REMEMBER THE WEIGHT RULES:
+- Seasonal hints: High weight ONLY for relevant season (e.g., winter: 2.0), low/zero for others
+- Time hints: High weight ONLY for relevant times (e.g., dawn: 2.0), normal for others
+- General hints: Omit weights or use balanced values
 
 Focus on creating vivid, sensory details that bring the environment to life for text-based gameplay."""
 

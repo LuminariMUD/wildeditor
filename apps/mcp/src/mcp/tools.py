@@ -1732,23 +1732,10 @@ class ToolRegistry:
                     region_name=region_name
                 )
                 
-                # If AI generation successful, return processed hints
+                # If AI generation successful, return hints directly
+                # The AI agent should already have set appropriate weights
                 if ai_result and not ai_result.get("error"):
                     hints = ai_result.get("hints", [])
-                    
-                    # Add additional weights for seasonal and time-based hints
-                    for hint in hints:
-                        category = hint.get("category", "")
-                        text_lower = hint.get("text", "").lower()
-                        
-                        # Add seasonal weight if relevant
-                        if "seasonal" in category or any(season in text_lower for season in ["spring", "summer", "autumn", "winter"]):
-                            hint["seasonal_weight"] = self._calculate_seasonal_weight(text_lower)
-                        
-                        # Add time weight if relevant  
-                        if "time" in category or any(time in text_lower for time in ["dawn", "morning", "evening", "night"]):
-                            hint["time_of_day_weight"] = self._calculate_time_weight(text_lower)
-                    
                     return hints
             
             # Fallback to template-based parsing if AI not available
@@ -1852,36 +1839,48 @@ class ToolRegistry:
         return conditions if conditions else ["clear", "cloudy", "rainy", "stormy", "lightning"]
     
     def _calculate_seasonal_weight(self, text: str) -> Dict[str, float]:
-        """Calculate seasonal weights based on text content"""
-        weights = {"spring": 0.8, "summer": 0.8, "autumn": 0.8, "winter": 0.8}
+        """Calculate seasonal weights based on text content - LOGICAL weights"""
+        # Default: hint is generally applicable year-round
+        weights = {"spring": 1.0, "summer": 1.0, "autumn": 1.0, "winter": 1.0}
         
-        if "spring" in text or "bloom" in text or "blossom" in text:
-            weights["spring"] = 1.2
-        if "summer" in text or "hot" in text or "warm" in text:
-            weights["summer"] = 1.2
-        if "autumn" in text or "fall" in text or "leaves" in text:
-            weights["autumn"] = 1.2
-        if "winter" in text or "snow" in text or "cold" in text:
-            weights["winter"] = 1.2
+        # Spring-specific hints
+        if "spring" in text or "bloom" in text or "blossom" in text or "flower" in text or "budding" in text:
+            weights = {"spring": 2.0, "summer": 0.5, "autumn": 0.2, "winter": 0.0}
+        # Summer-specific hints
+        elif "summer" in text or "hot" in text or "scorching" in text or "sultry" in text:
+            weights = {"spring": 0.5, "summer": 2.0, "autumn": 0.5, "winter": 0.0}
+        # Autumn-specific hints
+        elif "autumn" in text or "fall" in text or "harvest" in text or "falling leaves" in text:
+            weights = {"spring": 0.2, "summer": 0.5, "autumn": 2.0, "winter": 0.5}
+        # Winter-specific hints
+        elif "winter" in text or "snow" in text or "frost" in text or "frozen" in text or "ice" in text:
+            weights = {"spring": 0.0, "summer": 0.0, "autumn": 0.2, "winter": 2.0}
             
         return weights
     
     def _calculate_time_weight(self, text: str) -> Dict[str, float]:
-        """Calculate time of day weights based on text content"""
-        weights = {"dawn": 0.8, "morning": 0.8, "midday": 0.8, "afternoon": 0.8, "evening": 0.8, "night": 0.8}
+        """Calculate time of day weights based on text content - LOGICAL weights"""
+        # Default: hint is applicable throughout the day
+        weights = {"dawn": 1.0, "morning": 1.0, "midday": 1.0, "afternoon": 1.0, "evening": 1.0, "night": 1.0}
         
-        if "dawn" in text or "sunrise" in text:
-            weights["dawn"] = 1.2
-        if "morning" in text:
-            weights["morning"] = 1.2
-        if "noon" in text or "midday" in text:
-            weights["midday"] = 1.2
-        if "afternoon" in text:
-            weights["afternoon"] = 1.2
-        if "evening" in text or "dusk" in text or "sunset" in text:
-            weights["evening"] = 1.2
-        if "night" in text or "darkness" in text or "moonlight" in text:
-            weights["night"] = 1.2
+        # Dawn-specific hints
+        if "dawn" in text or "sunrise" in text or "first light" in text:
+            weights = {"dawn": 2.0, "morning": 1.2, "midday": 0.5, "afternoon": 0.5, "evening": 0.8, "night": 0.6}
+        # Morning-specific hints
+        elif "morning" in text and not "dawn" in text:
+            weights = {"dawn": 1.2, "morning": 2.0, "midday": 1.0, "afternoon": 0.8, "evening": 0.6, "night": 0.5}
+        # Midday-specific hints
+        elif "noon" in text or "midday" in text or "zenith" in text:
+            weights = {"dawn": 0.5, "morning": 0.8, "midday": 2.0, "afternoon": 1.5, "evening": 0.6, "night": 0.3}
+        # Afternoon-specific hints
+        elif "afternoon" in text:
+            weights = {"dawn": 0.5, "morning": 0.8, "midday": 1.5, "afternoon": 2.0, "evening": 1.0, "night": 0.5}
+        # Evening-specific hints  
+        elif "evening" in text or "dusk" in text or "sunset" in text or "twilight" in text:
+            weights = {"dawn": 0.8, "morning": 0.6, "midday": 0.6, "afternoon": 1.0, "evening": 2.0, "night": 1.2}
+        # Night-specific hints
+        elif "night" in text or "darkness" in text or "moonlight" in text or "nocturnal" in text or "stars" in text:
+            weights = {"dawn": 0.6, "morning": 0.3, "midday": 0.0, "afternoon": 0.3, "evening": 1.2, "night": 2.0}
             
         return weights
     
