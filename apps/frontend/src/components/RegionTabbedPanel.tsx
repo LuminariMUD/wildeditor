@@ -93,6 +93,12 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
   const generateHintsFromDescription = async (description?: string, askConfirmation: boolean = true) => {
     const descToUse = description || region.region_description;
     
+    console.log('Generating hints with description:', {
+      passedDescription: description ? description.substring(0, 100) + '...' : null,
+      regionDescription: region.region_description ? region.region_description.substring(0, 100) + '...' : null,
+      descToUse: descToUse ? descToUse.substring(0, 100) + '...' : null
+    });
+    
     if (!descToUse) {
       setHintsError('Region needs a description to generate hints');
       return;

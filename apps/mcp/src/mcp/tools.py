@@ -1674,6 +1674,8 @@ class ToolRegistry:
             target_count = kwargs.get("target_hint_count", 15)
             include_profile = kwargs.get("include_profile", True)
             
+            logger.info(f"Generating hints - vnum: {region_vnum}, description length: {len(description) if description else 0}")
+            
             # If vnum provided but no description, fetch it
             if region_vnum and not description:
                 async with httpx.AsyncClient() as client:
@@ -1691,7 +1693,9 @@ class ToolRegistry:
                 return {"error": "No description provided or found for region"}
             
             # Analyze description and extract hints
+            logger.info(f"Calling AI service with description: {description[:100]}...")
             hints = await self._extract_hints_from_description(description, region_name)
+            logger.info(f"AI service returned {len(hints)} hints")
             
             # Generate profile if requested
             profile = None
@@ -1736,6 +1740,7 @@ class ToolRegistry:
                 # The AI agent should already have set appropriate weights
                 if ai_result and not ai_result.get("error"):
                     hints = ai_result.get("hints", [])
+                    logger.info(f"AI generation successful: {len(hints)} hints generated")
                     return hints
             
             # AI service not available - return error instead of fallback
@@ -1745,6 +1750,8 @@ class ToolRegistry:
         except Exception as e:
             logger.error(f"AI hint extraction failed: {e}")
             # Return error instead of fallback to templates
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return []
 
     # REMOVED: _extract_hints_fallback - We only use AI agents for hint generation
