@@ -268,7 +268,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
                 hint_category: hintData.hint_category,
                 hint_text: hintData.hint_text,
                 priority: hintData.priority,
-                weather_conditions: hintData.weather_conditions?.split(',') || ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'],
+                weather_conditions: hintData.weather_conditions ? hintData.weather_conditions.split(',') : ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'],
                 seasonal_weight: hintData.seasonal_weight,
                 time_of_day_weight: hintData.time_of_day_weight
               }]
@@ -296,7 +296,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
             body: JSON.stringify({
               hint_text: hintData.hint_text,
               priority: hintData.priority,
-              weather_conditions: hintData.weather_conditions?.split(',') || ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'],
+              weather_conditions: hintData.weather_conditions ? hintData.weather_conditions.split(',') : ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'],
               seasonal_weight: hintData.seasonal_weight,
               time_of_day_weight: hintData.time_of_day_weight,
               is_active: hintData.is_active

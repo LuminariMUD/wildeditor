@@ -263,15 +263,34 @@ export const HintEditor: React.FC<HintEditorProps> = ({
                 onChange={(e) => setUseSeasonalWeight(e.target.checked)}
                 className="rounded"
               />
-              Seasonal Weights
+              Seasonal Weights (0.0 = never, 1.0 = normal, 2.0 = double chance)
             </label>
             {useSeasonalWeight && (
-              <div className="space-y-2 ml-6">
+              <div className="bg-gray-800 rounded p-3 space-y-3">
                 {SEASONS.map(season => (
-                  <div key={season} className="flex items-center gap-3">
-                    <span className="text-xs text-gray-400 w-16 capitalize">
-                      {season}
-                    </span>
+                  <div key={season} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-300 capitalize font-medium">
+                        🍂 {season}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="2"
+                          step="0.1"
+                          value={seasonalWeights[season] || 1.0}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val) && val >= 0 && val <= 2) {
+                              updateSeasonalWeight(season, val);
+                            }
+                          }}
+                          className="w-16 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm text-center"
+                        />
+                        <span className="text-xs text-gray-500">×</span>
+                      </div>
+                    </div>
                     <input
                       type="range"
                       min="0"
@@ -279,11 +298,11 @@ export const HintEditor: React.FC<HintEditorProps> = ({
                       step="0.1"
                       value={seasonalWeights[season] || 1.0}
                       onChange={(e) => updateSeasonalWeight(season, parseFloat(e.target.value))}
-                      className="flex-1"
+                      className="w-full h-1"
+                      style={{
+                        background: `linear-gradient(to right, #ef4444 0%, #eab308 50%, #22c55e 100%)`
+                      }}
                     />
-                    <span className="text-xs text-gray-400 w-10">
-                      {(seasonalWeights[season] || 1.0).toFixed(1)}
-                    </span>
                   </div>
                 ))}
               </div>
@@ -299,29 +318,52 @@ export const HintEditor: React.FC<HintEditorProps> = ({
                 onChange={(e) => setUseTimeWeight(e.target.checked)}
                 className="rounded"
               />
-              Time of Day Weights
+              Time of Day Weights (0.0 = never, 1.0 = normal, 2.0 = double chance)
             </label>
             {useTimeWeight && (
-              <div className="space-y-2 ml-6">
-                {TIMES_OF_DAY.map(time => (
-                  <div key={time} className="flex items-center gap-3">
-                    <span className="text-xs text-gray-400 w-20 capitalize">
-                      {time}
-                    </span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      value={timeWeights[time] || 1.0}
-                      onChange={(e) => updateTimeWeight(time, parseFloat(e.target.value))}
-                      className="flex-1"
-                    />
-                    <span className="text-xs text-gray-400 w-10">
-                      {(timeWeights[time] || 1.0).toFixed(1)}
-                    </span>
-                  </div>
-                ))}
+              <div className="bg-gray-800 rounded p-3 grid grid-cols-2 gap-3">
+                {TIMES_OF_DAY.map(time => {
+                  const icons: Record<string, string> = {
+                    dawn: '🌅',
+                    morning: '🌄', 
+                    midday: '☀️',
+                    afternoon: '🌤️',
+                    evening: '🌆',
+                    night: '🌙'
+                  };
+                  return (
+                    <div key={time} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-300 capitalize">
+                          {icons[time]} {time}
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="2"
+                          step="0.1"
+                          value={timeWeights[time] || 1.0}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val) && val >= 0 && val <= 2) {
+                              updateTimeWeight(time, val);
+                            }
+                          }}
+                          className="w-14 bg-gray-700 border border-gray-600 rounded px-1 py-0.5 text-white text-sm text-center"
+                        />
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={timeWeights[time] || 1.0}
+                        onChange={(e) => updateTimeWeight(time, parseFloat(e.target.value))}
+                        className="w-full h-1"
+                      />
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
