@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   FileText, Settings, CheckCircle, Star, 
   AlertCircle, Mountain, Layers, Lightbulb,
-  Plus, Trash2, Edit2, Filter, ChevronDown, ChevronRight
+  Plus, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { Region } from '../types';
 import { apiClient } from '../services/api';
@@ -41,20 +41,25 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
-  const [hints, setHints] = useState<any[]>([]);
+  interface RegionHint {
+    id: number;
+    region_vnum: number;
+    hint_category: string;
+    hint_text: string;
+    priority: number;
+    seasonal_weight?: Record<string, number>;
+    weather_conditions?: string;
+    time_of_day_weight?: Record<string, number>;
+    is_active: boolean;
+  }
+
+  const [hints, setHints] = useState<RegionHint[]>([]);
   const [hintsLoading, setHintsLoading] = useState(false);
   const [hintsError, setHintsError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
-  // Fetch hints when hints tab is selected
-  useEffect(() => {
-    if (activeTab === 'hints' && region.vnum) {
-      fetchHints();
-    }
-  }, [activeTab, region.vnum]);
-
-  const fetchHints = async () => {
+  const fetchHints = useCallback(async () => {
     setHintsLoading(true);
     setHintsError(null);
     try {
@@ -78,7 +83,14 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
     } finally {
       setHintsLoading(false);
     }
-  };
+  }, [region.vnum]);
+
+  // Fetch hints when hints tab is selected
+  useEffect(() => {
+    if (activeTab === 'hints' && region.vnum) {
+      fetchHints();
+    }
+  }, [activeTab, region.vnum, fetchHints]);
 
   const generateHintsFromDescription = async (description?: string, askConfirmation: boolean = true) => {
     const descToUse = description || region.region_description;
@@ -655,7 +667,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
       if (!acc[category]) acc[category] = [];
       acc[category].push(hint);
       return acc;
-    }, {} as Record<string, any[]>);
+    }, {} as Record<string, RegionHint[]>);
 
     // Filter by selected category
     const filteredCategories = selectedCategory === 'all' 
