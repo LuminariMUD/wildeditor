@@ -95,17 +95,14 @@ class AIService:
         self.provider = self._get_provider()
         self.initialization_error = None
         self.model = self._initialize_model()
-        self.agent = self._create_agent() if self.model else None
-        # Create separate hint agent with same model but different output type
-        self.hint_agent = self._create_hint_agent() if self.model else None
         
-        logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.11)")
-        logger.info(f"Model: {self.model is not None}, Description Agent: {self.agent is not None}, Hint Agent: {self.hint_agent is not None}")
-        if self.hint_agent:
-            logger.info(f"Hint agent created successfully with model: {type(self.model)}")
+        logger.info(f"AI Service initialized with provider: {self.provider} (v1.1.0)")
+        logger.info(f"Model initialized: {self.model is not None}")
+        if self.model:
+            logger.info(f"Model type: {type(self.model).__name__}")
+            logger.info(f"Using on-demand agent creation for each task")
         else:
-            logger.warning(f"Failed to create hint agent - model available: {self.model is not None}")
-        logger.info(f"Using two specialized agents with the same powerful model")
+            logger.warning(f"No AI model available - provider: {self.provider}")
     
     def _get_provider(self) -> AIProvider:
         """Determine which AI provider to use based on environment"""
@@ -203,84 +200,6 @@ class AIService:
             logger.error(f"Failed to initialize AI model: {e}")
             return None
     
-    def _create_agent(self) -> Optional[Agent]:
-        """Create PydanticAI agent for both description and hint generation"""
-        if not self.model:
-            return None
-        
-        try:
-            # Create agent for description generation (primary use)
-            # Note: For hint generation, we create a separate instance with different output type
-            agent = Agent(
-                model=self.model,
-                output_type=GeneratedDescription,
-                instructions="""You are an expert wilderness designer for a fantasy MUD game. 
-                Your task is to create rich, immersive descriptions for wilderness regions.
-                
-                Guidelines:
-                - Create vivid, detailed descriptions that help players visualize the environment
-                - Include sensory details (sight, sound, smell, touch, temperature)
-                - Mention specific flora, fauna, and geographical features
-                - Make descriptions practical for game navigation
-                - Ensure consistency with the terrain type and theme
-                
-                Your descriptions should be comprehensive yet engaging, suitable for text-based gameplay."""
-            )
-            
-            return agent
-            
-        except Exception as e:
-            logger.error(f"Failed to create AI agent: {e}")
-            return None
-
-    def _create_hint_agent(self) -> Optional[Agent]:
-        """Create PydanticAI agent specifically for hint generation"""
-        if not self.model:
-            return None
-        
-        try:
-            # Create agent with structured hint output using the same powerful model
-            hint_agent = Agent(
-                model=self.model,
-                output_type=GeneratedHints,
-                instructions="""You are an expert wilderness designer for a fantasy MUD game. 
-                Your task is to analyze region descriptions and generate immersive atmospheric hints.
-                
-                Guidelines:
-                - Generate 8-15 clean, descriptive hints without headers or formatting characters
-                - Each hint should be a complete standalone sentence that enhances immersion
-                - Categorize hints ONLY using these valid categories: atmosphere, fauna, flora, weather_influence, sounds, scents, seasonal_changes, time_of_day, mystical
-                - DO NOT use: geography, landmarks, resources (map these to atmosphere or flora instead)
-                - CRITICAL: For weather_conditions, ONLY use these exact values: clear, cloudy, rainy, stormy, lightning
-                - Do NOT put time of day (dawn, evening, night) in weather_conditions
-                - Do NOT put seasons (winter, summer) in weather_conditions  
-                - If a hint is not weather-specific, use an empty list for weather_conditions
-                
-                STRICT WEIGHT RULES:
-                
-                TIME OF DAY:
-                - EXPLICIT time mentions ("at dusk", "at dawn", "at midnight"): 
-                  ONLY that time gets 2.0, ALL others get 0.0
-                  Example: "At dusk, flowers unfurl" -> {"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 2.0, "night": 0.0}
-                - THEMED time (moonlight, stars, nocturnal, darkness):
-                  Primary time gets 2.0, adjacent gets 0.5, opposite gets 0.0
-                  
-                SEASONS:
-                - EXPLICIT season mentions ("in winter", "during spring"):
-                  ONLY that season gets 2.0, ALL others get 0.0
-                - THEMED season (flowers=spring, snow=winter, harvest=autumn, heat=summer):
-                  Primary season gets 2.0, adjacent gets 0.5 max, opposite gets 0.0
-                  
-                GENERAL HINTS: Don't set weights (null) for general hints that apply at all times/seasons.
-                
-                Your hints should be evocative, detailed, and help players fully immerse in the environment."""
-            )
-            
-            return hint_agent
-            
-        except Exception as e:
-            logger.error(f"Failed to create hint agent: {e}")
-            return None
     
     async def generate_description(
         self,
@@ -307,9 +226,9 @@ class AIService:
             Dictionary with generated description and metadata
         """
         
-        # If no AI available, check if we should use Ollama or fallback to template
-        if not self.agent:
-            error_msg = f"Primary AI agent not available. Provider: {self.provider}"
+        # If no model available, check if we should use Ollama or fallback to template
+        if not self.model:
+            error_msg = f"AI model not available. Provider: {self.provider}"
             if self.initialization_error:
                 error_msg += f". Error: {self.initialization_error}"
             logger.info(error_msg)
@@ -380,11 +299,28 @@ Create a comprehensive, immersive description that brings this region to life. I
 Make the description vivid and engaging while maintaining the {style} style throughout."""
         
         try:
+            # Create agent on-demand for this description task
+            description_agent = Agent(
+                model=self.model,
+                output_type=GeneratedDescription,
+                instructions="""You are an expert wilderness designer for a fantasy MUD game. 
+                Your task is to create rich, immersive descriptions for wilderness regions.
+                
+                Guidelines:
+                - Create vivid, detailed descriptions that help players visualize the environment
+                - Include sensory details (sight, sound, smell, touch, temperature)
+                - Mention specific flora, fauna, and geographical features
+                - Make descriptions practical for game navigation
+                - Ensure consistency with the terrain type and theme
+                
+                Your descriptions should be comprehensive yet engaging, suitable for text-based gameplay."""
+            )
+            
             # Generate with retry logic
             max_retries = 2
             for attempt in range(max_retries):
                 try:
-                    result = await self.agent.run(user_content)
+                    result = await description_agent.run(user_content)
                     
                     # Extract the structured result - handle different result formats
                     if hasattr(result, 'data'):
@@ -575,9 +511,9 @@ Create a comprehensive, immersive description that brings this region to life.""
             Dictionary with generated hints and metadata
         """
         
-        # Check if we have a hint agent to work with
-        if not self.hint_agent:
-            logger.error("No hint agent available for hint generation")
+        # Check if we have a model to work with
+        if not self.model:
+            logger.error("No AI model available for hint generation")
             return {
                 "error": "AI service not available for hint generation",
                 "hints": [],
@@ -627,17 +563,38 @@ WEATHER CONDITIONS:
 Focus on creating vivid, sensory details that bring the environment to life for text-based gameplay."""
 
         try:
+            # Create hint agent on-demand for this task
+            hint_agent = Agent(
+                model=self.model,
+                output_type=GeneratedHints,
+                instructions="""You are an expert wilderness designer for a fantasy MUD game. 
+                Your task is to analyze region descriptions and generate immersive atmospheric hints.
+                
+                Guidelines:
+                - Generate 8-15 clean, descriptive hints without headers or formatting characters
+                - Each hint should be a complete standalone sentence that enhances immersion
+                - Categorize hints ONLY using these valid categories: atmosphere, fauna, flora, weather_influence, sounds, scents, seasonal_changes, time_of_day, mystical
+                - DO NOT use: geography, landmarks, resources (map these to atmosphere or flora instead)
+                - CRITICAL: For weather_conditions, ONLY use these exact values: clear, cloudy, rainy, stormy, lightning
+                - If a hint is not weather-specific, use an empty list for weather_conditions
+                
+                WEIGHT RULES:
+                - For time-specific hints: Set appropriate time_of_day_weight (0.0=never, 1.0=normal, 2.0=double)
+                - For seasonal hints: Set appropriate seasonal_weight
+                - For general hints: Leave weights as null
+                
+                Your hints should be evocative, detailed, and help players fully immerse in the environment."""
+            )
+            
             # Generate with retry logic
             max_retries = 2
             for attempt in range(max_retries):
                 try:
                     logger.info(f"AI hint generation attempt {attempt + 1}, description length: {len(description)}")
-                    logger.debug(f"Sending to hint agent: {user_content[:500]}...")
                     
-                    # Call the hint agent directly with the user content
-                    result = await self.hint_agent.run(user_content)
+                    # Call the hint agent with the user content
+                    result = await hint_agent.run(user_content)
                     logger.info(f"Hint agent returned result type: {type(result)}")
-                    logger.debug(f"Raw result: {str(result)[:500]}...")
                     
                     # Extract the structured result - handle different result formats
                     if hasattr(result, 'data'):
@@ -729,19 +686,19 @@ Focus on creating vivid, sensory details that bring the environment to life for 
     
     def is_available(self) -> bool:
         """Check if AI service is available"""
-        # Ollama uses direct HTTP so agent is None, but it's still available
+        # Ollama uses direct HTTP so model might be None, but it's still available
         if self.provider == AIProvider.OLLAMA and os.getenv("OLLAMA_BASE_URL"):
             return True
         # DeepSeek requires API key
         if self.provider == AIProvider.DEEPSEEK:
-            return self.agent is not None and os.getenv("DEEPSEEK_API_KEY") is not None
-        # For other providers, check if agent exists
-        return self.agent is not None
+            return self.model is not None and os.getenv("DEEPSEEK_API_KEY") is not None
+        # For other providers, check if model exists
+        return self.model is not None
     
     def is_hint_agent_available(self) -> bool:
-        """Check if hint generation agent is available"""
-        # Since we use the same model for both, check if model exists
-        return self.model is not None
+        """Check if hint generation is available"""
+        # Hint generation uses the same model
+        return self.is_available()
     
     def get_provider_info(self) -> Dict[str, Any]:
         """Get information about the current AI provider"""
