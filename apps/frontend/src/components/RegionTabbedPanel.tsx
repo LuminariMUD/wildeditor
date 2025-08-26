@@ -138,7 +138,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         
         if (data.success && data.result) {
           // The backend should have already parsed the result properly
-          let hintsData = data.result;
+          const hintsData = data.result;
           
           // Handle legacy format where result might still be wrapped in text
           if (hintsData.text && !hintsData.hints) {
