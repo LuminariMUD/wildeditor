@@ -8,7 +8,7 @@ export interface RegionHint {
   hint_text: string;
   priority: number;
   seasonal_weight?: Record<string, number> | null;
-  weather_conditions?: string | null;
+  weather_conditions?: string | string[] | null;
   time_of_day_weight?: Record<string, number> | null;
   is_active?: boolean;
 }
@@ -51,7 +51,12 @@ export const HintEditor: React.FC<HintEditorProps> = ({
   const [priority, setPriority] = useState(hint?.priority || 5);
   const [selectedWeather, setSelectedWeather] = useState<string[]>(() => {
     if (hint?.weather_conditions) {
-      return hint.weather_conditions.split(',').map(w => w.trim());
+      // Handle both string and array formats
+      if (typeof hint.weather_conditions === 'string') {
+        return hint.weather_conditions.split(',').map(w => w.trim());
+      } else if (Array.isArray(hint.weather_conditions)) {
+        return hint.weather_conditions;
+      }
     }
     return ['clear', 'cloudy', 'rainy', 'stormy', 'lightning'];
   });
@@ -74,7 +79,12 @@ export const HintEditor: React.FC<HintEditorProps> = ({
       setText(hint.hint_text);
       setPriority(hint.priority);
       if (hint.weather_conditions) {
-        setSelectedWeather(hint.weather_conditions.split(',').map(w => w.trim()));
+        // Handle both string and array formats
+        if (typeof hint.weather_conditions === 'string') {
+          setSelectedWeather(hint.weather_conditions.split(',').map(w => w.trim()));
+        } else if (Array.isArray(hint.weather_conditions)) {
+          setSelectedWeather(hint.weather_conditions);
+        }
       }
       setUseSeasonalWeight(!!hint.seasonal_weight);
       if (hint.seasonal_weight) {
