@@ -96,10 +96,13 @@ class AIService:
         self.initialization_error = None
         self.model = self._initialize_model()
         self.agent = self._create_agent() if self.model else None
-        self.hint_agent = self._create_hint_agent() if self.model else None
+        # Use the same agent for hints - no need for separate hint agent
+        # The description agent is powerful enough to handle both tasks
+        self.hint_agent = self.agent  # Use description agent for hints too
         
         logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.10)")
-        logger.info(f"Model: {self.model is not None}, Agent: {self.agent is not None}, HintAgent: {self.hint_agent is not None}")
+        logger.info(f"Model: {self.model is not None}, Agent: {self.agent is not None}")
+        logger.info(f"Using single agent for both descriptions and hints")
     
     def _get_provider(self) -> AIProvider:
         """Determine which AI provider to use based on environment"""
@@ -198,12 +201,13 @@ class AIService:
             return None
     
     def _create_agent(self) -> Optional[Agent]:
-        """Create PydanticAI agent for description generation"""
+        """Create PydanticAI agent for both description and hint generation"""
         if not self.model:
             return None
         
         try:
-            # Create agent with structured output
+            # Create agent for description generation (primary use)
+            # Note: For hint generation, we create a separate instance with different output type
             agent = Agent(
                 model=self.model,
                 output_type=GeneratedDescription,
@@ -226,62 +230,8 @@ class AIService:
             logger.error(f"Failed to create AI agent: {e}")
             return None
 
-    def _create_hint_agent(self) -> Optional[Agent]:
-        """Create PydanticAI agent for hint generation"""
-        if not self.model:
-            return None
-        
-        try:
-            # Create agent with structured hint output
-            hint_agent = Agent(
-                model=self.model,
-                output_type=GeneratedHints,
-                instructions="""You are an expert wilderness designer for a fantasy MUD game. 
-                Your task is to analyze region descriptions and generate immersive atmospheric hints.
-                
-                Guidelines:
-                - Generate clean, descriptive hints without headers or formatting characters
-                - Each hint should be a complete standalone sentence that enhances immersion
-                - Categorize hints ONLY using these valid categories: atmosphere, fauna, flora, weather_influence, sounds, scents, seasonal_changes, time_of_day, mystical
-                - DO NOT use: geography, landmarks, resources (map these to atmosphere or flora instead)
-                - CRITICAL: For weather_conditions, ONLY use these exact values: clear, cloudy, rainy, stormy, lightning
-                - Do NOT put time of day (dawn, evening, night) in weather_conditions
-                - Do NOT put seasons (winter, summer) in weather_conditions  
-                - Do NOT put other weather types (foggy, misty) in weather_conditions
-                - If a hint is not weather-specific, use an empty list for weather_conditions
-                
-                STRICT WEIGHT RULES - CRITICAL:
-                
-                TIME OF DAY:
-                - EXPLICIT time mentions ("at dusk", "at dawn", "at midnight"): 
-                  ONLY that time gets 2.0, ALL others get 0.0
-                  Example: "At dusk, flowers unfurl" -> {"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 2.0, "night": 0.0}
-                - THEMED time (moonlight, stars, nocturnal, darkness):
-                  Primary time gets 2.0, adjacent gets 0.5, opposite gets 0.0
-                  Example: "Moonlight bathes the forest" -> {"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 0.5, "night": 2.0}
-                  
-                SEASONS:
-                - EXPLICIT season mentions ("in winter", "during spring"):
-                  ONLY that season gets 2.0, ALL others get 0.0
-                  Example: "Winter frost covers everything" -> {"spring": 0.0, "summer": 0.0, "autumn": 0.0, "winter": 2.0}
-                - THEMED season (flowers=spring, snow=winter, harvest=autumn, heat=summer):
-                  Primary season gets 2.0, adjacent gets 0.5 max, opposite gets 0.0
-                  Example: "Flowers bloom" -> {"spring": 2.0, "summer": 0.5, "autumn": 0.0, "winter": 0.0}
-                  
-                GENERAL HINTS: Set both weights to null (not included in output)
-                - Create hints similar to these mosswood examples:
-                  * "The profound silence of the moss-covered forest creates an almost sacred atmosphere, where even your footsteps are muffled by the thick emerald carpet beneath your feet."
-                  * "Ancient oak and elm trees rise like cathedral pillars, their gnarled branches forming a natural canopy that filters sunlight into dancing patterns of green and gold."
-                  * "The air carries the rich, earthy scent of decomposing leaves mixed with the fresh, clean smell of growing moss and ferns."
-                
-                Your hints should be evocative, detailed, and help players fully immerse in the environment."""
-            )
-            
-            return hint_agent
-            
-        except Exception as e:
-            logger.error(f"Failed to create hint agent: {e}")
-            return None
+    # REMOVED: _create_hint_agent - We now use the same powerful model for both descriptions and hints
+    # The description agent's model is configured with a powerful AI that can handle multiple tasks
     
     async def generate_description(
         self,
@@ -576,9 +526,9 @@ Create a comprehensive, immersive description that brings this region to life.""
             Dictionary with generated hints and metadata
         """
         
-        # If no AI available, return error
-        if not self.hint_agent:
-            logger.error("Hint agent not available - will not generate hints")
+        # Check if we have a model to work with
+        if not self.model:
+            logger.error("No AI model available for hint generation")
             return {
                 "error": "AI service not available for hint generation",
                 "hints": [],
@@ -632,8 +582,54 @@ Focus on creating vivid, sensory details that bring the environment to life for 
             max_retries = 2
             for attempt in range(max_retries):
                 try:
+                    # Create a temporary agent instance with GeneratedHints output type
+                    # using the same model as the description agent
+                    hint_agent = Agent(
+                        model=self.model,
+                        output_type=GeneratedHints,
+                        instructions="""You are an expert wilderness designer for a fantasy MUD game. 
+                        Your task is to analyze region descriptions and generate immersive atmospheric hints.
+                        
+                        Guidelines:
+                        - Generate clean, descriptive hints without headers or formatting characters
+                        - Each hint should be a complete standalone sentence that enhances immersion
+                        - Categorize hints ONLY using these valid categories: atmosphere, fauna, flora, weather_influence, sounds, scents, seasonal_changes, time_of_day, mystical
+                        - DO NOT use: geography, landmarks, resources (map these to atmosphere or flora instead)
+                        - CRITICAL: For weather_conditions, ONLY use these exact values: clear, cloudy, rainy, stormy, lightning
+                        - Do NOT put time of day (dawn, evening, night) in weather_conditions
+                        - Do NOT put seasons (winter, summer) in weather_conditions  
+                        - Do NOT put other weather types (foggy, misty) in weather_conditions
+                        - If a hint is not weather-specific, use an empty list for weather_conditions
+                        
+                        STRICT WEIGHT RULES - CRITICAL:
+                        
+                        TIME OF DAY:
+                        - EXPLICIT time mentions ("at dusk", "at dawn", "at midnight"): 
+                          ONLY that time gets 2.0, ALL others get 0.0
+                          Example: "At dusk, flowers unfurl" -> {"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 2.0, "night": 0.0}
+                        - THEMED time (moonlight, stars, nocturnal, darkness):
+                          Primary time gets 2.0, adjacent gets 0.5, opposite gets 0.0
+                          Example: "Moonlight bathes the forest" -> {"dawn": 0.0, "morning": 0.0, "midday": 0.0, "afternoon": 0.0, "evening": 0.5, "night": 2.0}
+                          
+                        SEASONS:
+                        - EXPLICIT season mentions ("in winter", "during spring"):
+                          ONLY that season gets 2.0, ALL others get 0.0
+                          Example: "Winter frost covers everything" -> {"spring": 0.0, "summer": 0.0, "autumn": 0.0, "winter": 2.0}
+                        - THEMED season (flowers=spring, snow=winter, harvest=autumn, heat=summer):
+                          Primary season gets 2.0, adjacent gets 0.5 max, opposite gets 0.0
+                          Example: "Flowers bloom" -> {"spring": 2.0, "summer": 0.5, "autumn": 0.0, "winter": 0.0}
+                          
+                        GENERAL HINTS: Set both weights to null (not included in output)
+                        - Create hints similar to these mosswood examples:
+                          * "The profound silence of the moss-covered forest creates an almost sacred atmosphere, where even your footsteps are muffled by the thick emerald carpet beneath your feet."
+                          * "Ancient oak and elm trees rise like cathedral pillars, their gnarled branches forming a natural canopy that filters sunlight into dancing patterns of green and gold."
+                          * "The air carries the rich, earthy scent of decomposing leaves mixed with the fresh, clean smell of growing moss and ferns."
+                        
+                        Your hints should be evocative, detailed, and help players fully immerse in the environment."""
+                    )
+                    
                     logger.info(f"AI hint generation attempt {attempt + 1}, description length: {len(description)}")
-                    result = await self.hint_agent.run(user_content)
+                    result = await hint_agent.run(user_content)
                     logger.info(f"AI agent returned result type: {type(result)}")
                     
                     # Extract the structured result - handle different result formats
@@ -663,13 +659,24 @@ Focus on creating vivid, sensory details that bring the environment to life for 
                             # Had weather conditions but all were invalid - use defaults
                             clean_weather = ['clear', 'cloudy', 'rainy', 'stormy', 'lightning']
                             
-                        cleaned_hints.append({
+                        # Build the hint dict with weights included
+                        hint_dict = {
                             "category": hint.category,
                             "text": hint.text,
                             "priority": hint.priority,
                             "weather_conditions": clean_weather,
                             "ai_agent_id": "mcp_ai_hint_generator"
-                        })
+                        }
+                        
+                        # Add seasonal_weight if provided
+                        if hasattr(hint, 'seasonal_weight') and hint.seasonal_weight:
+                            hint_dict["seasonal_weight"] = hint.seasonal_weight
+                            
+                        # Add time_of_day_weight if provided
+                        if hasattr(hint, 'time_of_day_weight') and hint.time_of_day_weight:
+                            hint_dict["time_of_day_weight"] = hint.time_of_day_weight
+                            
+                        cleaned_hints.append(hint_dict)
                     
                     return {
                         "hints": cleaned_hints,
@@ -716,8 +723,8 @@ Focus on creating vivid, sensory details that bring the environment to life for 
     
     def is_hint_agent_available(self) -> bool:
         """Check if hint generation agent is available"""
-        # For hints, we need the hint_agent specifically
-        return self.hint_agent is not None
+        # Since we use the same model for both, check if model exists
+        return self.model is not None
     
     def get_provider_info(self) -> Dict[str, Any]:
         """Get information about the current AI provider"""
