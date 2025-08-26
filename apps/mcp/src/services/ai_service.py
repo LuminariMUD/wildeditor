@@ -99,6 +99,7 @@ class AIService:
         self.hint_agent = self._create_hint_agent() if self.model else None
         
         logger.info(f"AI Service initialized with provider: {self.provider} (v1.0.10)")
+        logger.info(f"Model: {self.model is not None}, Agent: {self.agent is not None}, HintAgent: {self.hint_agent is not None}")
     
     def _get_provider(self) -> AIProvider:
         """Determine which AI provider to use based on environment"""
@@ -712,6 +713,11 @@ Focus on creating vivid, sensory details that bring the environment to life for 
             return self.agent is not None and os.getenv("DEEPSEEK_API_KEY") is not None
         # For other providers, check if agent exists
         return self.agent is not None
+    
+    def is_hint_agent_available(self) -> bool:
+        """Check if hint generation agent is available"""
+        # For hints, we need the hint_agent specifically
+        return self.hint_agent is not None
     
     def get_provider_info(self) -> Dict[str, Any]:
         """Get information about the current AI provider"""

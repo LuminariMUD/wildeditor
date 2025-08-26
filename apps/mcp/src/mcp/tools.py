@@ -1730,11 +1730,23 @@ class ToolRegistry:
             ai_service = get_ai_service()
             ai_result = None
             
-            if ai_service.is_available():
+            # Check if hint agent specifically is available
+            if hasattr(ai_service, 'is_hint_agent_available') and ai_service.is_hint_agent_available():
+                logger.info("Hint agent is available, generating hints")
                 ai_result = await ai_service.generate_hints_from_description(
                     description=description,
                     region_name=region_name
                 )
+            elif ai_service.is_available():
+                # Fallback to checking general availability
+                logger.warning("Using general AI availability check (hint agent might not be available)")
+                ai_result = await ai_service.generate_hints_from_description(
+                    description=description,
+                    region_name=region_name
+                )
+            else:
+                logger.error("AI service not available for hint generation")
+                ai_result = None
                 
                 # If AI generation successful, return hints directly
                 # The AI agent should already have set appropriate weights
@@ -1743,8 +1755,9 @@ class ToolRegistry:
                     logger.info(f"AI generation successful: {len(hints)} hints generated")
                     return hints
             
-            # AI service not available - return error instead of fallback
-            logger.error("AI service not available for hint generation")
+            # If we get here, AI failed or wasn't available
+            if not ai_result:
+                logger.error("No AI result obtained - service unavailable")
             return []
             
         except Exception as e:
