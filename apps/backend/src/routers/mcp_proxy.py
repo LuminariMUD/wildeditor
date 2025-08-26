@@ -33,17 +33,20 @@ class MCPResponse(BaseModel):
     error: Optional[str] = None
 
 
-@router.post("/generate-description", response_model=MCPResponse)
-async def generate_region_description(
-    region_vnum: Optional[int] = None,
-    region_name: Optional[str] = None,
-    region_type: Optional[int] = None,
-    terrain_theme: Optional[str] = None,
-    description_style: Optional[str] = None,
-    description_length: Optional[str] = None,
-    include_sections: Optional[list[str]] = None,
+class GenerateDescriptionRequest(BaseModel):
+    """Request model for generating region descriptions."""
+    region_vnum: Optional[int] = None
+    region_name: Optional[str] = None
+    region_type: Optional[int] = None
+    terrain_theme: Optional[str] = None
+    description_style: Optional[str] = None
+    description_length: Optional[str] = None
+    include_sections: Optional[list[str]] = None
     user_prompt: Optional[str] = None
-):
+
+
+@router.post("/generate-description", response_model=MCPResponse)
+async def generate_region_description(request: GenerateDescriptionRequest):
     """
     Generate a region description using the MCP AI service.
     
@@ -51,14 +54,7 @@ async def generate_region_description(
     when the frontend tries to call MCP directly.
     
     Args:
-        region_vnum: VNUM of the region
-        region_name: Name of the region
-        region_type: Type of region (1-4)
-        terrain_theme: Theme for the terrain
-        description_style: Writing style (poetic, practical, mysterious, etc.)
-        description_length: Length of description (brief, moderate, detailed, extensive)
-        include_sections: Sections to include in the description
-        user_prompt: Custom user prompt to guide generation
+        request: GenerateDescriptionRequest with region details and generation parameters
     
     Returns:
         MCPResponse with the generated description
@@ -66,19 +62,19 @@ async def generate_region_description(
     try:
         # Prepare MCP request
         mcp_request = {
-            "id": f"generate-desc-{region_vnum or 'new'}",
+            "id": f"generate-desc-{request.region_vnum or 'new'}",
             "method": "tools/call",
             "params": {
                 "name": "generate_region_description",
                 "arguments": {
-                    "region_vnum": region_vnum,
-                    "region_name": region_name,
-                    "region_type": region_type,
-                    "terrain_theme": terrain_theme,
-                    "description_style": description_style,
-                    "description_length": description_length,
-                    "include_sections": include_sections,
-                    "user_prompt": user_prompt
+                    "region_vnum": request.region_vnum,
+                    "region_name": request.region_name,
+                    "region_type": request.region_type,
+                    "terrain_theme": request.terrain_theme,
+                    "description_style": request.description_style,
+                    "description_length": request.description_length,
+                    "include_sections": request.include_sections,
+                    "user_prompt": request.user_prompt
                 }
             }
         }
