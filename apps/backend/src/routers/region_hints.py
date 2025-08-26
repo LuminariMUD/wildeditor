@@ -71,55 +71,64 @@ def list_region_hints(
     Returns:
         RegionHintListResponse with hints and metadata
     """
-    # Build query - no need to check if region exists, just get hints
-    query = db.query(RegionHint).filter(RegionHint.region_vnum == vnum)
-    
-    if category:
-        query = query.filter(RegionHint.hint_category == category)
-    
-    if is_active is not None:
-        query = query.filter(RegionHint.is_active == is_active)
-    
-    if min_priority:
-        query = query.filter(RegionHint.priority >= min_priority)
-    
-    # Get hints
-    hints = query.order_by(RegionHint.priority.desc(), RegionHint.created_at.desc()).all()
-    
-    # Calculate category distribution
-    category_counts = {}
-    active_count = 0
-    for hint in hints:
-        category_counts[hint.hint_category] = category_counts.get(hint.hint_category, 0) + 1
-        if hint.is_active:
-            active_count += 1
-    
-    # Convert hints to response format manually to avoid validation issues
-    hint_responses = []
-    for hint in hints:
-        hint_dict = {
-            'id': hint.id,
-            'region_vnum': hint.region_vnum,
-            'hint_category': hint.hint_category,
-            'hint_text': hint.hint_text,
-            'priority': hint.priority,
-            'seasonal_weight': hint.seasonal_weight,
-            'weather_conditions': hint.weather_conditions.split(',') if hint.weather_conditions else [],
-            'time_of_day_weight': hint.time_of_day_weight,
-            'resource_triggers': hint.resource_triggers,
-            'agent_id': hint.agent_id,
-            'created_at': hint.created_at,
-            'updated_at': hint.updated_at,
-            'is_active': hint.is_active
-        }
-        hint_responses.append(hint_dict)
-    
-    return RegionHintListResponse(
-        hints=hint_responses,
-        total_count=len(hints),
-        active_count=active_count,
-        categories=category_counts
-    )
+    try:
+        # Build query - no need to check if region exists, just get hints
+        query = db.query(RegionHint).filter(RegionHint.region_vnum == vnum)
+        
+        if category:
+            query = query.filter(RegionHint.hint_category == category)
+        
+        if is_active is not None:
+            query = query.filter(RegionHint.is_active == is_active)
+        
+        if min_priority:
+            query = query.filter(RegionHint.priority >= min_priority)
+        
+        # Get hints
+        hints = query.order_by(RegionHint.priority.desc(), RegionHint.created_at.desc()).all()
+        
+        # Calculate category distribution
+        category_counts = {}
+        active_count = 0
+        for hint in hints:
+            category_counts[hint.hint_category] = category_counts.get(hint.hint_category, 0) + 1
+            if hint.is_active:
+                active_count += 1
+        
+        # Convert hints to response format manually to avoid validation issues
+        hint_responses = []
+        for hint in hints:
+            hint_dict = {
+                'id': hint.id,
+                'region_vnum': hint.region_vnum,
+                'hint_category': hint.hint_category,
+                'hint_text': hint.hint_text,
+                'priority': hint.priority,
+                'seasonal_weight': hint.seasonal_weight,
+                'weather_conditions': hint.weather_conditions.split(',') if hint.weather_conditions else [],
+                'time_of_day_weight': hint.time_of_day_weight,
+                'resource_triggers': hint.resource_triggers,
+                'agent_id': hint.agent_id,
+                'created_at': hint.created_at,
+                'updated_at': hint.updated_at,
+                'is_active': hint.is_active
+            }
+            hint_responses.append(hint_dict)
+        
+        return RegionHintListResponse(
+            hints=hint_responses,
+            total_count=len(hints),
+            active_count=active_count,
+            categories=category_counts
+        )
+    except Exception as e:
+        import traceback
+        error_detail = f"Error fetching hints for region {vnum}: {str(e)}\nTraceback: {traceback.format_exc()}"
+        logger.error(error_detail)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_detail
+        )
 
 
 @router.post("/{vnum}/hints", response_model=List[RegionHintResponse], status_code=status.HTTP_201_CREATED)
