@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Region, Path } from '../types';
 import { apiClient } from '../services/api';
+import { RegionTabbedPanel } from './RegionTabbedPanel';
 
 interface PropertiesPanelProps {
   selectedItem: Region | Path | null;
@@ -138,6 +139,110 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   const isRegion = 'vnum' in selectedItem && 'coordinates' in selectedItem && selectedItem.coordinates.length >= 3;
   const isPath = 'vnum' in selectedItem && 'coordinates' in selectedItem && !isRegion;
 
+  // For regions, use the tabbed interface
+  if (isRegion) {
+    return (
+      <div className="bg-gray-900 h-full flex flex-col">
+        <div className="p-4 pb-0">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              {getRegionIcon((selectedItem as Region).region_type)}
+              <span>Region: {selectedItem.name}</span>
+            </h3>
+            <button 
+              onClick={() => {
+                if (onDelete && selectedItem) {
+                  const itemId = selectedItem.vnum?.toString() || '';
+                  if (itemId && confirm(`Are you sure you want to delete this region?\n\n"${selectedItem.name}"\n\nThis action cannot be undone.`)) {
+                    onDelete(itemId);
+                  }
+                }
+              }}
+              className="text-red-400 hover:text-red-300 p-1"
+              title="Delete this region"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+          
+          {/* Basic fields that are always visible */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1">Name</label>
+              <input
+                type="text"
+                value={selectedItem.name}
+                onChange={(e) => onUpdate({ name: sanitizeText(e.target.value) })}
+                onBlur={(e) => onUpdate({ name: e.target.value.trim().slice(0, 100) })}
+                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                maxLength={100}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1">VNUM</label>
+              <input
+                type="number"
+                value={selectedItem.vnum}
+                onChange={(e) => onUpdate({ vnum: validateVnum(parseInt(e.target.value) || 1) })}
+                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                min="1"
+                max="99999"
+              />
+            </div>
+          </div>
+        </div>
+        
+        {/* Tabbed panel for region details */}
+        <div className="flex-1 overflow-hidden">
+          <RegionTabbedPanel
+            region={selectedItem as Region}
+            onUpdate={onUpdate}
+            onCreateLayer={onCreateLayer}
+            relatedRegions={relatedRegions}
+          />
+        </div>
+        
+        {/* Save/Discard buttons */}
+        <div className="p-4 pt-0">
+          <div className="flex gap-2 pt-4 border-t border-gray-700">
+            <button 
+              onClick={() => onSave?.(selectedItem.vnum?.toString() || '')}
+              disabled={isSaving || !hasUnsavedChanges}
+              className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm ${
+                isSaving || !hasUnsavedChanges
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+            >
+              <Save size={14} />
+              {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes' : 'Saved'}
+            </button>
+            <button 
+              onClick={() => {
+                if (onDiscard && hasUnsavedChanges) {
+                  const itemId = selectedItem.vnum?.toString() || '';
+                  if (itemId && confirm('Discard unsaved changes?')) {
+                    onDiscard(itemId);
+                  }
+                }
+              }}
+              disabled={!hasUnsavedChanges}
+              className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm ${
+                !hasUnsavedChanges
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  : 'bg-red-600 hover:bg-red-700 text-white'
+              }`}
+            >
+              <RotateCcw size={14} />
+              Discard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // For paths, keep the existing interface
   return (
     <div className="p-4 bg-gray-900 space-y-4 max-h-full overflow-y-auto">
       <div className="flex items-center justify-between">

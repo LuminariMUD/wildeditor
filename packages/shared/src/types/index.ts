@@ -15,6 +15,22 @@ export interface Region {
   region_type_name?: string;        // Human-readable type name from API
   sector_type_name?: string | null; // Human-readable sector name from API
   
+  // Description fields
+  region_description?: string;      // Full text description
+  description_style?: string;       // poetic, practical, mysterious, dramatic, pastoral
+  description_length?: string;      // brief, moderate, detailed, extensive
+  has_historical_context?: boolean;
+  has_resource_info?: boolean;
+  has_wildlife_info?: boolean;
+  has_geological_info?: boolean;
+  has_cultural_info?: boolean;
+  
+  // Review and quality fields
+  description_quality_score?: number; // 0.00 to 9.99
+  requires_review?: boolean;
+  is_approved?: boolean;
+  ai_agent_source?: string;
+  
   // Frontend-only properties for display
   id?: string;           // Optional frontend ID for compatibility
   props?: string;        // Optional JSON string for compatibility

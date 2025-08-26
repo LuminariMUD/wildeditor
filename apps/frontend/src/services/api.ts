@@ -42,6 +42,20 @@ interface ApiRegionResponse {
   region_reset_time?: string | null;
   region_type_name?: string;
   sector_type_name?: string | null;
+  // Description fields
+  region_description?: string;
+  description_style?: string;
+  description_length?: string;
+  has_historical_context?: boolean;
+  has_resource_info?: boolean;
+  has_wildlife_info?: boolean;
+  has_geological_info?: boolean;
+  has_cultural_info?: boolean;
+  // Review fields
+  description_quality_score?: number;
+  requires_review?: boolean;
+  is_approved?: boolean;
+  ai_agent_source?: string;
 }
 
 interface ApiPathResponse {
