@@ -1766,6 +1766,9 @@ class ToolRegistry:
             # If we get here, AI failed or wasn't available
             if not ai_result:
                 logger.error("No AI result obtained - service unavailable")
+            else:
+                logger.error(f"AI result has error: {ai_result.get('error')}")
+                logger.error(f"Full AI result: {ai_result}")
             return []
             
         except Exception as e:

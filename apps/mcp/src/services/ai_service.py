@@ -510,10 +510,16 @@ Create a comprehensive, immersive description that brings this region to life.""
         Returns:
             Dictionary with generated hints and metadata
         """
+        logger.info(f"=== HINT GENERATION START ===")
+        logger.info(f"Provider: {self.provider.value}")
+        logger.info(f"Model available: {self.model is not None}")
+        logger.info(f"Model type: {type(self.model).__name__ if self.model else 'None'}")
+        logger.info(f"Description length: {len(description)}")
+        logger.info(f"Region name: {region_name}")
         
         # Check if we have a model to work with
         if not self.model:
-            logger.error("No AI model available for hint generation")
+            logger.error("No AI model available for hint generation - returning early")
             return {
                 "error": "AI service not available for hint generation",
                 "hints": [],
@@ -591,22 +597,32 @@ Focus on creating vivid, sensory details that bring the environment to life for 
             for attempt in range(max_retries):
                 try:
                     logger.info(f"AI hint generation attempt {attempt + 1}, description length: {len(description)}")
+                    logger.info(f"Using provider: {self.provider.value}, model: {type(self.model).__name__ if self.model else 'None'}")
                     
                     # Call the hint agent with the user content
+                    logger.info(f"Calling hint_agent.run with prompt of length: {len(user_content)}")
                     result = await hint_agent.run(user_content)
                     logger.info(f"Hint agent returned result type: {type(result)}")
+                    logger.info(f"Result attributes: {dir(result)}")
                     
                     # Extract the structured result - handle different result formats
                     if hasattr(result, 'data'):
                         generated = result.data
                         logger.info(f"Using result.data: {type(generated)}")
+                        logger.info(f"Generated data: {generated}")
                     elif hasattr(result, 'output'):
                         generated = result.output
                         logger.info(f"Using result.output: {type(generated)}")
+                        logger.info(f"Generated output: {generated}")
                     else:
                         # For DeepSeek or other providers that might return different structure
                         generated = result
                         logger.info(f"Using raw result: {type(generated)}")
+                        logger.info(f"Generated raw: {generated}")
+                    
+                    # Log the actual content of generated
+                    if hasattr(generated, '__dict__'):
+                        logger.info(f"Generated object dict: {generated.__dict__}")
                     
                     logger.info(f"Generated object has {len(generated.hints) if hasattr(generated, 'hints') else 'NO'} hints")
                     
@@ -652,7 +668,7 @@ Focus on creating vivid, sensory details that bring the environment to life for 
                             
                         cleaned_hints.append(hint_dict)
                     
-                    return {
+                    result = {
                         "hints": cleaned_hints,
                         "total_hints_generated": generated.total_count,
                         "categories_used": generated.categories_used,
@@ -660,6 +676,10 @@ Focus on creating vivid, sensory details that bring the environment to life for 
                         "region_name": region_name,
                         "description_length": len(description)
                     }
+                    logger.info(f"=== HINT GENERATION SUCCESS ===")
+                    logger.info(f"Returning {len(cleaned_hints)} hints")
+                    logger.info(f"First hint (if any): {cleaned_hints[0] if cleaned_hints else 'None'}")
+                    return result
                     
                 except ModelRetry as e:
                     logger.error(f"ModelRetry exception on attempt {attempt + 1}: {e}")
@@ -676,6 +696,7 @@ Focus on creating vivid, sensory details that bring the environment to life for 
                     
         except Exception as e:
             import traceback
+            logger.error(f"=== HINT GENERATION FAILED ===")
             logger.error(f"AI hint generation failed: {e}")
             logger.error(f"Full traceback: {traceback.format_exc()}")
             return {
