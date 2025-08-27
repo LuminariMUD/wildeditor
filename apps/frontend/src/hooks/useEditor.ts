@@ -264,8 +264,9 @@ export const useEditor = () => {
 
     if (state.tool === 'landmark') {
       // Create a landmark as a small geographic region around the point
+      const timestamp = Date.now();
       const landmarkRegion: Region = {
-        vnum: Date.now(), // Will be replaced by backend
+        vnum: timestamp, // Will be replaced by backend
         zone_vnum: 1,
         name: `New Landmark ${regions.length + 1}`,
         region_type: 1, // Geographic
@@ -276,7 +277,7 @@ export const useEditor = () => {
           { x: coordinate.x - 0.2, y: coordinate.y + 0.2 }
         ],
         region_props: 0, // Geographic regions ignore this value
-        id: `region-${Date.now()}`,
+        id: `region-${timestamp}`,
         props: '{}',
         color: '#3B82F6', // Geographic blue
         isDirty: true
@@ -292,8 +293,8 @@ export const useEditor = () => {
       setRegions(prev => [...prev, landmarkRegion]);
       selectItem(landmarkRegion);
       
-      // Mark as unsaved
-      setUnsavedItems(prev => new Set(prev).add(landmarkRegion.vnum.toString()));
+      // Mark as unsaved (use the same ID format as the region)
+      setUnsavedItems(prev => new Set(prev).add(landmarkRegion.id));
       
       console.log('[Drawing] Landmark region created locally, marked as unsaved');
     } else if (state.tool === 'region' || state.tool === 'path') {
@@ -361,8 +362,9 @@ export const useEditor = () => {
     setError(null);
 
     if (state.tool === 'region' && state.currentDrawing.length >= 3) {
+      const vnum = Math.max(1000, ...regions.map(r => r.vnum || 0)) + 1; // Generate next vnum
       const newRegion: Region = {
-        vnum: Math.max(1000, ...regions.map(r => r.vnum || 0)) + 1, // Generate next vnum
+        vnum,
         zone_vnum: 1,
         name: `New Region ${regions.length + 1}`,
         region_type: 1, // Geographic region
@@ -372,7 +374,7 @@ export const useEditor = () => {
         region_reset_time: null,
         
         // Frontend compatibility fields
-        id: Date.now().toString(),
+        id: `region-${vnum}`,
         props: '{"description": "Custom region"}', // compatibility
         color: '#F59E0B',
         isDirty: true  // Mark as unsaved
@@ -389,13 +391,14 @@ export const useEditor = () => {
       setRegions(prev => [...prev, newRegion]);
       selectItem(newRegion);
       
-      // Mark as unsaved
-      setUnsavedItems(prev => new Set(prev).add(newRegion.vnum.toString()));
+      // Mark as unsaved (use the same ID format as the region)
+      setUnsavedItems(prev => new Set(prev).add(newRegion.id));
       
       console.log('[Drawing] Region created locally, marked as unsaved');
     } else if (state.tool === 'path' && state.currentDrawing.length >= 2) {
+      const vnum = Math.max(2000, ...paths.map(p => p.vnum || 0)) + 1; // Generate next vnum
       const newPath: Path = {
-        vnum: Math.max(2000, ...paths.map(p => p.vnum || 0)) + 1, // Generate next vnum
+        vnum,
         zone_vnum: 1,
         name: `New Path ${paths.length + 1}`,
         path_type: 1, // Paved Road
@@ -403,7 +406,7 @@ export const useEditor = () => {
         path_props: 11, // Default to Road North-South sector
         
         // Frontend compatibility fields
-        id: Date.now().toString(),
+        id: `path-${vnum}`,
         type: 0, // compatibility (0=Road)
         props: '{"width": "wide", "condition": "excellent"}', // compatibility
         color: '#EC4899',
@@ -421,8 +424,8 @@ export const useEditor = () => {
       setPaths(prev => [...prev, newPath]);
       selectItem(newPath);
       
-      // Mark as unsaved
-      setUnsavedItems(prev => new Set(prev).add(newPath.vnum.toString()));
+      // Mark as unsaved (use the same ID format as the path)
+      setUnsavedItems(prev => new Set(prev).add(newPath.id));
       
       console.log('[Drawing] Path created locally, marked as unsaved');
     }

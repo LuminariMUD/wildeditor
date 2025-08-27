@@ -608,14 +608,6 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
 
   const renderDescriptionTab = () => (
     <div className="space-y-3">
-      {/* Staged description indicator */}
-      {hasStaged.description && (
-        <div className="bg-amber-900/20 border border-amber-600 rounded p-2">
-          <p className="text-amber-400 text-xs">
-            ✏️ Description has been generated but not saved to database
-          </p>
-        </div>
-      )}
       
       {/* Description text */}
       <div>
