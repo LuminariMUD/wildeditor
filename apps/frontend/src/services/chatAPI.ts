@@ -28,10 +28,8 @@ class ChatAPIClient {
   private baseUrl: string;
 
   constructor() {
-    // Use environment variable or fallback to direct HTTP for now
-    // Note: HTTPS sites can't make HTTP requests due to mixed content policy
-    // In development/testing, you can disable mixed content blocking in browser
-    this.baseUrl = import.meta.env.VITE_CHAT_API_URL || 'http://luminarimud.com:8002';
+    // Use HTTPS URL with Apache reverse proxy
+    this.baseUrl = import.meta.env.VITE_CHAT_API_URL || 'https://luminarimud.com/chat';
   }
 
   async createSession(): Promise<ChatSession> {
