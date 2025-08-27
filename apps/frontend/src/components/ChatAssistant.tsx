@@ -25,7 +25,22 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const addMessage = (message: ChatMessage) => {
-    setMessages(prev => [...prev, message]);
+    // Validate message structure before adding
+    const validatedMessage: ChatMessage = {
+      id: message.id || `msg-${Date.now()}`,
+      type: message.type || 'assistant',
+      content: typeof message.content === 'string' ? message.content : 'Invalid message',
+      timestamp: message.timestamp instanceof Date ? message.timestamp : new Date(),
+      actions: Array.isArray(message.actions) ? message.actions : []
+    };
+    
+    setMessages(prev => {
+      if (!Array.isArray(prev)) {
+        console.warn('[ChatAssistant] Previous messages is not an array:', prev);
+        return [validatedMessage];
+      }
+      return [...prev, validatedMessage];
+    });
   };
 
   const initializeSession = useCallback(async () => {
@@ -80,12 +95,27 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
     try {
       const data = await chatAPI.sendMessage(inputValue, sessionId);
       
+      // Validate API response structure
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid API response format');
+      }
+      
+      // Ensure response has valid content
+      const responseContent = typeof data.response === 'string' 
+        ? data.response 
+        : "I received your message but couldn't process it properly.";
+      
+      // Validate actions array  
+      const responseActions = Array.isArray(data.actions) 
+        ? data.actions.filter(action => action && typeof action.type === 'string')
+        : [];
+      
       const assistantMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
         type: 'assistant',
-        content: data.response || "I received your message but couldn't process it properly.",
+        content: responseContent,
         timestamp: new Date(),
-        actions: data.actions || []
+        actions: responseActions
       };
 
       addMessage(assistantMessage);
@@ -130,7 +160,15 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    try {
+      if (!(date instanceof Date) || isNaN(date.getTime())) {
+        return 'Invalid time';
+      }
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (error) {
+      console.warn('[ChatAssistant] Error formatting time:', error);
+      return 'Time error';
+    }
   };
 
   if (!isOpen) {
@@ -163,7 +201,14 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
+        {messages.filter(Boolean).map((message) => {
+          // Extra validation for each message during render
+          if (!message || !message.id) {
+            console.warn('[ChatAssistant] Skipping invalid message:', message);
+            return null;
+          }
+          
+          return (
           <div
             key={message.id}
             className={`flex gap-3 ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
@@ -185,7 +230,9 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-800 text-gray-100'
               }`}>
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                <p className="text-sm whitespace-pre-wrap">
+                  {typeof message.content === 'string' ? message.content : 'Invalid message content'}
+                </p>
                 {message.actions && message.actions.length > 0 && (
                   <div className="mt-2 text-xs text-gray-300">
                     <div className="flex items-center gap-1">
@@ -200,7 +247,8 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
               </div>
             </div>
           </div>
-        ))}
+          );
+        }).filter(Boolean)}
         
         {/* Loading indicator */}
         {isLoading && (
