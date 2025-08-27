@@ -92,6 +92,14 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
     }
   }, [region.region_description, hasStaged.description]);
 
+  // Clear local staging state when region staging flags are cleared (after save)
+  useEffect(() => {
+    if (!region._hintsStaged) {
+      setStagedHints([]);
+      setHasStaged(prev => ({ ...prev, hints: false }));
+    }
+  }, [region._hintsStaged]);
+
   const generateHintsFromDescription = async (description?: string, askConfirmation: boolean = true) => {
     // Use passed description, then staged, then region prop
     const descToUse = description || stagedDescription || region.region_description;

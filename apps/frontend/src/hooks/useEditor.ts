@@ -457,8 +457,13 @@ export const useEditor = () => {
       return;
     }
     
-    // Add isDirty flag to updates
-    const updatesWithDirty = { ...updates, isDirty: true };
+    // Check if updates contain meaningful changes (ignore staging state)
+    const stagingKeys = ['_hintsStaged', '_stagedHints'];
+    const meaningfulUpdates = Object.keys(updates).filter(key => !stagingKeys.includes(key));
+    
+    // Only mark as dirty if there are meaningful changes
+    const shouldMarkDirty = meaningfulUpdates.length > 0;
+    const updatesWithDirty = shouldMarkDirty ? { ...updates, isDirty: true } : updates;
     
     if ('coordinates' in state.selectedItem) {
       if ('region_type' in state.selectedItem) {
@@ -478,8 +483,10 @@ export const useEditor = () => {
       }
     }
     
-    // Mark as unsaved
-    setUnsavedItems(prev => new Set(prev).add(itemId));
+    // Mark as unsaved only if there are meaningful changes
+    if (shouldMarkDirty) {
+      setUnsavedItems(prev => new Set(prev).add(itemId));
+    }
     
     // Update selected item state
     setState(prev => ({ ...prev, selectedItem: { ...prev.selectedItem!, ...updatesWithDirty } as Region | Path }));
@@ -573,7 +580,12 @@ export const useEditor = () => {
           // Update the local region with the server response (including new vnum)
           setRegions(prev => prev.map(r => 
             (r.id === itemId || r.vnum?.toString() === itemId) 
-              ? { ...createdRegion, isDirty: false } 
+              ? { 
+                  ...createdRegion, 
+                  isDirty: false,
+                  _hintsStaged: undefined,
+                  _stagedHints: undefined
+                } 
               : r
           ));
           
@@ -583,17 +595,27 @@ export const useEditor = () => {
                ('vnum' in state.selectedItem && state.selectedItem.vnum?.toString() === itemId))) {
             setState(prev => ({ 
               ...prev, 
-              selectedItem: prev.selectedItem ? { ...prev.selectedItem, isDirty: false } : null 
+              selectedItem: prev.selectedItem ? { 
+                ...prev.selectedItem, 
+                isDirty: false,
+                _hintsStaged: undefined,
+                _stagedHints: undefined
+              } : null 
             }));
           }
           
           return; // Early return since we already updated the region state
         }
         
-        // Mark as clean (for update case)
+        // Mark as clean and clear staging flags (for update case)
         setRegions(prev => prev.map(r => 
           (r.id === itemId || r.vnum?.toString() === itemId) 
-            ? { ...r, isDirty: false } 
+            ? { 
+                ...r, 
+                isDirty: false,
+                _hintsStaged: undefined,
+                _stagedHints: undefined
+              } 
             : r
         ));
       }
@@ -687,7 +709,12 @@ export const useEditor = () => {
            ('vnum' in state.selectedItem && state.selectedItem.vnum?.toString() === itemId))) {
         setState(prev => ({ 
           ...prev, 
-          selectedItem: prev.selectedItem ? { ...prev.selectedItem, isDirty: false } : null 
+          selectedItem: prev.selectedItem ? { 
+            ...prev.selectedItem, 
+            isDirty: false,
+            _hintsStaged: undefined,
+            _stagedHints: undefined
+          } : null 
         }));
       }
       
