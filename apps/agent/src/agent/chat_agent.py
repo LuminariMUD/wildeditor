@@ -56,7 +56,6 @@ class WildernessAssistantAgent:
         else:
             self.agent = Agent(
                 model=self.model,
-                result_type=AssistantResponse,
                 system_prompt=self._get_system_prompt()
             )
         
@@ -88,7 +87,9 @@ class WildernessAssistantAgent:
             try:
                 logger.info(f"Initializing DeepSeek model: {settings.deepseek_model}")
                 # DeepSeek uses OpenAI-compatible API
-                # Set the API key with OPENAI prefix for the client
+                # Use DEEPSEEK_API_KEY environment variable
+                os.environ['DEEPSEEK_API_KEY'] = settings.deepseek_api_key
+                # Also set OPENAI_API_KEY for the OpenAI client compatibility
                 os.environ['OPENAI_API_KEY'] = settings.deepseek_api_key
                 return OpenAIModel(
                     model_name=settings.deepseek_model or "deepseek-chat",
@@ -126,6 +127,8 @@ class WildernessAssistantAgent:
         if settings.deepseek_api_key:
             try:
                 logger.info("Falling back to DeepSeek")
+                os.environ['DEEPSEEK_API_KEY'] = settings.deepseek_api_key
+                # Also set OPENAI_API_KEY for the OpenAI client compatibility
                 os.environ['OPENAI_API_KEY'] = settings.deepseek_api_key
                 return OpenAIModel(
                     model_name=settings.deepseek_model or "deepseek-chat",
@@ -142,7 +145,6 @@ class WildernessAssistantAgent:
         """Create agent with tool functions"""
         agent = Agent(
             model=self.model,
-            result_type=AssistantResponse,
             system_prompt=self._get_enhanced_prompt()
         )
         
@@ -280,7 +282,17 @@ to select appropriate coordinates and parameters for tool calls."""
                 deps=agent_context
             )
             
-            return result.data
+            # Extract the response text from the result
+            if hasattr(result, 'data'):
+                return result.data
+            else:
+                # Create a response from the raw result
+                return AssistantResponse(
+                    message=str(result),
+                    tool_calls=[],
+                    suggestions=[],
+                    warnings=[]
+                )
             
         except Exception as e:
             logger.error(f"Error in chat: {str(e)}")
@@ -329,7 +341,17 @@ to select appropriate coordinates and parameters for tool calls."""
                 deps=agent_context
             )
             
-            return result.data
+            # Extract the response text from the result
+            if hasattr(result, 'data'):
+                return result.data
+            else:
+                # Create a response from the raw result
+                return AssistantResponse(
+                    message=str(result),
+                    tool_calls=[],
+                    suggestions=[],
+                    warnings=[]
+                )
             
         except Exception as e:
             logger.error(f"Error in chat_with_history: {str(e)}")
