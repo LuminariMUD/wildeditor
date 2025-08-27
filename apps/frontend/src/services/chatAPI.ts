@@ -19,9 +19,17 @@ interface ChatAction {
 }
 
 interface ChatResponse {
-  response: string;
-  actions: ChatAction[];
+  response: string | {
+    message: string;
+    actions: ChatAction[];
+    tool_calls: any[];
+    suggestions: any[];
+    warnings: any[];
+  };
+  actions?: ChatAction[]; // Legacy format
   session_id: string;
+  message_id: string;
+  timestamp: string;
 }
 
 class ChatAPIClient {

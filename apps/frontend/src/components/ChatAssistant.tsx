@@ -112,15 +112,27 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
         throw new Error('Invalid API response format');
       }
       
-      // Ensure response has valid content
-      const responseContent = typeof data.response === 'string' 
-        ? data.response 
-        : "I received your message but couldn't process it properly.";
+      // Handle nested response structure from chat agent
+      let responseContent: string;
+      let responseActions: any[];
       
-      // Validate actions array  
-      const responseActions = Array.isArray(data.actions) 
-        ? data.actions.filter(action => action && typeof action.type === 'string')
-        : [];
+      if (data.response && typeof data.response === 'object') {
+        // New nested structure: data.response.message
+        responseContent = typeof data.response.message === 'string' 
+          ? data.response.message 
+          : "I received your message but couldn't process it properly.";
+        responseActions = Array.isArray(data.response.actions) 
+          ? data.response.actions.filter(action => action && typeof action.type === 'string')
+          : [];
+      } else {
+        // Legacy flat structure: data.response  
+        responseContent = typeof data.response === 'string' 
+          ? data.response 
+          : "I received your message but couldn't process it properly.";
+        responseActions = Array.isArray(data.actions) 
+          ? data.actions.filter(action => action && typeof action.type === 'string')
+          : [];
+      }
       
       const assistantMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
