@@ -361,6 +361,47 @@ For comprehensive information beyond this technical overview, refer to:
 
 All documentation is kept up-to-date and reflects the current Python FastAPI backend architecture.
 
+## Content Staging Architecture
+
+The Wilderness Editor implements a staging pattern for all AI-generated content, ensuring users can review and modify content before persisting to the database.
+
+### Staging Flow
+1. **Generation**: MCP tools (`generate_region_description`, `generate_hints_from_description`) return content only
+2. **Staging**: Content is held in frontend component state as "staged" 
+3. **Review**: Users see indicators for staged content and can modify before saving
+4. **Save/Discard**: Explicit save commits all staged content to database
+
+### Technical Implementation
+- **Descriptions**: Staged via `onUpdate()` which marks region as dirty
+- **Hints**: Staged in component state (`stagedHints`), saved with region
+- **State Timing**: Staged content used immediately, avoiding React prop update delays
+- **No Direct Saves**: Generated content never saves directly to database
+
+### MCP Tool Patterns
+Generation tools (return data only):
+- `generate_region_description`
+- `generate_hints_from_description`
+
+Persistence tools (save to database):
+- `update_region_description` 
+- `store_region_hints`
+
+The frontend controls when persistence happens via Save/Discard buttons.
+
+### User Experience Improvements
+- **Text Copy**: Any text in description field is copied to AI generation prompt
+- **Staging Indicators**: Amber warnings show when content is staged but not saved
+- **Inline Discard**: Quick discard buttons for staged hints
+- **Unified Save**: Save button persists both description and hints together
+
+### Implementation Status
+- ✅ **React State Timing Fix**: Hints can be generated immediately after description
+- ✅ **Description Staging**: Generated descriptions staged locally before save
+- ✅ **Hints Staging**: Generated hints staged locally, no direct DB saves
+- ✅ **UI Indicators**: Visual feedback for staged content
+- ✅ **Parent Integration**: Save/Discard flow handles all staged content
+- ✅ **Type Safety**: Shared types include staging fields (`_hintsStaged`, `_stagedHints`)
+
 ## Chat Agent Integration (DEPLOYED - December 2024)
 
 ### Overview

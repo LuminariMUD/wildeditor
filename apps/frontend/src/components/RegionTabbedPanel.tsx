@@ -4,7 +4,7 @@ import {
   AlertCircle, Mountain, Layers, Lightbulb,
   Plus, ChevronDown, ChevronRight, Edit2, Trash2
 } from 'lucide-react';
-import { Region } from '../types';
+import { Region, RegionHint } from '../types';
 import { apiClient } from '../services/api';
 import { GenerateDescriptionDialog } from './GenerateDescriptionDialog';
 import { CoordinateEditor } from './CoordinateEditor';
@@ -43,17 +43,12 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
-  interface RegionHint {
-    id: number;
-    region_vnum: number;
-    hint_category: string;
-    hint_text: string;
-    priority: number;
-    seasonal_weight?: Record<string, number>;
-    weather_conditions?: string;
-    time_of_day_weight?: Record<string, number>;
-    is_active: boolean;
-  }
+  
+  // Staging state for generated content
+  const [stagedDescription, setStagedDescription] = useState('');
+  const [stagedHints, setStagedHints] = useState<RegionHint[]>([]);
+  const [hasStaged, setHasStaged] = useState({ description: false, hints: false });
+  const [initialPromptText, setInitialPromptText] = useState('');
 
   const [hints, setHints] = useState<RegionHint[]>([]);
   const [hintsLoading, setHintsLoading] = useState(false);
@@ -90,8 +85,16 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
     }
   }, [activeTab, region.vnum, fetchHints]);
 
+  // Sync staged description with region prop when not dirty
+  useEffect(() => {
+    if (!hasStaged.description) {
+      setStagedDescription(region.region_description || '');
+    }
+  }, [region.region_description, hasStaged.description]);
+
   const generateHintsFromDescription = async (description?: string, askConfirmation: boolean = true) => {
-    const descToUse = description || region.region_description;
+    // Use passed description, then staged, then region prop
+    const descToUse = description || stagedDescription || region.region_description;
     
     console.log('Generating hints with description:', {
       passedDescription: description ? description.substring(0, 100) + '...' : null,
@@ -239,40 +242,15 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
               };
             }).filter(hint => hint !== null); // Remove any null hints
             
-            // If hints already exist and user confirmed overwrite, delete them first
-            if (hints.length > 0) {
-              console.log(`Deleting ${hints.length} existing hints before creating new ones...`);
-              try {
-                await apiClient.deleteAllHints(region.vnum);
-              } catch (error) {
-                console.error('Failed to delete existing hints:', error);
-                throw new Error('Failed to delete existing hints before generating new ones');
-              }
-              console.log('Successfully deleted existing hints');
-            }
+            // STAGE HINTS LOCALLY - DO NOT SAVE TO DB YET!
+            setStagedHints(formattedHints);
+            setHasStaged(prev => ({ ...prev, hints: true }));
             
-            // Now create the new hints
-            try {
-              await apiClient.createHints(region.vnum, formattedHints);
-            } catch (error) {
-              console.error('Failed to create hints:', error);
-              // Try to extract validation errors from the response
-              if (error instanceof Error && error.message && error.message.includes('[')) {
-                try {
-                  const errorDetails = JSON.parse(error.message);
-                  console.error('Validation errors:', errorDetails);
-                  const firstError = errorDetails[0];
-                  throw new Error(`Validation error: ${firstError.msg} at ${firstError.loc.join('.')}`);  
-                } catch {
-                  // If we can't parse the error, throw the original
-                  throw error;
-                }
-              }
-              throw error;
-            }
-
-            // Refresh hints list
-            await fetchHints();
+            // Show staged hints in UI (replace current display)
+            setHints(formattedHints);
+            
+            // Mark region as having unsaved changes
+            onUpdate({ _hintsStaged: true, _stagedHints: formattedHints });
             
             // Expand first category to show results
             if (hintsData.hints.length > 0) {
@@ -280,7 +258,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
               setExpandedCategories(new Set([firstCategory]));
             }
             
-            console.log(`Successfully generated and stored ${formattedHints.length} hints`);
+            console.log(`Successfully generated and staged ${formattedHints.length} hints (not saved to database yet)`);
           } else {
             console.log('Hints data:', hintsData);
             setHintsError('No hints were generated from the description');
@@ -617,6 +595,15 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
 
   const renderDescriptionTab = () => (
     <div className="space-y-3">
+      {/* Staged description indicator */}
+      {hasStaged.description && (
+        <div className="bg-amber-900/20 border border-amber-600 rounded p-2">
+          <p className="text-amber-400 text-xs">
+            ✏️ Description has been generated but not saved to database
+          </p>
+        </div>
+      )}
+      
       {/* Description text */}
       <div>
         <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -624,7 +611,11 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         </label>
         <textarea
           value={region.region_description || ''}
-          onChange={(e) => onUpdate({ region_description: e.target.value })}
+          onChange={(e) => {
+            const newText = e.target.value;
+            setInitialPromptText(newText); // Track for use in generate dialog
+            onUpdate({ region_description: newText });
+          }}
           className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[120px] resize-y"
           placeholder="Enter a detailed description of this region..."
         />
@@ -716,7 +707,11 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
       {/* Generate with AI button */}
       <button
         className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 text-sm font-medium"
-        onClick={() => setShowGenerateDialog(true)}
+        onClick={() => {
+          // Copy any existing description text to be used as initial prompt
+          setInitialPromptText(region.region_description || '');
+          setShowGenerateDialog(true);
+        }}
       >
         <Star className="w-4 h-4" />
         Generate with AI
@@ -870,6 +865,28 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
 
     return (
       <div className="space-y-3">
+        {/* Staged hints indicator */}
+        {hasStaged.hints && (
+          <div className="bg-amber-900/20 border border-amber-600 rounded p-2">
+            <p className="text-amber-400 text-xs flex items-center justify-between">
+              <span>✏️ {stagedHints.length} hints staged but not saved to database</span>
+              <button 
+                onClick={() => {
+                  // Discard staged hints
+                  setStagedHints([]);
+                  setHasStaged(prev => ({ ...prev, hints: false }));
+                  setHints([]); // Clear display
+                  fetchHints(); // Reload from DB
+                  onUpdate({ _hintsStaged: undefined, _stagedHints: undefined });
+                }}
+                className="text-amber-500 hover:text-amber-400 text-xs underline"
+              >
+                Discard
+              </button>
+            </p>
+          </div>
+        )}
+        
         {/* Header with generate button */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -1094,6 +1111,11 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
       if (result.error) {
         setGenerationError(result.error);
       } else if (result.generated_description) {
+        // Stage description locally FIRST
+        setStagedDescription(result.generated_description);
+        setHasStaged(prev => ({ ...prev, description: true }));
+        
+        // Update parent (marks region as dirty/unsaved)
         onUpdate({
           region_description: result.generated_description,
           description_style: params.style,
@@ -1117,12 +1139,11 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         // Close dialog on success
         setShowGenerateDialog(false);
         
-        // Automatically generate hints from the new description
-        // Delete old hints first, then generate new ones from the AI
-        // The false parameter means don't ask for confirmation since we already warned
+        // Auto-generate hints using the staged description
+        // Reduced timeout since we pass description explicitly to avoid timing issues
         setTimeout(() => {
           generateHintsFromDescription(result.generated_description, false);
-        }, 500);
+        }, 100);
       }
     } catch (error) {
       console.error('Failed to generate description:', error);
@@ -1154,6 +1175,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         isGenerating={isGenerating}
         hasExistingDescription={!!region.region_description}
         hasExistingHints={hints.length > 0}
+        initialPrompt={initialPromptText}
       />
       
       {/* Hint Editor Dialog */}

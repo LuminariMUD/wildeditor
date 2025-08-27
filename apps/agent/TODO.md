@@ -263,5 +263,22 @@ Chat Agent (8002) → MCP Server (8001) → Backend API (8000) → MySQL
 4. **VNUMs**: Auto-generated if not provided (regions: 1000000+, paths: 2000000+)
 5. **Zone VNUM**: Defaults to 10000 if not specified
 
+## Staging Architecture Implementation ✅ COMPLETED
+
+### Frontend Staging Architecture (December 2024)
+- [x] **React State Timing Fix**: Hints can be generated immediately after description
+- [x] **Description Staging**: Generated descriptions staged locally before save  
+- [x] **Hints Staging**: Generated hints staged locally, no direct DB saves
+- [x] **UI Indicators**: Visual feedback for staged content
+- [x] **Parent Integration**: Save/Discard flow handles all staged content
+- [x] **Type Safety**: Shared types include staging fields (`_hintsStaged`, `_stagedHints`)
+- [x] **Text Copy**: Description field text copied to AI prompt
+- [x] **MCP Tools**: Return data only, no direct database saves
+
+### Chat Agent Integration with Staging
+- [ ] **Tool Combinations**: Chat agent uses MCP tool combinations for direct saves
+- [ ] **Example Flow**: `generate_region_description` → `update_region_description`
+- [ ] **Respect Staging**: Chat agent respects frontend staging pattern when used together
+
 ## Last Updated
-December 27, 2024 - MCP-only refactor fully completed and deployed. Service running on port 8002 with MCP error handling fixed. Remaining: API key configuration for full functionality testing.
+December 27, 2024 - Frontend staging architecture implementation completed. Chat agent MCP-only refactor fully deployed. Remaining: API key configuration and tool combination patterns.

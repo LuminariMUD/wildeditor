@@ -3,6 +3,18 @@ export interface Coordinate {
   y: number;
 }
 
+export interface RegionHint {
+  id: number;
+  region_vnum: number;
+  hint_category: string;
+  hint_text: string;
+  priority: number;
+  weather_conditions?: string[] | string; // Can be array or string depending on context
+  seasonal_weight?: Record<string, number>;
+  time_of_day_weight?: Record<string, number>;
+  is_active?: boolean;
+}
+
 export interface Region {
   vnum: number;           // Region virtual number (1-99999) - This is the primary key
   zone_vnum: number;      // Zone virtual number (default: 1)
@@ -36,6 +48,10 @@ export interface Region {
   props?: string;        // Optional JSON string for compatibility
   color?: string;        // Optional for frontend display
   isDirty?: boolean;     // Indicates unsaved changes
+  
+  // Staging properties for AI-generated content
+  _hintsStaged?: boolean;     // Indicates hints are staged locally
+  _stagedHints?: RegionHint[];  // Staged hints not yet saved to DB
 }
 
 export interface Path {

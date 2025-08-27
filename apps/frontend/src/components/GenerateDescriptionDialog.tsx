@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Loader2, Info } from 'lucide-react';
 
 interface GenerateDescriptionDialogProps {
@@ -15,6 +15,7 @@ interface GenerateDescriptionDialogProps {
   isGenerating: boolean;
   hasExistingDescription?: boolean;
   hasExistingHints?: boolean;
+  initialPrompt?: string;
 }
 
 export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps> = ({
@@ -25,9 +26,10 @@ export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps>
   regionType,
   isGenerating,
   hasExistingDescription = false,
-  hasExistingHints = false
+  hasExistingHints = false,
+  initialPrompt = ''
 }) => {
-  const [userPrompt, setUserPrompt] = useState('');
+  const [userPrompt, setUserPrompt] = useState(initialPrompt);
   const [style, setStyle] = useState('poetic');
   const [length, setLength] = useState('moderate');
   const [includeSections, setIncludeSections] = useState<string[]>([
@@ -35,6 +37,13 @@ export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps>
     'geography',
     'atmosphere'
   ]);
+
+  // Update prompt when dialog opens with initial text
+  useEffect(() => {
+    if (isOpen) {
+      setUserPrompt(initialPrompt);
+    }
+  }, [isOpen, initialPrompt]);
 
   if (!isOpen) return null;
 

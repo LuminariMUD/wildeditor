@@ -535,10 +535,33 @@ export const useEditor = () => {
           const regionId = region.id || region.vnum.toString();
           await apiClient.updateRegion(regionId, region);
           console.log('[Save] Region updated successfully:', itemId);
+          
+          // Save staged hints if present
+          if (region._hintsStaged && region._stagedHints) {
+            try {
+              // Delete existing hints first
+              await apiClient.deleteAllHints(region.vnum);
+              // Save staged hints
+              await apiClient.createHints(region.vnum, region._stagedHints);
+              console.log(`[Save] Saved ${region._stagedHints.length} staged hints`);
+            } catch (error) {
+              console.error('[Save] Failed to save staged hints:', error);
+            }
+          }
         } else {
           // Create new region (doesn't exist in database)
           const createdRegion = await apiClient.createRegion(region);
           console.log('[Save] Region created successfully:', itemId);
+          
+          // Save staged hints if present (after creation)
+          if (region._hintsStaged && region._stagedHints) {
+            try {
+              await apiClient.createHints(createdRegion.vnum, region._stagedHints);
+              console.log(`[Save] Saved ${region._stagedHints.length} staged hints for new region`);
+            } catch (error) {
+              console.error('[Save] Failed to save staged hints for new region:', error);
+            }
+          }
           
           // Remove from unsaved items before updating state
           setUnsavedItems(prev => {
@@ -726,7 +749,13 @@ export const useEditor = () => {
         console.log('[Discard] Marking region as clean (reverting changes):', itemId);
         setRegions(prev => prev.map(r => 
           (r.id === itemId || r.vnum?.toString() === itemId) 
-            ? { ...r, isDirty: false } 
+            ? { 
+                ...r, 
+                isDirty: false,
+                // Clear staged hints
+                _hintsStaged: undefined,
+                _stagedHints: undefined
+              } 
             : r
         ));
         
@@ -735,7 +764,13 @@ export const useEditor = () => {
             ('vnum' in state.selectedItem && state.selectedItem.vnum?.toString() === itemId))) {
           setState(prev => ({ 
             ...prev, 
-            selectedItem: prev.selectedItem ? { ...prev.selectedItem, isDirty: false } : null 
+            selectedItem: prev.selectedItem ? { 
+              ...prev.selectedItem, 
+              isDirty: false,
+              // Clear staged hints from selected item too
+              _hintsStaged: undefined,
+              _stagedHints: undefined
+            } : null 
           }));
         }
       }
