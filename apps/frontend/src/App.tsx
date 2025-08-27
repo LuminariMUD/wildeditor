@@ -11,6 +11,7 @@ import { StatusBar } from './components/StatusBar';
 import { ErrorNotification } from './components/ErrorNotification';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { ChatAssistant } from './components/ChatAssistant';
+import { ErrorBoundary, ChatErrorFallback } from './components/ErrorBoundary';
 import { useEditor } from './hooks/useEditor';
 import { useAuth } from './hooks/useAuth';
 import { ChatBridge } from './services/chatBridge';
@@ -289,7 +290,9 @@ function App() {
       <LoadingOverlay isLoading={loading} message="Loading wilderness data..." />
       
       {/* Chat Assistant */}
-      <ChatAssistant onExecuteAction={handleChatAction} />
+      <ErrorBoundary fallback={ChatErrorFallback}>
+        <ChatAssistant onExecuteAction={handleChatAction} />
+      </ErrorBoundary>
     </ProtectedRoute>
   );
 }

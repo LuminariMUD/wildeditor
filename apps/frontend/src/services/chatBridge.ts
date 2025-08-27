@@ -23,6 +23,18 @@ export class ChatBridge {
   private options: ChatBridgeOptions;
 
   constructor(editor: EditorHook, options: ChatBridgeOptions = {}) {
+    if (!editor) {
+      throw new Error('ChatBridge requires an editor hook');
+    }
+    
+    // Validate required editor functions
+    const requiredMethods = ['setRegions', 'setPaths', 'setUnsavedItems', 'selectItem'];
+    for (const method of requiredMethods) {
+      if (typeof editor[method as keyof EditorHook] !== 'function') {
+        throw new Error(`ChatBridge: Missing required editor method: ${method}`);
+      }
+    }
+    
     this.editor = editor;
     this.options = options;
   }
@@ -106,15 +118,31 @@ export class ChatBridge {
       color: params.color || this.getDefaultRegionColor(params.region_type || 1)
     };
 
-    // Add to regions state
-    this.editor.setRegions(prev => [...prev, newRegion]);
-    
-    // Mark as unsaved
-    this.editor.setUnsavedItems(prev => new Set(prev).add(vnum.toString()));
-    
-    // Apply UI hints
-    if (uiHints?.select) {
-      this.editor.selectItem(newRegion);
+    // Add to regions state with defensive checks
+    try {
+      this.editor.setRegions(prev => {
+        if (!Array.isArray(prev)) {
+          console.warn('[ChatBridge] Previous regions is not an array:', prev);
+          return [newRegion];
+        }
+        return [...prev, newRegion];
+      });
+      
+      // Mark as unsaved
+      this.editor.setUnsavedItems(prev => {
+        const currentSet = prev instanceof Set ? prev : new Set();
+        return new Set(currentSet).add(vnum.toString());
+      });
+      
+      // Apply UI hints with delay to avoid React state timing issues
+      if (uiHints?.select) {
+        setTimeout(() => {
+          this.editor.selectItem(newRegion);
+        }, 10);
+      }
+    } catch (stateError) {
+      console.error('[ChatBridge] State update error:', stateError);
+      throw new Error(`Failed to update state: ${stateError}`);
     }
     
     if (uiHints?.center_map) {
@@ -149,15 +177,31 @@ export class ChatBridge {
       color: params.color || this.getDefaultPathColor(params.path_type || 1)
     };
 
-    // Add to paths state
-    this.editor.setPaths(prev => [...prev, newPath]);
-    
-    // Mark as unsaved
-    this.editor.setUnsavedItems(prev => new Set(prev).add(vnum.toString()));
-    
-    // Apply UI hints
-    if (uiHints?.select) {
-      this.editor.selectItem(newPath);
+    // Add to paths state with defensive checks
+    try {
+      this.editor.setPaths(prev => {
+        if (!Array.isArray(prev)) {
+          console.warn('[ChatBridge] Previous paths is not an array:', prev);
+          return [newPath];
+        }
+        return [...prev, newPath];
+      });
+      
+      // Mark as unsaved
+      this.editor.setUnsavedItems(prev => {
+        const currentSet = prev instanceof Set ? prev : new Set();
+        return new Set(currentSet).add(vnum.toString());
+      });
+      
+      // Apply UI hints with delay to avoid React state timing issues
+      if (uiHints?.select) {
+        setTimeout(() => {
+          this.editor.selectItem(newPath);
+        }, 10);
+      }
+    } catch (stateError) {
+      console.error('[ChatBridge] Path state update error:', stateError);
+      throw new Error(`Failed to update path state: ${stateError}`);
     }
     
     if (uiHints?.center_map) {
