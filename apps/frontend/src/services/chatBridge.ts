@@ -31,6 +31,15 @@ export class ChatBridge {
     try {
       console.log('[ChatBridge] Executing action:', action.type, action.params);
       
+      // Validate action structure
+      if (!action || !action.type) {
+        throw new Error('Invalid action: missing type');
+      }
+      
+      if (!action.params || typeof action.params !== 'object') {
+        throw new Error(`Invalid action params for ${action.type}`);
+      }
+      
       switch (action.type) {
         case 'create_region':
           await this.createRegion(action.params, action.ui_hints);
@@ -62,7 +71,10 @@ export class ChatBridge {
       }
     } catch (error) {
       console.error('[ChatBridge] Failed to execute action:', error);
-      this.options.onError?.(`Failed to execute ${action.type}: ${error}`);
+      console.error('[ChatBridge] Action details:', { type: action?.type, params: action?.params });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.options.onError?.(`Failed to execute ${action?.type || 'unknown'}: ${errorMessage}`);
+      throw error; // Re-throw to be caught by calling component
     }
   }
 
@@ -230,11 +242,24 @@ export class ChatBridge {
 
   private parseCoordinates(coords: unknown): Coordinate[] {
     if (Array.isArray(coords)) {
-      return coords.map(coord => ({
-        x: typeof coord.x === 'number' ? coord.x : parseFloat(coord.x),
-        y: typeof coord.y === 'number' ? coord.y : parseFloat(coord.y)
-      }));
+      return coords.map((coord, index) => {
+        if (!coord || typeof coord !== 'object') {
+          console.warn(`[ChatBridge] Invalid coordinate at index ${index}:`, coord);
+          return { x: 0, y: 0 };
+        }
+        
+        const x = typeof coord.x === 'number' ? coord.x : parseFloat(coord.x || '0');
+        const y = typeof coord.y === 'number' ? coord.y : parseFloat(coord.y || '0');
+        
+        if (isNaN(x) || isNaN(y)) {
+          console.warn(`[ChatBridge] NaN coordinates at index ${index}:`, { x: coord.x, y: coord.y });
+          return { x: 0, y: 0 };
+        }
+        
+        return { x, y };
+      });
     }
+    console.warn('[ChatBridge] Expected array of coordinates, got:', typeof coords, coords);
     return [];
   }
 

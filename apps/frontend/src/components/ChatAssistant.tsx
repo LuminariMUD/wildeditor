@@ -91,9 +91,21 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
       addMessage(assistantMessage);
 
       // Execute any actions returned by the assistant
-      if (data.actions && onExecuteAction) {
+      if (data.actions && data.actions.length > 0 && onExecuteAction) {
+        console.log('[ChatAssistant] Executing actions:', data.actions);
         for (const action of data.actions) {
-          onExecuteAction(action);
+          try {
+            await onExecuteAction(action);
+          } catch (actionError) {
+            console.error('[ChatAssistant] Action execution failed:', actionError);
+            // Show error message to user
+            addMessage({
+              id: `action-error-${Date.now()}`,
+              type: 'assistant',
+              content: `Sorry, I couldn't complete the action "${action.type}". Error: ${actionError instanceof Error ? actionError.message : 'Unknown error'}`,
+              timestamp: new Date()
+            });
+          }
         }
       }
 

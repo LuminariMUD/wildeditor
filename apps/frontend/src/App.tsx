@@ -84,10 +84,14 @@ function App() {
 
   const handleChatAction = async (action: ChatAction) => {
     try {
+      console.log('[App] Handling chat action:', action);
       await chatBridge.executeAction(action);
     } catch (error) {
-      console.error('Failed to execute chat action:', error);
-      setChatError(error instanceof Error ? error.message : 'Unknown error');
+      console.error('[App] Failed to execute chat action:', error);
+      console.error('[App] Action details:', action);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setChatError(`Chat action failed: ${errorMessage}`);
+      // Don't re-throw - let the chat component handle it
     }
   };
 
