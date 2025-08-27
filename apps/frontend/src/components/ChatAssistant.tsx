@@ -23,6 +23,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const addMessage = (message: ChatMessage) => {
     // Validate message structure before adding
@@ -71,6 +72,14 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
     if (isOpen && !sessionId) {
       initializeSession();
     }
+    
+    // Focus input when chat opens
+    if (isOpen && inputRef.current) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
   }, [isOpen, sessionId, initializeSession]);
 
   // Auto-scroll to bottom when new messages arrive  
@@ -89,6 +98,17 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
       }
     }
   }, [messages]);
+
+  // Restore input focus after loading completes
+  useEffect(() => {
+    if (!isLoading && isOpen && inputRef.current) {
+      // Small delay to ensure DOM updates are complete
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, isOpen]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading || !sessionId) return;
@@ -312,6 +332,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
       <div className="p-4 border-t border-gray-700">
         <div className="flex gap-2">
           <input
+            ref={inputRef}
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
