@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  chat-agent:
+    build: .
+    container_name: wildeditor-chat-agent
+    ports:
+      - "8002:8002"
+    environment:
+      # Server Configuration
+      - HOST=0.0.0.0
+      - PORT=8002
+      - DEBUG=false
+      
+      # AI Model Configuration (set these in GitHub secrets)
+      - MODEL_PROVIDER=${MODEL_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - MODEL_NAME=${MODEL_NAME:-gpt-4-turbo}
+      
+      # MCP Server Configuration (internal Docker network)
+      - WILDERNESS_MCP_URL=http://wildeditor-mcp:8001
+      - MCP_API_KEY=${MCP_API_KEY}
+      
+      # Backend API Configuration (internal Docker network)
+      - BACKEND_API_URL=http://wildeditor-backend:8000
+      - BACKEND_API_KEY=${BACKEND_API_KEY}
+      
+      # Session Storage
+      - STORAGE_BACKEND=memory
+      - SESSION_TTL=86400
+      
+      # CORS Configuration
+      - FRONTEND_URL=${FRONTEND_URL:-https://wildedit.luminarimud.com}
+      - CORS_ORIGINS=["http://localhost:5173","https://wildedit.luminarimud.com"]
+      
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    
+    networks:
+      - wildeditor-network
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+networks:
+  wildeditor-network:
+    external: true
+    name: wildeditor-network

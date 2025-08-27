@@ -361,6 +361,67 @@ For comprehensive information beyond this technical overview, refer to:
 
 All documentation is kept up-to-date and reflects the current Python FastAPI backend architecture.
 
+## Chat Agent Integration (NEW - December 2024)
+
+### Overview
+AI-powered chat assistant for wilderness building, running on port 8002 as a separate Docker container.
+
+### Architecture
+- **Service**: FastAPI application with PydanticAI
+- **Port**: 8002 (separate from MCP on 8001, backend on 8000)
+- **Location**: `/apps/agent/`
+- **Status**: Core implementation complete, ready for testing
+
+### Key Features
+- Natural language region creation and management
+- AI-powered description generation via MCP
+- Terrain analysis and map generation
+- Session management for conversation history
+- MCP tool integration for wilderness operations
+
+### Available Tools
+1. **create_region** - Create new regions with coordinates
+2. **generate_region_description** - AI-powered descriptions
+3. **generate_region_hints** - Dynamic weather/time variations
+4. **analyze_terrain** - Examine terrain at coordinates
+5. **find_zone_entrances** - Locate nearby connections
+6. **generate_map** - Create area maps
+
+### API Endpoints
+- `POST /api/chat/message` - Send message and get response
+- `GET /api/chat/history` - Get conversation history
+- `POST /api/session/` - Create new session
+- `GET /health/` - Health check
+
+### Deployment
+```bash
+# Local development
+cd apps/agent
+python run_dev.py
+
+# Docker deployment
+docker-compose up -d
+
+# Test endpoint
+curl http://localhost:8002/health/
+```
+
+### GitHub Secrets Required
+- `MODEL_PROVIDER` - Either "openai" or "anthropic"
+- `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` - AI service key
+- `MODEL_NAME` - Model to use (e.g., "gpt-4-turbo")
+- `MCP_API_KEY` - For MCP server integration
+- `BACKEND_API_KEY` - For backend API integration
+
+### TODO
+- [ ] Test MCP tool integration after deployment
+- [ ] Implement WebSocket for real-time chat
+- [ ] Add streaming response support
+- [ ] Create frontend React components
+- [ ] Add more tools (paths, points, validation)
+
+See `/apps/agent/TODO.md` for detailed status and next steps.
+
 ## Region Hints System
 
 ### Overview

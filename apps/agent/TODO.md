@@ -1,104 +1,243 @@
-# MCP Test Agent - TODO & Status
+# Chat Agent TODO - Status & Next Steps
 
-## Current Status (August 17, 2025)
+## 🎯 Current Status (December 2024)
 
-###  Completed
-- Created comprehensive MCP test agent (`mcp_test_agent.py`)
-- Created stress testing tool (`mcp_stress_test.py`) 
-- Created debugging utilities (`mcp_debug.py`, `test_specific_issues.py`)
-- Set up environment configuration with production MCP server
-- Fixed test parameter issues (Generate Wilderness Map now uses `radius` correctly)
-- Successfully connected to production MCP server at `luminarimud.com:8001`
+### ✅ Completed Today
 
-### =� Test Results Summary
+1. **Core Infrastructure**
+   - Created full application structure (`/apps/agent/src/`)
+   - Configured FastAPI application with lifespan management
+   - Set up environment configuration with Docker support
 
-**5 out of 6 tests passing (83% functional)**
+2. **PydanticAI Integration**
+   - Implemented `WildernessAssistantAgent` with GPT-4/Claude support
+   - Created structured response types
+   - Added system prompts for basic and tool-enhanced modes
 
-| Test | Status | Details |
-|------|--------|---------|
-| Health Check |  PASSED | Server online and healthy |
-| Terrain Analysis |  PASSED | Returns terrain data correctly |
-| Complete Terrain Map |  PASSED | Returns 81 terrain points with overlays |
-| Find Zone Entrances |  PASSED | Found 116 zone entrances |
-| Generate Wilderness Map |  PASSED | Works with `radius` parameter |
-| Find Wilderness Room | L FAILED | Server configuration issue |
+3. **Session Management**
+   - Implemented abstract `SessionStorage` interface
+   - Created `InMemoryStorage` for development
+   - Created `RedisStorage` for production
+   - Built `SessionManager` for conversation history
 
-### ✅ Fixed Issues
+4. **MCP Tool Integration**
+   - Created `BackendClient` for region CRUD operations
+   - Created `MCPClient` for terrain analysis and AI generation
+   - Implemented `WildernessTools` collection with all operations
+   - Integrated tools into PydanticAI agent using `@agent.tool` decorators
 
-#### 1. Find Wilderness Room - Server Configuration Issue (FIXED)
-- **Problem**: MCP server returns 422 error when trying to find wilderness rooms
-- **Root Cause**: 
-  1. MCP server on production didn't have the correct `WILDEDITOR_API_KEY` to authenticate with the backend
-  2. Backend routing conflict: `/rooms/{vnum}` was catching `/rooms/at-coordinates` requests
-  3. **Inefficient Implementation**: Backend was requesting up to 1000 static rooms and doing linear search
-- **Solutions Applied**:
-  1. ✅ Updated MCP .env file with correct backend API key: `0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu`
-  2. ✅ Fixed FastAPI routing order in `apps/backend/src/routers/wilderness.py` by moving `/rooms/at-coordinates` before `/rooms/{vnum}`
-  3. ✅ **Performance Fix**: Added new terrain bridge command `get_static_room_by_coordinates` for efficient O(log n) KD-tree lookup
-  4. ✅ **Backend Update**: Replaced inefficient linear search with direct coordinate lookup
-  5. ✅ **Tool Rename**: Changed `find_wilderness_room` to `find_static_wilderness_room` for clarity
-- **Status**: Configuration fixed, routing fixed, performance vastly improved, needs server restart to apply changes
+5. **REST API Endpoints**
+   - `/api/chat/message` - Send messages and get responses
+   - `/api/chat/history` - Get conversation history
+   - `/api/session/*` - Full session management
+   - `/health/*` - Health check endpoints
 
-### =⚠ Remaining Issues
+6. **Docker & Deployment**
+   - Created Dockerfile for containerization
+   - Created docker-compose.yml for orchestration
+   - Created GitHub Actions workflow
+   - Documented all required secrets
 
-#### 1. **Deployment Required**
-- All fixes are in code but need to be deployed to production server
-- New terrain bridge command needs to be available in the MUD server
+### 🔧 What Works Now
 
-#### 2. **Performance Improvements Implemented**
-- **Before**: O(n) linear search through 1000+ rooms causing "chunk too large" errors
-- **After**: O(log n) KD-tree lookup using existing game engine indexes
-- **Result**: Much faster response times and no more data transfer issues
+The chat agent can now:
+- **Create regions** with coordinates and auto-generate descriptions
+- **Generate AI descriptions** for regions
+- **Generate dynamic hints** for weather/time variations
+- **Analyze terrain** at specific coordinates
+- **Find zone entrances** near locations
+- **Generate wilderness maps** for areas
+- **Update existing regions**
+- **Maintain conversation history** across messages
 
-Stress test results (10 workers, terrain analysis):
-- **Success Rate**: 100%
-- **Throughput**: 8.5 requests/second
-- **P95 Response Time**: 0.685 seconds
-- **Average Response Time**: 0.571 seconds
+## 📋 TODO - Remaining Tasks
 
-### =� Next Steps
+### High Priority (Core Functionality)
 
-1. **Server-side fix needed**: 
-   - SSH into production server
-   - Update MCP server's `WILDEDITOR_API_KEY` environment variable
-   - Restart MCP server container
-   - Verify `find_wilderness_room` works
+1. **Test MCP Integration**
+   ```bash
+   # Once deployed, test with:
+   curl -X POST http://localhost:8002/api/chat/message \
+     -H "Content-Type: application/json" \
+     -d '{
+       "message": "Create a forest region at coordinates 100,200",
+       "session_id": "test",
+       "context": {"viewport": {"x": 100, "y": 200}}
+     }'
+   ```
 
-2. **Optional enhancements**:
-   - Add automated monitoring/alerting
-   - Create CI/CD integration tests
-   - Add more comprehensive error handling
-   - Create dashboard for monitoring MCP health
+2. **Error Handling Improvements**
+   - Add retry logic for MCP/backend calls
+   - Better error messages for tool failures
+   - Graceful degradation when services unavailable
 
-### = Configuration
+3. **Add Missing Tools**
+   - Path creation and management
+   - Point/landmark placement
+   - Region connection validation
+   - Bulk operations support
 
-Current `.env` configuration:
+### Medium Priority (UX Enhancements)
+
+4. **WebSocket Implementation** (`routers/websocket.py`)
+   - Real-time bidirectional communication
+   - Connection management
+   - Message queuing
+   - Reconnection logic
+
+5. **Streaming Responses** (SSE)
+   - Stream AI responses as they generate
+   - Show tool execution in real-time
+   - Progress indicators for long operations
+
+6. **Context Enhancement**
+   - Better viewport coordinate handling
+   - Selected items context
+   - Recent actions tracking
+   - Undo/redo support awareness
+
+### Low Priority (Nice to Have)
+
+7. **Advanced Features**
+   - Multi-region operations
+   - Template-based region creation
+   - Batch description generation
+   - Region migration tools
+
+8. **Analytics & Monitoring**
+   - Tool usage metrics
+   - Response time tracking
+   - Error rate monitoring
+   - Token usage tracking
+
+## 🚀 Next Steps for Tomorrow
+
+### 1. Deploy and Test
+```bash
+# Add GitHub secrets (see GITHUB_SECRETS_REQUIRED.md)
+# Push to trigger deployment
+git add .
+git commit -m "Deploy chat agent with MCP integration"
+git push origin main
 ```
-MCP_BASE_URL=http://luminarimud.com:8001
-MCP_API_KEY=xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=
-BACKEND_BASE_URL=http://luminarimud.com:8000
+
+### 2. Verify Services
+```bash
+# SSH to server
+ssh luminari@luminarimud.com
+
+# Check all services running
+docker ps | grep wildeditor
+
+# Test health endpoints
+curl http://localhost:8000/health  # Backend
+curl http://localhost:8001/health  # MCP
+curl http://localhost:8002/health  # Chat Agent
+
+# Check logs
+docker logs wildeditor-chat-agent
 ```
 
-### =� Usage
+### 3. Test Tool Integration
+```python
+# Test script for tools
+import httpx
+import asyncio
+
+async def test_tools():
+    # Create session
+    async with httpx.AsyncClient() as client:
+        # Create session
+        session = await client.post(
+            "http://localhost:8002/api/session/",
+            json={"user_id": "test"}
+        )
+        session_id = session.json()["session_id"]
+        
+        # Test terrain analysis
+        response = await client.post(
+            "http://localhost:8002/api/chat/message",
+            json={
+                "message": "What's the terrain like at 0,0?",
+                "session_id": session_id
+            }
+        )
+        print("Terrain:", response.json())
+        
+        # Test region creation
+        response = await client.post(
+            "http://localhost:8002/api/chat/message",
+            json={
+                "message": "Create a mystical forest called Whispering Woods at coordinates [[100,100],[150,100],[150,150],[100,150]]",
+                "session_id": session_id
+            }
+        )
+        print("Creation:", response.json())
+
+asyncio.run(test_tools())
+```
+
+### 4. Frontend Integration Planning
+- Design chat UI component
+- Implement WebSocket client
+- Add to wilderness editor sidebar
+- Test real-time updates
+
+## 🐛 Known Issues
+
+1. **Tool Response Formatting**
+   - Tool results need better formatting in responses
+   - Consider markdown or structured display
+
+2. **Coordinate Parsing**
+   - Need to handle various coordinate formats from users
+   - Consider natural language parsing ("near the northern mountains")
+
+3. **Session Persistence**
+   - Redis not configured yet (using in-memory)
+   - Sessions lost on restart
+
+## 📊 Testing Checklist
+
+- [ ] Agent initializes with tools
+- [ ] Can create regions via chat
+- [ ] Can generate descriptions
+- [ ] Can analyze terrain
+- [ ] Sessions persist across messages
+- [ ] Error handling works
+- [ ] Docker container runs
+- [ ] GitHub Actions deploys
+
+## 🔗 Related Documentation
+
+- [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) - Full deployment instructions
+- [GITHUB_SECRETS_REQUIRED.md](GITHUB_SECRETS_REQUIRED.md) - Quick secrets reference
+- [CHAT_AGENT_README.md](CHAT_AGENT_README.md) - Service documentation
+- [../docs/agent/IMPLEMENTATION_GUIDE.md](../docs/agent/IMPLEMENTATION_GUIDE.md) - Original plan
+
+## 💡 Quick Commands
 
 ```bash
-# Run functional tests
+# Run locally
 cd apps/agent
-source venv/bin/activate
-python mcp_test_agent.py
+python run_dev.py
 
-# Run stress tests
-python mcp_stress_test.py --duration 30 --concurrency 10
+# Build Docker
+docker build -t wildeditor-chat-agent .
 
-# Debug specific issues
-python mcp_debug.py
-python test_specific_issues.py
+# Run Docker
+docker-compose up -d
+
+# View logs
+docker logs -f wildeditor-chat-agent
+
+# Test endpoint
+curl http://localhost:8002/health/
 ```
 
-### <� Architecture Notes
+## 📝 Notes for Tomorrow
 
-The MCP server uses a two-key authentication system:
-1. **MCP Key** (`mcp_key`): What AI agents use to authenticate with MCP server (we have this)
-2. **Backend API Key** (`api_key`): What MCP server uses to authenticate with backend (missing/incorrect on production)
-
-The failing test is due to #2 being misconfigured on the production server.
+1. **Priority**: Test that tools actually work with real MCP/backend
+2. **Watch for**: Authentication issues between services
+3. **Consider**: Adding request ID tracking for debugging
+4. **Remember**: Update frontend API client to call port 8002

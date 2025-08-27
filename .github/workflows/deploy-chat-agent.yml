@@ -1,0 +1,113 @@
+name: Deploy Chat Agent
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/agent/**'
+      - '.github/workflows/deploy-chat-agent.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
+      
+      - name: Add VPS to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Deploy to VPS
+        env:
+          VPS_HOST: ${{ secrets.PRODUCTION_HOST }}
+          VPS_USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          # Create deployment script
+          cat > deploy_chat_agent.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          echo "Deploying Chat Agent Service..."
+          
+          # Navigate to project directory
+          cd /home/luminari/wildeditor
+          
+          # Pull latest code
+          git pull origin main
+          
+          # Navigate to agent directory
+          cd apps/agent
+          
+          # Create .env file with provided secrets
+          cat > .env << ENVFILE
+          # AI Configuration
+          MODEL_PROVIDER=${MODEL_PROVIDER:-openai}
+          OPENAI_API_KEY=${OPENAI_API_KEY}
+          DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+          MODEL_NAME=${MODEL_NAME:-gpt-4-turbo}
+          
+          # Service Integration
+          MCP_API_KEY=${MCP_API_KEY}
+          BACKEND_API_KEY=${BACKEND_API_KEY}
+          
+          # URLs
+          WILDERNESS_MCP_URL=http://wildeditor-mcp:8001
+          BACKEND_API_URL=http://wildeditor-backend:8000
+          FRONTEND_URL=${FRONTEND_URL:-https://wildedit.luminarimud.com}
+          
+          # Server Config
+          HOST=0.0.0.0
+          PORT=8002
+          LOG_LEVEL=${LOG_LEVEL:-INFO}
+          ENVFILE
+          
+          # Build and restart the service
+          docker-compose down || true
+          docker-compose build --no-cache
+          docker-compose up -d
+          
+          # Check if service is running
+          sleep 10
+          docker ps | grep wildeditor-chat-agent
+          
+          # Test health endpoint
+          curl -f http://localhost:8002/health/ || exit 1
+          
+          echo "Chat Agent Service deployed successfully!"
+          EOF
+          
+          # Copy and execute deployment script
+          scp deploy_chat_agent.sh $VPS_USER@$VPS_HOST:/tmp/
+          
+          # Execute with proper environment variables mapping existing secrets
+          ssh $VPS_USER@$VPS_HOST "
+            export MODEL_PROVIDER='${AI_PROVIDER:-openai}'
+            export OPENAI_API_KEY='${{ secrets.OPENAI_API_KEY }}'
+            export DEEPSEEK_API_KEY='${{ secrets.DEEPSEEK_API_KEY }}'
+            export MODEL_NAME='${OPENAI_MODEL:-gpt-4-turbo}'
+            export MCP_API_KEY='${{ secrets.WILDEDITOR_MCP_KEY }}'
+            export BACKEND_API_KEY='${{ secrets.WILDEDITOR_API_KEY }}'
+            export FRONTEND_URL='https://wildedit.luminarimud.com'
+            export LOG_LEVEL='INFO'
+            bash /tmp/deploy_chat_agent.sh
+          "
+          
+          # Clean up
+          rm deploy_chat_agent.sh
+      
+      - name: Verify deployment
+        env:
+          VPS_HOST: ${{ secrets.PRODUCTION_HOST }}
+          VPS_USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          ssh $VPS_USER@$VPS_HOST 'curl -f http://localhost:8002/health/ && echo "Chat Agent is healthy!"'

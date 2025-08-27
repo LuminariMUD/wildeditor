@@ -1,22 +1,41 @@
-# MCP Test Agent Dependencies
+# Chat Agent Dependencies
 
-# HTTP client
-httpx>=0.25.0
-
-# Rich terminal output
-rich>=13.0.0
-
-# Environment variables
+# Core Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
 python-dotenv>=1.0.0
 
-# Async support
+# PydanticAI for Agent
+pydantic-ai>=0.0.14
+pydantic>=2.5.0
+
+# AI Models
+openai>=1.0.0
+anthropic>=0.17.0
+
+# Session Storage
+redis>=5.0.0
+# For in-memory alternative
+cachetools>=5.3.0
+
+# WebSocket Support
+websockets>=12.0
+python-socketio>=5.10.0
+# Server-sent events
+sse-starlette>=1.8.0
+
+# HTTP Client
+httpx>=0.25.0
+
+# Async Support
 asyncio-throttle>=1.0.2
 
 # JSON handling
 orjson>=3.9.0
 
-# Data validation
-pydantic>=2.0.0
+# Logging
+loguru>=0.7.0
+structlog>=24.1.0
 
 # Testing utilities
 pytest>=7.4.0
@@ -26,5 +45,6 @@ pytest-timeout>=2.1.0
 # Performance monitoring
 psutil>=5.9.0
 
-# Logging
-loguru>=0.7.0
+# Development
+rich>=13.0.0
+ipython>=8.12.0
