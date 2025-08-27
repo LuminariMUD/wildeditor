@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     deepseek_model: str = Field(default="deepseek-chat", env="DEEPSEEK_MODEL")
     model_provider: str = Field(default="openai", env="MODEL_PROVIDER")  # openai, anthropic, or deepseek
     
-    # MCP Server Configuration
+    # MCP Server Configuration (Single Contact Surface)
     # In Docker, use service name; in dev, use localhost
     wilderness_mcp_url: str = Field(
         default="http://wildeditor-mcp:8001" if os.path.exists("/.dockerenv") else "http://localhost:8001", 
@@ -29,13 +29,8 @@ class Settings(BaseSettings):
     )
     mcp_api_key: Optional[str] = Field(default=None, env="MCP_API_KEY")
     
-    # Backend API Configuration
-    # In Docker, use service name; in dev, use localhost
-    backend_api_url: str = Field(
-        default="http://wildeditor-backend:8000" if os.path.exists("/.dockerenv") else "http://localhost:8000",
-        env="BACKEND_API_URL"
-    )
-    backend_api_key: Optional[str] = Field(default=None, env="BACKEND_API_KEY")
+    # Note: Backend API is accessed only through MCP server now
+    # This provides a single contact surface for the agent
     
     # Session Storage Configuration
     storage_backend: str = Field(default="memory", env="STORAGE_BACKEND")  # memory or redis

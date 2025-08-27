@@ -37,18 +37,18 @@ class WildernessAssistantAgent:
     Integrates with MCP servers and maintains conversation context.
     """
     
-    def __init__(self, backend_client=None, mcp_client=None):
-        """Initialize the agent with configured model and optional tools"""
+    def __init__(self, mcp_client=None):
+        """Initialize the agent with configured model and MCP tools"""
         self.model = self._initialize_model()
         
         if not self.model:
             raise ValueError("No AI model could be initialized. Please configure API keys.")
         
-        # Initialize tools if clients are provided
+        # Initialize tools if MCP client is provided
         self.tools = None
-        if backend_client and mcp_client:
-            self.tools = WildernessTools(backend_client, mcp_client)
-            logger.info("Initialized with MCP and backend tools")
+        if mcp_client:
+            self.tools = WildernessTools(mcp_client)
+            logger.info("Initialized with MCP tools (single contact surface)")
         
         # Initialize the agent with or without tools
         if self.tools:
@@ -153,14 +153,34 @@ class WildernessAssistantAgent:
         async def create_region(
             ctx: RunContext[EditorContext],
             name: str,
-            region_type: str,
-            coordinates: List[List[float]],
+            region_type: int,  # MCP uses integer types
+            coordinates: List[Dict[str, float]],  # MCP format
+            zone_vnum: int = 10000,
             auto_generate_description: bool = True
         ) -> Dict[str, Any]:
-            """Create a new wilderness region"""
+            """Create a new wilderness region via MCP"""
             return await self.tools.create_region(
-                name, region_type, coordinates,
+                name=name,
+                region_type=region_type,
+                coordinates=coordinates,
+                zone_vnum=zone_vnum,
                 auto_generate_description=auto_generate_description
+            )
+        
+        @agent.tool
+        async def create_path(
+            ctx: RunContext[EditorContext],
+            name: str,
+            path_type: int,  # 1=Paved, 2=Dirt, 3=Geographic, 5=River, 6=Stream
+            coordinates: List[Dict[str, float]],
+            zone_vnum: int = 10000
+        ) -> Dict[str, Any]:
+            """Create a new wilderness path via MCP"""
+            return await self.tools.create_path(
+                name=name,
+                path_type=path_type,
+                coordinates=coordinates,
+                zone_vnum=zone_vnum
             )
         
         @agent.tool
@@ -168,11 +188,15 @@ class WildernessAssistantAgent:
             ctx: RunContext[EditorContext],
             region_name: Optional[str] = None,
             terrain_theme: Optional[str] = None,
-            style: str = "immersive"
-        ) -> str:
+            style: str = "immersive",
+            length: str = "medium"
+        ) -> Dict[str, Any]:
             """Generate an AI-powered description for a region"""
             return await self.tools.generate_region_description(
-                region_name, terrain_theme, style
+                region_name=region_name,
+                terrain_theme=terrain_theme,
+                description_style=style,
+                description_length=length
             )
         
         @agent.tool
@@ -187,12 +211,16 @@ class WildernessAssistantAgent:
         @agent.tool
         async def find_zone_entrances(
             ctx: RunContext[EditorContext],
-            x: int,
-            y: int,
-            radius: int = 50
+            x: Optional[int] = None,
+            y: Optional[int] = None,
+            radius: int = 50,
+            zone_vnum: Optional[int] = None
         ) -> Dict[str, Any]:
-            """Find zone entrances near coordinates"""
-            return await self.tools.find_zone_entrances_near(x, y, radius)
+            """Find zone entrances in wilderness or near coordinates"""
+            if x is not None and y is not None:
+                return await self.tools.find_zone_entrances_near(x, y, radius)
+            else:
+                return await self.tools.find_zone_entrances(zone_vnum)
         
         @agent.tool
         async def generate_map(
@@ -243,10 +271,13 @@ You have deep knowledge of:
 
 AVAILABLE TOOLS:
 - create_region: Create new wilderness regions with coordinates
+- create_path: Create wilderness paths (roads, rivers, etc.)
 - generate_region_description: Generate AI-powered descriptions
 - analyze_terrain: Examine terrain at specific coordinates
-- find_zone_entrances: Locate nearby zone connections
+- find_zone_entrances: Locate zone connections
 - generate_map: Create wilderness area maps
+- search_regions: Search regions by location, type, or name
+- search_by_coordinates: Find regions and paths at coordinates
 
 Guidelines:
 1. Use tools proactively when they would help the user

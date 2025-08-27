@@ -90,7 +90,6 @@ jobs:
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
           DEEPSEEK_MODEL: ${{ secrets.DEEPSEEK_MODEL }}
           MCP_API_KEY: ${{ secrets.WILDEDITOR_MCP_KEY }}
-          BACKEND_API_KEY: ${{ secrets.WILDEDITOR_API_KEY }}
         run: |
           # Create deployment script (following MCP pattern)
           cat > deploy-agent.sh << 'EOF'
@@ -147,7 +146,6 @@ jobs:
             echo "DEEPSEEK_API_KEY=[NOT SET]"
           fi
           echo "MCP_API_KEY=${MCP_API_KEY:+[SET]}"
-          echo "BACKEND_API_KEY=${BACKEND_API_KEY:+[SET]}"
           
           # Start new container with host networking (same as MCP and backend)
           echo "🏃 Starting new Chat Agent container..."
@@ -162,11 +160,11 @@ jobs:
           [ -n "$OPENAI_MODEL" ] && DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e MODEL_NAME='$OPENAI_MODEL'"
           [ -n "$DEEPSEEK_MODEL" ] && DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e DEEPSEEK_MODEL='$DEEPSEEK_MODEL'"
           [ -n "$MCP_API_KEY" ] && DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e MCP_API_KEY='$MCP_API_KEY'"
-          [ -n "$BACKEND_API_KEY" ] && DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e BACKEND_API_KEY='$BACKEND_API_KEY'"
+          # Backend API key removed - using MCP as single contact surface
           
           # Add static environment variables
           DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e WILDERNESS_MCP_URL='http://localhost:8001'"
-          DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e BACKEND_API_URL='http://localhost:8000'"
+          # Backend accessed only through MCP now
           DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e FRONTEND_URL='https://wildedit.luminarimud.com'"
           DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e HOST='0.0.0.0'"
           DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e PORT='8002'"
@@ -242,7 +240,7 @@ jobs:
             export OPENAI_MODEL='${OPENAI_MODEL:-gpt-4-turbo}'
             export DEEPSEEK_MODEL='${DEEPSEEK_MODEL:-deepseek-chat}'
             export MCP_API_KEY='$MCP_API_KEY'
-            export BACKEND_API_KEY='$BACKEND_API_KEY'
+            # Backend API key not needed - MCP is single contact surface
             /tmp/deploy-agent.sh
           "
       

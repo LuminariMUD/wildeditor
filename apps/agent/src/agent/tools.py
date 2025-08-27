@@ -1,211 +1,315 @@
-"""Tool definitions for the Wilderness Assistant Agent"""
-from typing import Optional, Dict, Any, List, Tuple
-from pydantic import BaseModel, Field
+"""Tool definitions for the Wilderness Assistant Agent - MCP Only Version"""
+from typing import Optional, Dict, Any, List
 import logging
-import json
 
 logger = logging.getLogger(__name__)
 
 
-class RegionCreationParams(BaseModel):
-    """Parameters for creating a region"""
-    name: str = Field(..., description="Name of the region")
-    type: str = Field(..., description="Type of region (e.g., 'forest', 'mountain', 'plains')")
-    coordinates: List[List[float]] = Field(..., description="Polygon coordinates defining the region")
-    properties: Optional[Dict[str, Any]] = Field(default=None, description="Additional properties")
-    color: Optional[str] = Field(default=None, description="Display color for the region")
-
-
-class DescriptionGenerationParams(BaseModel):
-    """Parameters for generating a description"""
-    region_name: Optional[str] = Field(None, description="Name of the region")
-    terrain_theme: Optional[str] = Field(None, description="Theme for the terrain")
-    description_style: str = Field(default="immersive", description="Style: immersive, technical, or poetic")
-    description_length: str = Field(default="medium", description="Length: short, medium, or long")
-    user_prompt: Optional[str] = Field(None, description="Additional guidance for generation")
-
-
-class TerrainAnalysisParams(BaseModel):
-    """Parameters for terrain analysis"""
-    x: int = Field(..., description="X coordinate")
-    y: int = Field(..., description="Y coordinate")
-
-
-class MapGenerationParams(BaseModel):
-    """Parameters for map generation"""
-    center_x: int = Field(..., description="Center X coordinate")
-    center_y: int = Field(..., description="Center Y coordinate")
-    radius: int = Field(default=10, description="Radius of the map area")
-
-
 class WildernessTools:
-    """Collection of tools for wilderness operations"""
+    """Collection of tools for wilderness operations using MCP server exclusively"""
     
-    def __init__(self, backend_client, mcp_client):
-        self.backend = backend_client
+    def __init__(self, mcp_client):
+        """Initialize with only MCP client - single contact surface"""
         self.mcp = mcp_client
-        logger.info("Initialized WildernessTools")
+        logger.info("Initialized WildernessTools with MCP-only architecture")
     
     async def create_region(
         self,
         name: str,
-        region_type: str,
-        coordinates: List[List[float]],
+        region_type: int,  # MCP uses integers for types
+        coordinates: List[Dict[str, float]],
+        vnum: Optional[int] = None,
+        zone_vnum: int = 10000,  # Default zone
         properties: Optional[Dict[str, Any]] = None,
-        color: Optional[str] = None,
         auto_generate_description: bool = True
     ) -> Dict[str, Any]:
         """
-        Create a new wilderness region
+        Create a new wilderness region via MCP
         
-        This tool creates a new region in the wilderness with the specified
-        parameters and optionally generates a description for it.
+        This tool creates a new region using the MCP server's create_region tool,
+        which handles both database operations and optional AI description generation.
         """
         try:
-            # Prepare region data
-            region_data = {
-                "name": name,
-                "type": region_type,
-                "coordinates": coordinates,
-                "properties": properties or {},
-                "color": color or self._get_default_color(region_type)
-            }
+            # Generate a vnum if not provided (simple auto-increment logic)
+            if vnum is None:
+                import random
+                vnum = 1000000 + random.randint(1, 99999)
             
-            # Create the region
-            region = await self.backend.create_region(region_data)
-            logger.info(f"Created region: {region.get('id')} - {name}")
+            # Call MCP create_region tool
+            result = await self.mcp.call_tool(
+                "create_region",
+                {
+                    "vnum": vnum,
+                    "zone_vnum": zone_vnum,
+                    "name": name,
+                    "region_type": region_type,
+                    "coordinates": coordinates,
+                    **(properties or {})
+                }
+            )
             
-            # Generate description if requested
-            if auto_generate_description and region.get("vnum"):
+            # Generate description if requested and creation succeeded
+            if auto_generate_description and not result.get("error"):
                 try:
-                    description = await self.generate_region_description(
+                    desc_result = await self.generate_region_description(
+                        region_vnum=vnum,
                         region_name=name,
-                        terrain_theme=region_type,
-                        description_style="immersive"
+                        region_type=region_type
                     )
-                    
-                    # Update region with description
-                    if description:
-                        await self.backend.update_region(
-                            region["id"],
-                            {"properties": {**region.get("properties", {}), "description": description}}
+                    if desc_result.get("generated_description"):
+                        # Update the region with the description
+                        await self.mcp.call_tool(
+                            "update_region_description",
+                            {
+                                "vnum": vnum,
+                                "region_description": desc_result["generated_description"]
+                            }
                         )
-                        region["properties"]["description"] = description
-                        logger.info(f"Added generated description to region {region['id']}")
+                        result["description"] = desc_result["generated_description"]
                 except Exception as e:
                     logger.warning(f"Failed to generate description: {str(e)}")
             
-            return {
-                "success": True,
-                "region": region,
-                "message": f"Created region '{name}' successfully"
-            }
+            return result
             
         except Exception as e:
             logger.error(f"Failed to create region: {str(e)}")
             return {
-                "success": False,
                 "error": str(e),
                 "message": f"Failed to create region: {str(e)}"
             }
     
+    async def create_path(
+        self,
+        name: str,
+        path_type: int,  # 1=Paved, 2=Dirt, 3=Geographic, 5=River, 6=Stream
+        coordinates: List[Dict[str, float]],
+        vnum: Optional[int] = None,
+        zone_vnum: int = 10000,
+        path_props: int = 0
+    ) -> Dict[str, Any]:
+        """
+        Create a new wilderness path via MCP
+        
+        Path types: 1=Paved Road, 2=Dirt Road, 3=Geographic, 5=River, 6=Stream
+        """
+        try:
+            # Generate a vnum if not provided
+            if vnum is None:
+                import random
+                vnum = 2000000 + random.randint(1, 99999)
+            
+            # Call MCP create_path tool
+            result = await self.mcp.call_tool(
+                "create_path",
+                {
+                    "vnum": vnum,
+                    "zone_vnum": zone_vnum,
+                    "name": name,
+                    "path_type": path_type,
+                    "coordinates": coordinates,
+                    "path_props": path_props
+                }
+            )
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to create path: {str(e)}")
+            return {
+                "error": str(e),
+                "message": f"Failed to create path: {str(e)}"
+            }
+    
     async def generate_region_description(
         self,
+        region_vnum: Optional[int] = None,
         region_name: Optional[str] = None,
+        region_type: Optional[int] = None,
         terrain_theme: Optional[str] = None,
         description_style: str = "immersive",
         description_length: str = "medium",
         user_prompt: Optional[str] = None
-    ) -> str:
+    ) -> Dict[str, Any]:
         """
-        Generate an AI-powered description for a region
-        
-        This tool uses AI to generate rich, atmospheric descriptions
-        for wilderness regions based on the provided parameters.
+        Generate an AI-powered description for a region via MCP
         """
         try:
-            description = await self.mcp.generate_description(
-                region_name=region_name,
-                terrain_theme=terrain_theme,
-                description_style=description_style,
-                description_length=description_length,
-                user_prompt=user_prompt
+            result = await self.mcp.call_tool(
+                "generate_region_description",
+                {
+                    "region_vnum": region_vnum,
+                    "region_name": region_name,
+                    "region_type": region_type,
+                    "terrain_theme": terrain_theme,
+                    "description_style": description_style,
+                    "description_length": description_length,
+                    "user_prompt": user_prompt
+                }
             )
             
-            logger.info(f"Generated description for {region_name or 'unnamed region'}")
-            return description
+            logger.info(f"Generated description for {region_name or f'region {region_vnum}'}")
+            return result
             
         except Exception as e:
             logger.error(f"Failed to generate description: {str(e)}")
-            raise
+            return {"error": str(e)}
     
     async def generate_region_hints(
         self,
-        vnum: int,
-        description: str,
-        style: str = "dynamic"
+        region_vnum: Optional[int] = None,
+        description: Optional[str] = None,
+        region_name: Optional[str] = None,
+        target_hint_count: int = 15
     ) -> Dict[str, Any]:
         """
-        Generate dynamic hints for a region based on its description
-        
-        This tool creates weather, time, and season-specific variations
-        of the region description for dynamic storytelling.
+        Generate dynamic hints for a region based on its description via MCP
         """
         try:
-            result = await self.backend.generate_hints(vnum, description, style)
-            logger.info(f"Generated hints for region {vnum}")
-            return {
-                "success": True,
-                "hints": result.get("hints", []),
-                "count": len(result.get("hints", [])),
-                "message": f"Generated {len(result.get('hints', []))} hints"
-            }
+            result = await self.mcp.call_tool(
+                "generate_hints_from_description",
+                {
+                    "region_vnum": region_vnum,
+                    "description": description,
+                    "region_name": region_name,
+                    "target_hint_count": target_hint_count,
+                    "include_profile": True
+                }
+            )
+            
+            logger.info(f"Generated {result.get('total_hints_found', 0)} hints")
+            return result
             
         except Exception as e:
             logger.error(f"Failed to generate hints: {str(e)}")
-            return {
-                "success": False,
-                "error": str(e),
-                "message": f"Failed to generate hints: {str(e)}"
-            }
+            return {"error": str(e)}
     
     async def analyze_terrain(
         self,
         x: int,
-        y: int,
-        include_nearby: bool = False
+        y: int
     ) -> Dict[str, Any]:
         """
-        Analyze terrain at specific coordinates
-        
-        This tool examines the terrain type and characteristics at the
-        specified wilderness coordinates.
+        Analyze terrain at specific coordinates via MCP
         """
         try:
-            terrain = await self.mcp.analyze_terrain(x, y)
-            
-            result = {
-                "success": True,
-                "coordinates": {"x": x, "y": y},
-                "terrain": terrain,
-                "message": f"Terrain at ({x}, {y}): {terrain.get('type', 'unknown')}"
-            }
-            
-            # Optionally include nearby analysis
-            if include_nearby:
-                nearby = await self.mcp.analyze_complete_terrain(x, y, radius=3)
-                result["nearby_terrain"] = nearby
+            result = await self.mcp.call_tool(
+                "analyze_terrain_at_coordinates",
+                {"x": x, "y": y}
+            )
             
             logger.info(f"Analyzed terrain at ({x}, {y})")
             return result
             
         except Exception as e:
             logger.error(f"Failed to analyze terrain: {str(e)}")
-            return {
-                "success": False,
-                "error": str(e),
-                "message": f"Failed to analyze terrain: {str(e)}"
-            }
+            return {"error": str(e)}
+    
+    async def analyze_complete_terrain(
+        self,
+        center_x: int,
+        center_y: int,
+        radius: int = 5,
+        include_regions: bool = True,
+        include_paths: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Get complete terrain analysis with overlays via MCP
+        """
+        try:
+            result = await self.mcp.call_tool(
+                "analyze_complete_terrain_map",
+                {
+                    "center_x": center_x,
+                    "center_y": center_y,
+                    "radius": radius,
+                    "include_regions": include_regions,
+                    "include_paths": include_paths
+                }
+            )
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to analyze complete terrain: {str(e)}")
+            return {"error": str(e)}
+    
+    async def search_regions(
+        self,
+        x: Optional[float] = None,
+        y: Optional[float] = None,
+        radius: Optional[float] = None,
+        region_type: Optional[int] = None,
+        zone_vnum: Optional[int] = None,
+        name_pattern: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Search for regions with various filters via MCP
+        """
+        try:
+            params = {}
+            if x is not None:
+                params["x"] = x
+            if y is not None:
+                params["y"] = y
+            if radius is not None:
+                params["radius"] = radius
+            if region_type is not None:
+                params["region_type"] = region_type
+            if zone_vnum is not None:
+                params["zone_vnum"] = zone_vnum
+            if name_pattern is not None:
+                params["name_pattern"] = name_pattern
+            
+            result = await self.mcp.call_tool("search_regions", params)
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to search regions: {str(e)}")
+            return {"error": str(e)}
+    
+    async def search_by_coordinates(
+        self,
+        x: float,
+        y: float,
+        radius: float = 10
+    ) -> Dict[str, Any]:
+        """
+        Search for regions and paths near coordinates via MCP
+        """
+        try:
+            result = await self.mcp.call_tool(
+                "search_by_coordinates",
+                {
+                    "x": x,
+                    "y": y,
+                    "radius": radius
+                }
+            )
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to search by coordinates: {str(e)}")
+            return {"error": str(e)}
+    
+    async def find_zone_entrances(
+        self,
+        zone_vnum: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Find zone entrances in the wilderness via MCP
+        """
+        try:
+            params = {}
+            if zone_vnum is not None:
+                params["zone_vnum"] = zone_vnum
+            
+            result = await self.mcp.call_tool("find_zone_entrances", params)
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to find zone entrances: {str(e)}")
+            return {"error": str(e)}
     
     async def find_zone_entrances_near(
         self,
@@ -216,18 +320,25 @@ class WildernessTools:
         """
         Find zone entrances near specific coordinates
         
-        This tool locates all zone entrances within a specified radius
-        of the given coordinates.
+        This is a convenience method that gets all entrances and filters by distance.
         """
         try:
             # Get all zone entrances
-            all_entrances = await self.mcp.find_zone_entrances()
+            result = await self.find_zone_entrances()
+            
+            if "error" in result:
+                return result
             
             # Filter by distance
+            all_entrances = result.get("entrances", [])
             nearby_entrances = []
+            
             for entrance in all_entrances:
-                if "x" in entrance and "y" in entrance:
-                    distance = ((entrance["x"] - x) ** 2 + (entrance["y"] - y) ** 2) ** 0.5
+                if "coordinates" in entrance:
+                    coord = entrance["coordinates"]
+                    ex = coord.get("x", 0)
+                    ey = coord.get("y", 0)
+                    distance = ((ex - x) ** 2 + (ey - y) ** 2) ** 0.5
                     if distance <= radius:
                         entrance["distance"] = round(distance, 2)
                         nearby_entrances.append(entrance)
@@ -236,7 +347,6 @@ class WildernessTools:
             nearby_entrances.sort(key=lambda e: e.get("distance", float("inf")))
             
             return {
-                "success": True,
                 "center": {"x": x, "y": y},
                 "radius": radius,
                 "entrances": nearby_entrances,
@@ -245,12 +355,8 @@ class WildernessTools:
             }
             
         except Exception as e:
-            logger.error(f"Failed to find zone entrances: {str(e)}")
-            return {
-                "success": False,
-                "error": str(e),
-                "message": f"Failed to find zone entrances: {str(e)}"
-            }
+            logger.error(f"Failed to find nearby zone entrances: {str(e)}")
+            return {"error": str(e)}
     
     async def generate_wilderness_map(
         self,
@@ -259,134 +365,141 @@ class WildernessTools:
         radius: int = 10
     ) -> Dict[str, Any]:
         """
-        Generate a map of a wilderness area
-        
-        This tool creates a detailed map showing terrain types, regions,
-        and features within the specified area.
+        Generate a wilderness map via MCP
         """
         try:
-            map_data = await self.mcp.generate_wilderness_map(center_x, center_y, radius)
+            result = await self.mcp.call_tool(
+                "generate_wilderness_map",
+                {
+                    "center_x": center_x,
+                    "center_y": center_y,
+                    "radius": radius
+                }
+            )
             
-            return {
-                "success": True,
-                "center": {"x": center_x, "y": center_y},
-                "radius": radius,
-                "map": map_data,
-                "message": f"Generated map for {radius}-unit radius around ({center_x}, {center_y})"
-            }
+            return result
             
         except Exception as e:
             logger.error(f"Failed to generate map: {str(e)}")
-            return {
-                "success": False,
-                "error": str(e),
-                "message": f"Failed to generate map: {str(e)}"
-            }
+            return {"error": str(e)}
     
-    async def update_region(
+    async def find_static_wilderness_room(
+        self,
+        x: Optional[int] = None,
+        y: Optional[int] = None,
+        vnum: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Find static wilderness room at coordinates or by VNUM via MCP
+        """
+        try:
+            params = {}
+            if x is not None:
+                params["x"] = x
+            if y is not None:
+                params["y"] = y
+            if vnum is not None:
+                params["vnum"] = vnum
+            
+            result = await self.mcp.call_tool("find_static_wilderness_room", params)
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to find static room: {str(e)}")
+            return {"error": str(e)}
+    
+    async def analyze_region(
         self,
         region_id: int,
-        updates: Dict[str, Any]
+        include_paths: bool = True
     ) -> Dict[str, Any]:
         """
-        Update an existing region
-        
-        This tool modifies properties of an existing region.
+        Analyze a wilderness region via MCP
         """
         try:
-            updated_region = await self.backend.update_region(region_id, updates)
+            result = await self.mcp.call_tool(
+                "analyze_region",
+                {
+                    "region_id": region_id,
+                    "include_paths": include_paths
+                }
+            )
             
-            return {
-                "success": True,
-                "region": updated_region,
-                "message": f"Updated region {region_id} successfully"
-            }
+            return result
             
         except Exception as e:
-            logger.error(f"Failed to update region: {str(e)}")
-            return {
-                "success": False,
-                "error": str(e),
-                "message": f"Failed to update region: {str(e)}"
-            }
+            logger.error(f"Failed to analyze region: {str(e)}")
+            return {"error": str(e)}
     
-    async def list_regions_in_area(
+    async def update_region_description(
         self,
-        min_x: int,
-        min_y: int,
-        max_x: int,
-        max_y: int
+        vnum: int,
+        region_description: str,
+        **metadata
     ) -> Dict[str, Any]:
         """
-        List all regions within a bounding box
-        
-        This tool finds all regions that intersect with the specified area.
+        Update region description and metadata via MCP
         """
         try:
-            # Get all regions (pagination might be needed for large datasets)
-            all_regions = await self.backend.get_regions(limit=1000)
-            
-            # Filter regions by bounding box
-            regions_in_area = []
-            for region in all_regions:
-                # Check if region intersects with the bounding box
-                # This is a simplified check - proper polygon intersection would be better
-                if self._region_intersects_box(region, min_x, min_y, max_x, max_y):
-                    regions_in_area.append(region)
-            
-            return {
-                "success": True,
-                "area": {
-                    "min_x": min_x,
-                    "min_y": min_y,
-                    "max_x": max_x,
-                    "max_y": max_y
-                },
-                "regions": regions_in_area,
-                "count": len(regions_in_area),
-                "message": f"Found {len(regions_in_area)} regions in the specified area"
+            params = {
+                "vnum": vnum,
+                "region_description": region_description,
+                **metadata
             }
+            
+            result = await self.mcp.call_tool("update_region_description", params)
+            return result
             
         except Exception as e:
-            logger.error(f"Failed to list regions: {str(e)}")
-            return {
-                "success": False,
-                "error": str(e),
-                "message": f"Failed to list regions: {str(e)}"
-            }
+            logger.error(f"Failed to update region description: {str(e)}")
+            return {"error": str(e)}
     
-    def _get_default_color(self, region_type: str) -> str:
-        """Get default color for a region type"""
-        colors = {
-            "forest": "#228B22",
-            "mountain": "#8B7355",
-            "plains": "#DAA520",
-            "desert": "#F4A460",
-            "water": "#4682B4",
-            "swamp": "#556B2F",
-            "tundra": "#B0E0E6",
-            "city": "#696969"
-        }
-        return colors.get(region_type.lower(), "#808080")
-    
-    def _region_intersects_box(
+    async def store_region_hints(
         self,
-        region: Dict[str, Any],
-        min_x: int,
-        min_y: int,
-        max_x: int,
-        max_y: int
-    ) -> bool:
-        """Check if a region intersects with a bounding box"""
-        coordinates = region.get("coordinates", [])
-        if not coordinates:
-            return False
-        
-        # Check if any point is within the box
-        for coord in coordinates:
-            if len(coord) >= 2:
-                x, y = coord[0], coord[1]
-                if min_x <= x <= max_x and min_y <= y <= max_y:
-                    return True
-        
-        return False
+        region_vnum: int,
+        hints: List[Dict[str, Any]],
+        profile: Optional[Dict[str, Any]] = None,
+        clear_existing: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Store generated hints in the database via MCP
+        """
+        try:
+            result = await self.mcp.call_tool(
+                "store_region_hints",
+                {
+                    "region_vnum": region_vnum,
+                    "hints": hints,
+                    "profile": profile,
+                    "clear_existing": clear_existing
+                }
+            )
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to store hints: {str(e)}")
+            return {"error": str(e)}
+    
+    async def get_region_hints(
+        self,
+        region_vnum: int,
+        category: Optional[str] = None,
+        weather_conditions: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Get existing hints for a region via MCP
+        """
+        try:
+            params = {"region_vnum": region_vnum}
+            if category:
+                params["category"] = category
+            if weather_conditions:
+                params["weather_conditions"] = weather_conditions
+            
+            result = await self.mcp.call_tool("get_region_hints", params)
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to get hints: {str(e)}")
+            return {"error": str(e)}

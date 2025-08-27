@@ -14,7 +14,6 @@ from routers import chat, session, health
 from session.storage import create_storage
 from session.manager import SessionManager
 from agent.chat_agent import WildernessAssistantAgent
-from services.backend_client import BackendClient
 from services.mcp_client import MCPClient
 
 # Configure logging
@@ -58,13 +57,12 @@ async def lifespan(app: FastAPI):
     # Initialize session manager
     session_manager = SessionManager(storage, settings.session_ttl)
     
-    # Initialize service clients
-    backend_client = BackendClient()
+    # Initialize MCP client
     mcp_client = MCPClient()
     
-    # Initialize chat agent with tools
+    # Initialize chat agent with MCP tools (single contact surface)
     try:
-        chat_agent = WildernessAssistantAgent(backend_client, mcp_client)
+        chat_agent = WildernessAssistantAgent(mcp_client)
         logger.info("Chat agent initialized successfully with MCP tools")
     except Exception as e:
         logger.error(f"Failed to initialize chat agent: {str(e)}")
