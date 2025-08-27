@@ -40,7 +40,7 @@ interface WindowBounds {
 
 // Default window settings
 const DEFAULT_WINDOW: WindowState = {
-  x: -420, // Position to the right of the screen initially
+  x: window.innerWidth - 440, // Position 20px from right edge
   y: 100,
   width: 420,
   height: 600,
@@ -77,10 +77,17 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
       const saved = localStorage.getItem('chat-assistant-window');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Validate bounds are still within current screen
-        const bounds = getScreenBounds();
-        if (parsed.x >= bounds.left && parsed.x <= bounds.right - MIN_WIDTH &&
-            parsed.y >= bounds.top && parsed.y <= bounds.bottom - MIN_HEIGHT) {
+        // Validate bounds are within visible viewport (not just multi-monitor bounds)
+        const viewportBounds = {
+          left: 0,
+          top: 0,
+          right: window.innerWidth,
+          bottom: window.innerHeight
+        };
+        
+        // Check if at least part of the window would be visible in the main viewport
+        if (parsed.x >= -MIN_WIDTH/2 && parsed.x <= viewportBounds.right - MIN_WIDTH/2 &&
+            parsed.y >= 0 && parsed.y <= viewportBounds.bottom - MIN_HEIGHT) {
           return { ...DEFAULT_WINDOW, ...parsed };
         }
       }
