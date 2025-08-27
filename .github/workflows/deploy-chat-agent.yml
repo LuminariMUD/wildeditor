@@ -136,32 +136,49 @@ jobs:
           # Debug: Check which environment variables are available
           echo "🔍 Checking environment variables..."
           echo "AI_PROVIDER=${AI_PROVIDER:-not set}"
-          echo "OPENAI_API_KEY=${OPENAI_API_KEY:+[SET]}"
-          echo "DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:+[SET]}"
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY=[SET] (length: ${#OPENAI_API_KEY})"
+          else
+            echo "OPENAI_API_KEY=[NOT SET]"
+          fi
+          if [ -n "$DEEPSEEK_API_KEY" ]; then
+            echo "DEEPSEEK_API_KEY=[SET] (length: ${#DEEPSEEK_API_KEY})"
+          else
+            echo "DEEPSEEK_API_KEY=[NOT SET]"
+          fi
           echo "MCP_API_KEY=${MCP_API_KEY:+[SET]}"
           echo "BACKEND_API_KEY=${BACKEND_API_KEY:+[SET]}"
           
           # Start new container with host networking (same as MCP and backend)
           echo "🏃 Starting new Chat Agent container..."
-          $DOCKER_CMD run -d \
-            --name $CONTAINER_NAME \
-            --restart unless-stopped \
-            --network host \
-            -e MODEL_PROVIDER="${AI_PROVIDER:-openai}" \
-            -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
-            -e DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY}" \
-            -e MODEL_NAME="${OPENAI_MODEL:-gpt-4-turbo}" \
-            -e DEEPSEEK_MODEL="${DEEPSEEK_MODEL:-deepseek-chat}" \
-            -e MCP_API_KEY="${MCP_API_KEY}" \
-            -e BACKEND_API_KEY="${BACKEND_API_KEY}" \
-            -e WILDERNESS_MCP_URL="http://localhost:8001" \
-            -e BACKEND_API_URL="http://localhost:8000" \
-            -e FRONTEND_URL="https://wildedit.luminarimud.com" \
-            -e HOST="0.0.0.0" \
-            -e PORT="8002" \
-            -e LOG_LEVEL="INFO" \
-            -v $HOME/logs/wildeditor-chat-agent:/var/log/chat-agent \
-            $DOCKER_IMAGE
+          
+          # Build docker run command with environment variables
+          DOCKER_RUN_CMD="$DOCKER_CMD run -d --name $CONTAINER_NAME --restart unless-stopped --network host"
+          
+          # Add environment variables only if they are set
+          [ -n "$AI_PROVIDER" ] && DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e MODEL_PROVIDER='$AI_PROVIDER'"
+          [ -n "$OPENAI_API_KEY" ] && DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e OPENAI_API_KEY='$OPENAI_API_KEY'"
+          [ -n "$DEEPSEEK_API_KEY" ] && DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e DEEPSEEK_API_KEY='$DEEPSEEK_API_KEY'"
+          [ -n "$OPENAI_MODEL" ] && DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e MODEL_NAME='$OPENAI_MODEL'"
+          [ -n "$DEEPSEEK_MODEL" ] && DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e DEEPSEEK_MODEL='$DEEPSEEK_MODEL'"
+          [ -n "$MCP_API_KEY" ] && DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e MCP_API_KEY='$MCP_API_KEY'"
+          [ -n "$BACKEND_API_KEY" ] && DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e BACKEND_API_KEY='$BACKEND_API_KEY'"
+          
+          # Add static environment variables
+          DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e WILDERNESS_MCP_URL='http://localhost:8001'"
+          DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e BACKEND_API_URL='http://localhost:8000'"
+          DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e FRONTEND_URL='https://wildedit.luminarimud.com'"
+          DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e HOST='0.0.0.0'"
+          DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e PORT='8002'"
+          DOCKER_RUN_CMD="$DOCKER_RUN_CMD -e LOG_LEVEL='INFO'"
+          
+          # Add volume and image
+          DOCKER_RUN_CMD="$DOCKER_RUN_CMD -v $HOME/logs/wildeditor-chat-agent:/var/log/chat-agent"
+          DOCKER_RUN_CMD="$DOCKER_RUN_CMD $DOCKER_IMAGE"
+          
+          # Execute the docker run command
+          echo "Executing: $DOCKER_RUN_CMD" | sed 's/OPENAI_API_KEY=[^ ]*/OPENAI_API_KEY=[HIDDEN]/g' | sed 's/DEEPSEEK_API_KEY=[^ ]*/DEEPSEEK_API_KEY=[HIDDEN]/g'
+          eval $DOCKER_RUN_CMD
           
           # Wait for container to be healthy
           echo "🏥 Waiting for health check..."
