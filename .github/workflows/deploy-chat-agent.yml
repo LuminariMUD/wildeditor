@@ -133,6 +133,14 @@ jobs:
           $DOCKER_CMD stop $CONTAINER_NAME || true
           $DOCKER_CMD rm $CONTAINER_NAME || true
           
+          # Debug: Check which environment variables are available
+          echo "🔍 Checking environment variables..."
+          echo "AI_PROVIDER=${AI_PROVIDER:-not set}"
+          echo "OPENAI_API_KEY=${OPENAI_API_KEY:+[SET]}"
+          echo "DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:+[SET]}"
+          echo "MCP_API_KEY=${MCP_API_KEY:+[SET]}"
+          echo "BACKEND_API_KEY=${BACKEND_API_KEY:+[SET]}"
+          
           # Start new container with host networking (same as MCP and backend)
           echo "🏃 Starting new Chat Agent container..."
           $DOCKER_CMD run -d \
@@ -140,12 +148,12 @@ jobs:
             --restart unless-stopped \
             --network host \
             -e MODEL_PROVIDER="${AI_PROVIDER:-openai}" \
-            -e OPENAI_API_KEY="$OPENAI_API_KEY" \
-            -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
+            -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
+            -e DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY}" \
             -e MODEL_NAME="${OPENAI_MODEL:-gpt-4-turbo}" \
             -e DEEPSEEK_MODEL="${DEEPSEEK_MODEL:-deepseek-chat}" \
-            -e MCP_API_KEY="$MCP_API_KEY" \
-            -e BACKEND_API_KEY="$BACKEND_API_KEY" \
+            -e MCP_API_KEY="${MCP_API_KEY}" \
+            -e BACKEND_API_KEY="${BACKEND_API_KEY}" \
             -e WILDERNESS_MCP_URL="http://localhost:8001" \
             -e BACKEND_API_URL="http://localhost:8000" \
             -e FRONTEND_URL="https://wildedit.luminarimud.com" \
@@ -203,17 +211,17 @@ jobs:
           echo "📋 Copying deployment script to server..."
           scp -o StrictHostKeyChecking=no deploy-agent.sh ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:/tmp/
           
-          # Execute deployment on server
+          # Execute deployment on server with environment variables
           echo "🚀 Executing deployment on server..."
           ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
             chmod +x /tmp/deploy-agent.sh
-            export AI_PROVIDER='${AI_PROVIDER:-openai}'
-            export OPENAI_API_KEY='$OPENAI_API_KEY'
-            export DEEPSEEK_API_KEY='$DEEPSEEK_API_KEY'
-            export OPENAI_MODEL='${OPENAI_MODEL:-gpt-4-turbo}'
-            export DEEPSEEK_MODEL='${DEEPSEEK_MODEL:-deepseek-chat}'
-            export MCP_API_KEY='$MCP_API_KEY'
-            export BACKEND_API_KEY='$BACKEND_API_KEY'
+            export AI_PROVIDER='${{ secrets.AI_PROVIDER }}'
+            export OPENAI_API_KEY='${{ secrets.OPENAI_API_KEY }}'
+            export DEEPSEEK_API_KEY='${{ secrets.DEEPSEEK_API_KEY }}'
+            export OPENAI_MODEL='${{ secrets.OPENAI_MODEL }}'
+            export DEEPSEEK_MODEL='${{ secrets.DEEPSEEK_MODEL }}'
+            export MCP_API_KEY='${{ secrets.WILDEDITOR_MCP_KEY }}'
+            export BACKEND_API_KEY='${{ secrets.WILDEDITOR_API_KEY }}'
             /tmp/deploy-agent.sh
           "
       
