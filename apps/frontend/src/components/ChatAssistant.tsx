@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageCircle, X, Send, Loader2, Bot, User } from 'lucide-react';
-import { chatAPI } from '../services/chatAPI';
+import { chatAPI, ChatAction } from '../services/chatAPI';
 
 interface ChatMessage {
   id: string;
@@ -8,15 +8,6 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   actions?: ChatAction[];
-}
-
-interface ChatAction {
-  type: 'create_region' | 'create_path' | 'stage_description' | 'stage_hints' | 'select_item';
-  params: Record<string, unknown>;
-  ui_hints?: {
-    select?: boolean;
-    center_map?: boolean;
-  };
 }
 
 interface ChatAssistantProps {

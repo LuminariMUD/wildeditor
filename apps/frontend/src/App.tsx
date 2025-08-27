@@ -14,6 +14,7 @@ import { ChatAssistant } from './components/ChatAssistant';
 import { useEditor } from './hooks/useEditor';
 import { useAuth } from './hooks/useAuth';
 import { ChatBridge } from './services/chatBridge';
+import { ChatAction } from './services/chatAPI';
 import { Region } from './types';
 import { User, Settings, LogOut } from 'lucide-react';
 
@@ -81,7 +82,7 @@ function App() {
     });
   }, [regions, paths, setRegions, setPaths, setUnsavedItems, updateSelectedItem, selectItem, setState]);
 
-  const handleChatAction = async (action: { type: string; params: Record<string, unknown>; ui_hints?: Record<string, unknown> }) => {
+  const handleChatAction = async (action: ChatAction) => {
     try {
       await chatBridge.executeAction(action);
     } catch (error) {
