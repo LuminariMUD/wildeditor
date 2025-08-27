@@ -242,9 +242,25 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-800 text-gray-100'
               }`}>
-                <p className="text-sm whitespace-pre-wrap">
-                  {typeof message.content === 'string' ? message.content : 'Invalid message content'}
-                </p>
+                <div className="text-sm whitespace-pre-wrap">
+                  {(() => {
+                    try {
+                      const content = message.content;
+                      if (typeof content !== 'string') {
+                        console.warn('[ChatAssistant] Non-string message content:', content);
+                        return 'Invalid message content';
+                      }
+                      if (content.length > 10000) {
+                        console.warn('[ChatAssistant] Message too long, truncating');
+                        return content.substring(0, 10000) + '...';
+                      }
+                      return content;
+                    } catch (renderError) {
+                      console.error('[ChatAssistant] Content render error:', renderError);
+                      return 'Content render error';
+                    }
+                  })()}
+                </div>
                 {message.actions && message.actions.length > 0 && (
                   <div className="mt-2 text-xs text-gray-300">
                     <div className="flex items-center gap-1">
