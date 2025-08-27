@@ -508,6 +508,9 @@ export const useEditor = () => {
       return;
     }
 
+    console.log('[Save] Starting save for itemId:', itemId);
+    console.log('[Save] Selected item:', state.selectedItem);
+    
     setSavingItems(prev => new Set(prev).add(itemId));
     
     try {
@@ -515,7 +518,13 @@ export const useEditor = () => {
       let item: Region | Path | undefined;
       
       // Check regions first
-      item = regions.find(r => r.id === itemId || r.vnum?.toString() === itemId);
+      console.log('[Save] Searching regions for itemId:', itemId);
+      console.log('[Save] Available regions:', regions.map(r => ({ id: r.id, vnum: r.vnum, name: r.name })));
+      item = regions.find(r => {
+        const matches = r.id === itemId || r.vnum?.toString() === itemId;
+        console.log(`[Save] Region "${r.name}": id="${r.id}" vnum="${r.vnum}" matches="${matches}"`);
+        return matches;
+      });
       if (item && 'region_type' in item) {
         const region = item as Region;
         
