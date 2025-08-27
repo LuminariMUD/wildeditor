@@ -23,7 +23,7 @@ class BackendClient:
         """Create a new region"""
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{self.base_url}/api/regions",
+                f"{self.base_url}/api/regions/",
                 json=data,
                 headers=self.headers,
                 timeout=30.0
