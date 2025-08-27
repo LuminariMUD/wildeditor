@@ -28,9 +28,10 @@ class ChatAPIClient {
   private baseUrl: string;
 
   constructor() {
-    // Use environment variable or fallback to production URL  
-    // TODO: Configure reverse proxy for chat service
-    this.baseUrl = import.meta.env.VITE_CHAT_API_URL || 'https://wildedit.luminarimud.com/chat';
+    // Use environment variable or fallback to direct HTTP for now
+    // Note: HTTPS sites can't make HTTP requests due to mixed content policy
+    // In development/testing, you can disable mixed content blocking in browser
+    this.baseUrl = import.meta.env.VITE_CHAT_API_URL || 'http://luminarimud.com:8002';
   }
 
   async createSession(): Promise<ChatSession> {
@@ -85,7 +86,11 @@ class ChatAPIClient {
       });
       return response.ok;
     } catch (error) {
-      console.error('Chat service health check failed:', error);
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error('Chat service blocked by mixed content policy (HTTPS→HTTP). Configure reverse proxy or use HTTP development server.');
+      } else {
+        console.error('Chat service health check failed:', error);
+      }
       return false;
     }
   }
