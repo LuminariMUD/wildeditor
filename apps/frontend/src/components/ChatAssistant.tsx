@@ -24,17 +24,9 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Initialize session when component mounts
-  useEffect(() => {
-    if (isOpen && !sessionId) {
-      initializeSession();
-    }
-  }, [isOpen, sessionId, initializeSession]);
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const addMessage = (message: ChatMessage) => {
+    setMessages(prev => [...prev, message]);
+  };
 
   const initializeSession = useCallback(async () => {
     try {
@@ -59,9 +51,17 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
     }
   }, []);
 
-  const addMessage = (message: ChatMessage) => {
-    setMessages(prev => [...prev, message]);
-  };
+  // Initialize session when component opens
+  useEffect(() => {
+    if (isOpen && !sessionId) {
+      initializeSession();
+    }
+  }, [isOpen, sessionId, initializeSession]);
+
+  // Auto-scroll to bottom when new messages arrive  
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading || !sessionId) return;
