@@ -457,12 +457,16 @@ export const useEditor = () => {
       return;
     }
     
-    // Check if updates contain meaningful changes (ignore staging state)
+    // Check if updates contain meaningful changes 
+    // _hintsStaged being set to true means user generated new hints, so it should mark as dirty
+    // _hintsStaged being set to undefined means clearing staging state, so it shouldn't mark as dirty
+    const hasNewHints = updates._hintsStaged === true;
+    const isClearingStaging = updates._hintsStaged === undefined;
     const stagingKeys = ['_hintsStaged', '_stagedHints'];
     const meaningfulUpdates = Object.keys(updates).filter(key => !stagingKeys.includes(key));
     
-    // Only mark as dirty if there are meaningful changes
-    const shouldMarkDirty = meaningfulUpdates.length > 0;
+    // Mark as dirty if there are meaningful changes OR if user generated new hints
+    const shouldMarkDirty = meaningfulUpdates.length > 0 || (hasNewHints && !isClearingStaging);
     const updatesWithDirty = shouldMarkDirty ? { ...updates, isDirty: true } : updates;
     
     if ('coordinates' in state.selectedItem) {
