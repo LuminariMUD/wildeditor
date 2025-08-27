@@ -128,6 +128,25 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
     saveWindowState(newState);
   }, [windowState, saveWindowState]);
 
+  // Update bounds on window resize to prevent chat from going off-screen
+  useEffect(() => {
+    const handleWindowResize = () => {
+      const bounds = getScreenBounds();
+      if (windowState.x > bounds.right - MIN_WIDTH || windowState.y > bounds.bottom - MIN_HEIGHT) {
+        const newState = {
+          ...windowState,
+          x: Math.min(windowState.x, bounds.right - MIN_WIDTH),
+          y: Math.min(windowState.y, bounds.bottom - MIN_HEIGHT)
+        };
+        setWindowState(newState);
+        saveWindowState(newState);
+      }
+    };
+
+    window.addEventListener('resize', handleWindowResize);
+    return () => window.removeEventListener('resize', handleWindowResize);
+  }, [windowState, saveWindowState]);
+
   const addMessage = (message: ChatMessage) => {
     // Validate message structure before adding
     const validatedMessage: ChatMessage = {
@@ -321,15 +340,35 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   }
 
   return (
-    <Draggable
-      nodeRef={nodeRef}
-      position={{ x: windowState.x, y: windowState.y }}
-      onDrag={handleDrag}
-      handle=".chat-drag-handle"
-      bounds="parent"
-      enableUserSelectHack={false}
-    >
-      <div ref={nodeRef} style={{ position: 'absolute' }}>
+    <div style={{ 
+      position: 'fixed', 
+      top: 0, 
+      left: 0, 
+      width: '100vw', 
+      height: '100vh', 
+      pointerEvents: 'none',
+      zIndex: 1000
+    }}>
+      <Draggable
+        nodeRef={nodeRef}
+        position={{ x: windowState.x, y: windowState.y }}
+        onDrag={handleDrag}
+        handle=".chat-drag-handle"
+        bounds={{
+          left: 0,
+          top: 0,
+          right: window.innerWidth - MIN_WIDTH,
+          bottom: window.innerHeight - MIN_HEIGHT
+        }}
+        enableUserSelectHack={false}
+      >
+        <div 
+          ref={nodeRef} 
+          style={{ 
+            position: 'absolute',
+            pointerEvents: 'auto'
+          }}
+        >
         <ResizableBox
           width={windowState.width}
           height={windowState.isMinimized ? 50 : windowState.height}
@@ -337,10 +376,23 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
           maxConstraints={[MAX_WIDTH, windowState.isMinimized ? 50 : MAX_HEIGHT]}
           onResize={handleResize}
           resizeHandles={windowState.isMinimized ? [] : ['se', 'sw', 'nw', 'ne', 'w', 'e', 's', 'n']}
+          handleStyle={{
+            se: { cursor: 'se-resize', touchAction: 'none' },
+            sw: { cursor: 'sw-resize', touchAction: 'none' },
+            nw: { cursor: 'nw-resize', touchAction: 'none' },
+            ne: { cursor: 'ne-resize', touchAction: 'none' },
+            w: { cursor: 'w-resize', touchAction: 'none' },
+            e: { cursor: 'e-resize', touchAction: 'none' },
+            s: { cursor: 's-resize', touchAction: 'none' },
+            n: { cursor: 'n-resize', touchAction: 'none' }
+          }}
         >
-          <div className="w-full h-full bg-gray-900 border border-gray-700 rounded-lg shadow-xl flex flex-col z-50">
+          <div className="w-full h-full bg-gray-900 border border-gray-700 rounded-lg shadow-xl flex flex-col" style={{ position: 'relative', zIndex: 50 }}>
             {/* Header */}
-            <div className="chat-drag-handle flex items-center justify-between p-3 border-b border-gray-700 cursor-move bg-gray-800 rounded-t-lg">
+            <div 
+              className="chat-drag-handle flex items-center justify-between p-3 border-b border-gray-700 cursor-move bg-gray-800 rounded-t-lg"
+              style={{ touchAction: 'none', userSelect: 'none' }}
+            >
               <div className="flex items-center gap-2">
                 <Move className="w-4 h-4 text-gray-400" />
                 <Bot className="w-5 h-5 text-blue-400" />
@@ -518,7 +570,8 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
             )}
           </div>
         </ResizableBox>
-      </div>
-    </Draggable>
+        </div>
+      </Draggable>
+    </div>
   );
 };
