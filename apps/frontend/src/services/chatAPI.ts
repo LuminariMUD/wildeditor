@@ -29,7 +29,7 @@ class ChatAPIClient {
 
   constructor() {
     // Use environment variable or fallback to production URL
-    this.baseUrl = import.meta.env.VITE_CHAT_API_URL || 'http://luminarimud.com:8002';
+    this.baseUrl = import.meta.env.VITE_CHAT_API_URL || 'https://luminarimud.com:8002';
   }
 
   async createSession(): Promise<ChatSession> {
