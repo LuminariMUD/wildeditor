@@ -40,7 +40,18 @@ jobs:
           echo "Deploying Chat Agent Service..."
           
           # Navigate to project directory
-          cd /home/luminari/wildeditor
+          PROJECT_DIR="$HOME/wildeditor"
+          if [ ! -d "$PROJECT_DIR" ]; then
+            echo "Error: Project directory not found at $PROJECT_DIR"
+            echo "Current user: $(whoami)"
+            echo "Home directory: $HOME"
+            echo "Looking for wildeditor in home:"
+            ls -la $HOME | grep wild || echo "No wildeditor directory found"
+            exit 1
+          fi
+          
+          cd "$PROJECT_DIR"
+          echo "Changed to directory: $(pwd)"
           
           # Pull latest code
           git pull origin main
@@ -60,9 +71,9 @@ jobs:
           MCP_API_KEY=${MCP_API_KEY}
           BACKEND_API_KEY=${BACKEND_API_KEY}
           
-          # URLs
-          WILDERNESS_MCP_URL=http://wildeditor-mcp:8001
-          BACKEND_API_URL=http://wildeditor-backend:8000
+          # URLs - using localhost since containers use host networking
+          WILDERNESS_MCP_URL=http://localhost:8001
+          BACKEND_API_URL=http://localhost:8000
           FRONTEND_URL=${FRONTEND_URL:-https://wildedit.luminarimud.com}
           
           # Server Config
@@ -71,14 +82,33 @@ jobs:
           LOG_LEVEL=${LOG_LEVEL:-INFO}
           ENVFILE
           
+          # Check Docker access
+          if ! docker ps >/dev/null 2>&1; then
+            echo "Error: Cannot access Docker. Checking permissions..."
+            groups
+            echo "Trying with sudo..."
+            if sudo docker ps >/dev/null 2>&1; then
+              DOCKER_CMD="sudo docker"
+              DOCKER_COMPOSE_CMD="sudo docker-compose"
+            else
+              echo "Error: Cannot access Docker even with sudo"
+              exit 1
+            fi
+          else
+            DOCKER_CMD="docker"
+            DOCKER_COMPOSE_CMD="docker-compose"
+          fi
+          
+          echo "Using Docker command: $DOCKER_CMD"
+          
           # Build and restart the service
-          docker-compose down || true
-          docker-compose build --no-cache
-          docker-compose up -d
+          $DOCKER_COMPOSE_CMD down || true
+          $DOCKER_COMPOSE_CMD build --no-cache
+          $DOCKER_COMPOSE_CMD up -d
           
           # Check if service is running
           sleep 10
-          docker ps | grep wildeditor-chat-agent
+          $DOCKER_CMD ps | grep wildeditor-chat-agent || echo "Warning: Container not found in docker ps"
           
           # Test health endpoint
           curl -f http://localhost:8002/health/ || exit 1
@@ -90,17 +120,17 @@ jobs:
           scp deploy_chat_agent.sh $VPS_USER@$VPS_HOST:/tmp/
           
           # Execute with proper environment variables mapping existing secrets
-          ssh $VPS_USER@$VPS_HOST "
-            export MODEL_PROVIDER='${AI_PROVIDER:-openai}'
-            export OPENAI_API_KEY='${{ secrets.OPENAI_API_KEY }}'
-            export DEEPSEEK_API_KEY='${{ secrets.DEEPSEEK_API_KEY }}'
-            export MODEL_NAME='${OPENAI_MODEL:-gpt-4-turbo}'
-            export MCP_API_KEY='${{ secrets.WILDEDITOR_MCP_KEY }}'
-            export BACKEND_API_KEY='${{ secrets.WILDEDITOR_API_KEY }}'
-            export FRONTEND_URL='https://wildedit.luminarimud.com'
-            export LOG_LEVEL='INFO'
+          ssh $VPS_USER@$VPS_HOST << ENDSSH
+            export MODEL_PROVIDER="${{ secrets.AI_PROVIDER || 'openai' }}"
+            export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
+            export DEEPSEEK_API_KEY="${{ secrets.DEEPSEEK_API_KEY }}"
+            export MODEL_NAME="${{ secrets.OPENAI_MODEL || 'gpt-4-turbo' }}"
+            export MCP_API_KEY="${{ secrets.WILDEDITOR_MCP_KEY }}"
+            export BACKEND_API_KEY="${{ secrets.WILDEDITOR_API_KEY }}"
+            export FRONTEND_URL="https://wildedit.luminarimud.com"
+            export LOG_LEVEL="INFO"
             bash /tmp/deploy_chat_agent.sh
-          "
+          ENDSSH
           
           # Clean up
           rm deploy_chat_agent.sh
