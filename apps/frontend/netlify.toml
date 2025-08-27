@@ -3,7 +3,14 @@
   publish = "apps/frontend/dist"
   environment = { SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,VITE_WILDEDITOR_API_KEY" }
 
-# SPA redirect rule for React Router
+# Chat service proxy
+[[redirects]]
+  from = "/chat/*"
+  to = "http://luminarimud.com:8002/:splat"
+  status = 200
+  force = true
+
+# SPA redirect rule for React Router (must be last)
 [[redirects]]
   from = "/*"
   to = "/index.html"
