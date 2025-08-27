@@ -18,13 +18,18 @@ interface ChatAction {
   };
 }
 
+interface ToolCall {
+  tool_name: string;
+  args: Record<string, unknown>;
+}
+
 interface ChatResponse {
   response: string | {
     message: string;
     actions: ChatAction[];
-    tool_calls: any[];
-    suggestions: any[];
-    warnings: any[];
+    tool_calls: ToolCall[];
+    suggestions: string[];
+    warnings: string[];
   };
   actions?: ChatAction[]; // Legacy format
   session_id: string;

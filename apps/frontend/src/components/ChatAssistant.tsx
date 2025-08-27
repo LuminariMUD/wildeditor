@@ -71,7 +71,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
     if (isOpen && !sessionId) {
       initializeSession();
     }
-  }, [isOpen, sessionId]); // Remove initializeSession from deps to prevent loops
+  }, [isOpen, sessionId, initializeSession]);
 
   // Auto-scroll to bottom when new messages arrive  
   useEffect(() => {
@@ -114,7 +114,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
       
       // Handle nested response structure from chat agent
       let responseContent: string;
-      let responseActions: any[];
+      let responseActions: ChatAction[];
       
       if (data.response && typeof data.response === 'object') {
         // New nested structure: data.response.message
