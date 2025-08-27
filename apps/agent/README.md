@@ -1,230 +1,376 @@
-# MCP Test Agent
+# Wilderness Chat Agent
 
-A comprehensive testing suite for the Model Context Protocol (MCP) server, providing functional testing, stress testing, and performance monitoring capabilities.
+An AI-powered wilderness building assistant that provides intelligent region creation, path routing, and terrain analysis through natural language interaction. Built with PydanticAI and integrated with the Model Context Protocol (MCP) server architecture.
 
-## Features
+## Overview
 
-- **Functional Testing**: Validates all MCP tools and endpoints
-- **Stress Testing**: Performance and load testing with configurable concurrency
-- **Rich Terminal Output**: Beautiful, informative test results using Rich library
-- **Multiple Test Modes**: Terrain-focused or mixed workload testing
-- **Detailed Metrics**: Response times, success rates, percentile analysis
+The Chat Agent serves as the intelligent backend for the Wilderness Editor's chat assistant, providing:
 
-## Installation
+- **Spatial Intelligence**: Analyzes terrain and finds optimal placement for new regions
+- **Organic Region Creation**: Generates natural-looking borders using advanced algorithms  
+- **Path Intelligence**: Creates curved, terrain-aware paths between multiple regions
+- **Natural Language Processing**: Understands building requests in plain English
+- **MCP Integration**: Uses Model Context Protocol for all wilderness operations
+
+## Architecture
+
+```
+Frontend Chat UI → Chat Agent (8002) → MCP Server (8001) → Backend (8000) → MySQL
+```
+
+The agent runs as a separate FastAPI service and communicates exclusively through the MCP server, ensuring a clean separation of concerns and robust error handling.
+
+## Core Features
+
+### AI Agent Capabilities
+- **PydanticAI Integration**: Advanced AI model support (OpenAI, DeepSeek, Anthropic)
+- **Tool Function Mapping**: 15+ specialized tools for wilderness operations
+- **Context Awareness**: Maintains conversation history and editor state
+- **Error Recovery**: Robust fallback handling for failed operations
+
+### Spatial Intelligence
+- **Area Analysis**: Find empty space between regions or near coordinates
+- **Terrain Analysis**: Understand elevation, sectors, and geographic features
+- **Overlap Prevention**: Automatically prevent conflicting geographic regions
+- **Organic Border Generation**: Create natural region shapes using polar algorithms
+
+### Path Intelligence
+- **Multi-Region Connection**: Connect 2+ regions with curved, natural paths
+- **Terrain-Aware Routing**: Rivers follow elevation, roads avoid obstacles
+- **Path Types**: Support for roads (paved/dirt), geographic features, waterways
+- **Curve Generation**: Bezier-like curves with random variation for natural appearance
+
+### Natural Language Processing
+- **Intent Recognition**: Understand region creation, path building, and analysis requests
+- **Parameter Extraction**: Parse coordinates, names, types from natural language
+- **Context Integration**: Use editor state (selected regions, viewport) in responses
+- **Suggestion Generation**: Provide next-step recommendations
+
+## Available Tools
+
+The agent provides these wilderness building tools through MCP integration:
+
+### Creation Tools
+- **build_new_region**: Create regions with organic borders and AI descriptions
+- **build_new_path**: Create curved paths connecting multiple regions
+- **generate_region_description**: AI-powered immersive region descriptions
+
+### Analysis Tools  
+- **analyze_terrain**: Get terrain data at specific coordinates
+- **analyze_complete_terrain_map**: Enhanced area analysis with overlays
+- **search_by_coordinates**: Find existing regions and paths near locations
+- **search_regions**: Search regions by type, name, or location
+
+### Discovery Tools
+- **find_zone_entrances**: Locate wilderness-to-zone connections
+- **find_static_wilderness_room**: Find static content at coordinates
+- **generate_wilderness_map**: Create terrain maps for areas
+
+### Utility Tools
+- **store_region_hints**: Save AI-generated weather/time variations
+- **get_region_hints**: Retrieve existing hint data
+- **update_region_description**: Modify region descriptions
+
+## Installation & Configuration
 
 ```bash
 # Navigate to agent directory
-cd apps/agent
+cd apps/agent/src
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Copy environment configuration
-cp .env.example .env
+# Set up environment variables
+export OPENAI_API_KEY="your-openai-key"        # Primary AI provider
+export DEEPSEEK_API_KEY="your-deepseek-key"    # Fallback provider  
+export WILDEDITOR_MCP_KEY="your-mcp-key"       # MCP authentication
+export MCP_BASE_URL="http://localhost:8001"    # MCP server URL
+
+# Start the chat agent
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8002
 ```
 
-## Configuration
-
-Edit `.env` file with your settings:
+### Environment Variables
 
 ```bash
-# MCP Server Configuration
-MCP_BASE_URL=http://localhost:8001  # Local development
-# MCP_BASE_URL=http://luminarimud.com:8001  # Production
+# AI Model Configuration
+AI_PROVIDER=openai                    # Primary: openai, deepseek, anthropic
+OPENAI_API_KEY=your-openai-key       # For GPT-4 and GPT-3.5
+DEEPSEEK_API_KEY=your-deepseek-key   # Fallback provider
+OPENAI_MODEL=gpt-4-turbo             # Model selection
+DEEPSEEK_MODEL=deepseek-chat         # DeepSeek model
 
-# Authentication
-MCP_API_KEY=your-api-key-here
+# MCP Integration  
+MCP_BASE_URL=http://localhost:8001   # Local: localhost, Prod: luminarimud.com
+WILDEDITOR_MCP_KEY=your-mcp-key      # Authentication for MCP server
+
+# Server Configuration
+PORT=8002                            # Chat agent port
+HOST=0.0.0.0                        # Listen address
 ```
 
-## Usage
+## API Endpoints
 
-### Basic Functional Testing
+The Chat Agent exposes these REST endpoints:
 
-Test all MCP endpoints with detailed results:
+### Chat Endpoints
+```bash
+# Send a chat message
+POST /api/chat/message
+{
+  "message": "Create a forest region near the lake",
+  "session_id": "optional-session-id"
+}
+
+# Get conversation history  
+GET /api/chat/history?session_id=session-123
+
+# Create new session
+POST /api/session/
+```
+
+### Management Endpoints
+```bash
+# Health check
+GET /health
+
+# Service status
+GET /status
+```
+
+## Usage Examples
+
+### Direct API Testing
 
 ```bash
-# Test local development server
-python mcp_test_agent.py
+# Create a new session
+SESSION_ID=$(curl -X POST http://localhost:8002/api/session/ -H "Content-Type: application/json" -d '{}' | jq -r .session_id)
 
-# Test production server
-python mcp_test_agent.py --production
+# Send a chat message
+curl -X POST http://localhost:8002/api/chat/message \
+  -H "Content-Type: application/json" \
+  -d "{\"message\": \"Create a dense forest region between coordinates (100, 200) and (300, 400)\", \"session_id\": \"$SESSION_ID\"}" | jq .
 
-# Test custom server
-python mcp_test_agent.py --url http://your-server:8001 --api-key your-key
+# Get conversation history
+curl "http://localhost:8002/api/chat/history?session_id=$SESSION_ID" | jq .
 ```
 
-### Stress Testing
+### Example Conversations
 
-Run performance and load tests:
-
-```bash
-# Basic stress test (30 seconds, 10 concurrent workers)
-python mcp_stress_test.py
-
-# High-load test
-python mcp_stress_test.py --duration 60 --concurrency 50
-
-# Terrain-focused stress test
-python mcp_stress_test.py --type terrain --duration 30 --concurrency 20
-
-# Mixed workload stress test
-python mcp_stress_test.py --type mixed --duration 45 --concurrency 30
-
-# Test production server under load
-python mcp_stress_test.py --production --duration 30 --concurrency 10
+**Region Creation:**
+```
+User: "Create a forest region northeast of the village"
+Agent: "I'll create a forest region with organic borders northeast of the village. Let me find a suitable location first."
+→ Analyzes terrain, finds empty space
+→ Generates organic forest coordinates  
+→ Creates region with AI description
+→ Returns frontend actions to display the region
 ```
 
-## Test Suites
-
-### Functional Tests (`mcp_test_agent.py`)
-
-Tests the following MCP tools:
-- **Health Check**: Server availability and status
-- **Terrain Analysis**: Get terrain data at specific coordinates
-- **Complete Terrain Map**: Enhanced analysis with region/path overlays
-- **Find Wilderness Room**: Locate rooms by coordinates
-- **Find Zone Entrances**: Discover wilderness-to-zone connections
-- **Generate Wilderness Map**: Create terrain maps for areas
-
-### Stress Tests (`mcp_stress_test.py`)
-
-Two workload types:
-- **Terrain**: Focused testing of terrain analysis endpoints
-- **Mixed**: Balanced testing of all MCP tools
-
-Provides metrics:
-- Total requests and success rate
-- Requests per second (throughput)
-- Response time percentiles (P50, P95, P99)
-- Error sampling and analysis
-
-## Example Output
-
-### Functional Test Results
+**Path Building:**  
 ```
-┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Test                 ┃ Status     ┃ Response Time┃ Details                    ┃
-┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ Health Check         │ ✅ PASSED  │ 0.023s       │ Server healthy: online     │
-│ Terrain Analysis     │ ✅ PASSED  │ 0.145s       │ Analyzed terrain at (0, 0) │
-│ Complete Terrain Map │ ✅ PASSED  │ 0.267s       │ Terrain: 121, Regions: 3   │
-│ Find Wilderness Room │ ✅ PASSED  │ 0.089s       │ Found room: VNUM 12345     │
-│ Find Zone Entrances  │ ✅ PASSED  │ 0.234s       │ Found 47 zone entrances    │
-│ Generate Map         │ ✅ PASSED  │ 0.156s       │ Map generated successfully │
-└──────────────────────┴────────────┴──────────────┴────────────────────────────┘
-
-Tests Passed: 6/6
-Average Response Time: 0.152s
+User: "Make a river connecting the mountain springs to the harbor"
+Agent: "I'll create a river that flows naturally from the mountain springs down to the harbor."
+→ Finds elevation data for mountains and harbor
+→ Calculates downhill path with curves
+→ Creates river path with multiple coordinate points
+→ Returns actions to draw the river on map
 ```
 
-### Stress Test Results
+**Terrain Analysis:**
 ```
-Performance Metrics
-┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
-┃ Metric         ┃ Value           ┃
-┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
-│ Total Requests │ 3000            │
-│ Successful     │ 2976 (99.2%)    │
-│ Failed         │ 24              │
-│ Duration       │ 30.12s          │
-│ Requests/sec   │ 99.60           │
-└────────────────┴─────────────────┘
-
-Response Time Statistics (seconds)
-┏━━━━━━━━━━━━━━━┳━━━━━━━━┓
-┃ Percentile    ┃ Time   ┃
-┡━━━━━━━━━━━━━━━╇━━━━━━━━┩
-│ Min           │ 0.021  │
-│ Median (P50)  │ 0.098  │
-│ Average       │ 0.101  │
-│ P95           │ 0.198  │
-│ P99           │ 0.287  │
-│ Max           │ 0.512  │
-└───────────────┴────────┘
+User: "What's the terrain like around coordinates (150, 250)?"
+Agent: "Let me analyze the terrain around those coordinates."
+→ Calls terrain analysis tools
+→ Provides elevation, sector types, existing regions
+→ Suggests suitable region types for the area
 ```
 
-## Advanced Usage
+## Advanced Features
 
-### Custom Test Scenarios
+### Organic Border Algorithm
 
-Create your own test by extending the base classes:
+The agent uses sophisticated spatial algorithms for natural region creation:
 
 ```python
-from mcp_test_agent import MCPTestAgent
-
-async def custom_test():
-    async with MCPTestAgent() as agent:
-        # Call specific MCP tool
-        result = await agent.call_mcp_tool(
-            "analyze_terrain_at_coordinates",
-            {"x": 100, "y": 200}
-        )
-        print(f"Terrain at (100, 200): {result}")
+def generate_organic_border(center_x, center_y, radius=50, points=10):
+    """
+    Creates natural-looking polygon borders using:
+    - Polar coordinate generation around center point
+    - Irregularity: varies angles for non-geometric shapes
+    - Spikiness: varies radius for natural variation
+    - Boundary clamping to wilderness limits (-1024 to +1024)
+    """
 ```
 
-### Continuous Monitoring
+### Path Intelligence
 
-Run periodic health checks:
+Multi-region path creation with terrain awareness:
 
-```bash
-# Run tests every 5 minutes
-while true; do
-    python mcp_test_agent.py
-    sleep 300
-done
+```python  
+def create_connecting_path(region_vnums, path_type="dirt_road"):
+    """
+    Connects multiple regions with:
+    - Center point calculation for each region
+    - Curved interpolation between points  
+    - Terrain elevation consideration for rivers
+    - Obstacle avoidance around existing regions
+    """
 ```
 
-### CI/CD Integration
+### Spatial Analysis
 
-Add to your CI pipeline:
+Intelligent area analysis for optimal placement:
 
-```yaml
-# .github/workflows/test-mcp.yml
-- name: Test MCP Server
-  run: |
-    cd apps/agent
-    pip install -r requirements.txt
-    python mcp_test_agent.py --url ${{ secrets.MCP_URL }} --api-key ${{ secrets.MCP_API_KEY }}
+```python
+def find_empty_space_between_regions(region1, region2):
+    """
+    Analyzes space between regions:
+    - Calculates midpoint and search radius
+    - Checks for existing regions/paths
+    - Analyzes terrain suitability
+    - Returns placement recommendations
+    """
 ```
 
 ## Troubleshooting
 
-### Connection Errors
-- Verify server is running: `curl http://localhost:8001/health`
-- Check firewall settings for port 8001
-- Ensure API key is correct in `.env`
+### Common Issues
 
-### Timeout Errors
-- Increase timeout in stress test for slower servers
-- Reduce concurrency if server is resource-constrained
-- Check server logs for performance bottlenecks
+**Chat Agent not responding:**
+```bash
+# Check if agent is running
+curl http://localhost:8002/health
 
-### Authentication Failures
-- Verify API key matches backend configuration
-- Check `X-API-Key` header is being sent
-- Ensure backend authentication is enabled
+# Check logs for errors
+docker logs wildeditor-chat-agent
 
-## Development
-
-### Adding New Tests
-
-1. Add test method to `MCPTestAgent` class:
-```python
-async def test_new_feature(self) -> TestResult:
-    # Implementation
+# Restart if needed
+docker restart wildeditor-chat-agent
 ```
 
-2. Add to test suite in `run_all_tests()`:
-```python
-tests = [
-    # ... existing tests
-    ("New Feature", self.test_new_feature),
-]
+**MCP connection failures:**
+- Verify MCP server is running on port 8001
+- Check `WILDEDITOR_MCP_KEY` environment variable
+- Ensure MCP server authentication is configured
+
+**AI model errors:**
+- Verify `OPENAI_API_KEY` or `DEEPSEEK_API_KEY` is set
+- Check API key validity with provider
+- Try switching AI provider in environment config
+
+**Region/Path creation issues:**
+- Check backend database connection (port 8000)
+- Verify MySQL spatial tables exist
+- Review MCP tool responses for data errors
+
+### Performance Optimization
+
+**Memory usage:**
+- The agent loads AI models in memory (200MB+)
+- Consider using smaller models for development
+- Monitor memory usage with `docker stats`
+
+**Response times:**
+- First requests may be slower (model loading)
+- Subsequent requests typically < 2 seconds
+- Spatial analysis tools may take 3-5 seconds
+
+### Development Workflow  
+
+**Local Development:**
+```bash
+# Start all services in development mode
+cd apps/agent/src
+export OPENAI_API_KEY="your-key"
+export MCP_BASE_URL="http://localhost:8001"
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8002
+
+# Test agent functionality
+curl -X POST http://localhost:8002/api/chat/message \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What terrain is at coordinates (0, 0)?"}'
 ```
 
-### Customizing Output
+**Adding New Tools:**
 
-Modify Rich console themes and styles in the agent files to customize the terminal output appearance.
+1. Add tool method to `WildernessTools` class:
+```python
+async def your_new_tool(self, param: str) -> Dict[str, Any]:
+    return await self.mcp.call_tool("mcp_tool_name", {"param": param})
+```
+
+2. Register tool with PydanticAI agent:
+```python
+@agent.tool
+async def your_tool_wrapper(ctx: RunContext[EditorContext], param: str):
+    return await self.tools.your_new_tool(param)
+```
+
+3. Update prompts to include tool usage instructions
+
+**Testing Tools:**
+```python
+# Test individual MCP tool
+async with MCPClient() as client:
+    result = await client.call_tool("tool_name", {"param": "value"})
+    print(result)
+```
+
+## Docker Deployment
+
+The chat agent runs in production via Docker:
+
+```dockerfile
+# Dockerfile configuration
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002"]
+```
+
+### Production Configuration
+
+```yaml
+# docker-compose.yml section
+chat-agent:
+  build: ./apps/agent
+  ports:
+    - "8002:8002"
+  environment:
+    - OPENAI_API_KEY=${OPENAI_API_KEY}
+    - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}  
+    - MCP_BASE_URL=http://mcp-server:8001
+    - WILDEDITOR_MCP_KEY=${WILDEDITOR_MCP_KEY}
+  depends_on:
+    - mcp-server
+```
+
+## Future Enhancements
+
+### Planned Features
+- **WebSocket Support**: Real-time streaming responses
+- **Session Persistence**: Redis-backed conversation history
+- **Batch Operations**: Create multiple related features at once
+- **Template System**: Pre-built region and path templates
+- **Visual Planning**: ASCII art maps in chat responses
+
+### Integration Opportunities
+- **Voice Input**: Speech-to-text for hands-free building
+- **Image Analysis**: Upload terrain sketches for region creation
+- **3D Visualization**: Generate height maps for regions
+- **Game Integration**: Real-time updates to running MUD server
+
+## Contributing
+
+The chat agent is actively developed. Contributions welcome:
+
+1. **Tool Development**: Add new MCP tools for specialized functions
+2. **AI Improvements**: Enhance prompts and spatial intelligence
+3. **UI Integration**: Improve frontend chat experience
+4. **Performance**: Optimize response times and memory usage
 
 ## License
 

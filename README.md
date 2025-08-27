@@ -77,6 +77,12 @@ A **production-ready** full-stack monorepo application for creating and managing
    #   MYSQL_DATABASE_URL=mysql+pymysql://username:password@localhost/luminari_mudprod
    #   PORT=8000
    #   HOST=0.0.0.0
+   
+   # Chat Agent configuration (optional)
+   # Edit environment variables:
+   #   OPENAI_API_KEY=your-openai-key
+   #   DEEPSEEK_API_KEY=your-deepseek-key  
+   #   WILDEDITOR_MCP_KEY=your-mcp-key
    ```
 
 4. **Set up MySQL database**
@@ -95,18 +101,52 @@ A **production-ready** full-stack monorepo application for creating and managing
    # Start Python backend (Terminal 2)
    cd apps/backend/src
    python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+   
+   # Start Chat Agent (Terminal 3, optional)
+   cd apps/agent/src  
+   python -m uvicorn main:app --reload --host 0.0.0.0 --port 8002
    ```
 
 6. **Access the application**
    - Frontend: http://localhost:5173
    - Backend API: http://localhost:8000/api
-   - API Documentation: http://localhost:8000/docs
+   - API Documentation: http://localhost:8000/docs  
+   - Chat Agent: http://localhost:8002 (if running)
 
-## 🤖 GitHub Copilot Integration
+## 🤖 AI-Powered Chat Assistant
 
-This project includes an integrated **MCP (Model Context Protocol) server** that enhances GitHub Copilot with wilderness management capabilities.
+The Wilderness Editor features an integrated **Chat Assistant** that revolutionizes wilderness building through natural language interaction.
 
-### Features
+### 🎯 Core Features
+- **🗣️ Natural Language Interface**: "Create a forest region between the lake and mountain"  
+- **🧠 Spatial Intelligence**: Analyzes terrain and finds optimal placement for new regions
+- **🌿 Organic Region Creation**: Generates natural-looking borders using advanced algorithms
+- **🛤️ Smart Path Building**: Creates curved, terrain-aware paths connecting multiple regions
+- **🎛️ Draggable Interface**: Resizable window with multi-monitor support and markdown rendering
+- **💾 Content Staging**: All AI-generated content is staged for review before saving
+
+### 🚀 Quick Start with Chat Assistant
+1. Click the chat icon in the top-right corner
+2. Drag the window to your preferred location (even to a second monitor!)
+3. Ask natural language questions:
+   - "Create a dense forest region northeast of the village"
+   - "Make a river connecting the mountains to the ocean"
+   - "Find empty space for a new region near coordinates (100, 200)"
+   - "Connect these three regions with a dirt road"
+
+### 🏗️ Technical Architecture
+```
+Chat UI (Frontend) → Chat Agent (8002) → MCP Server (8001) → Backend (8000) → MySQL
+```
+
+### 📖 Learn More
+- **[Complete Chat Assistant Guide](docs/CHAT_ASSISTANT.md)** - Comprehensive usage guide and examples
+- **[Agent Development Guide](apps/agent/README.md)** - Technical details and API reference
+
+## 🤖 GitHub Copilot Integration  
+
+The project also includes **MCP (Model Context Protocol) server** integration for enhanced GitHub Copilot capabilities:
+
 - **AI-Powered Terrain Analysis**: Use natural language to analyze wilderness regions
 - **Intelligent Landmark Creation**: Generate and place landmarks with AI assistance  
 - **Smart Path Generation**: Create optimized wilderness paths using AI
@@ -182,6 +222,7 @@ wildeditor/
 
 ### 📋 Reference
 - **[Claude Instructions](CLAUDE.md)** - AI assistant guidance for this codebase
+- **[Chat Assistant Guide](docs/CHAT_ASSISTANT.md)** - AI-powered wilderness building companion
 - **[Roadmap](ROADMAP.md)** - Long-term project vision and milestones
 
 ## 🎮 Integration with LuminariMUD
