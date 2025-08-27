@@ -28,8 +28,9 @@ class ChatAPIClient {
   private baseUrl: string;
 
   constructor() {
-    // Use environment variable or fallback to production URL
-    this.baseUrl = import.meta.env.VITE_CHAT_API_URL || 'https://luminarimud.com:8002';
+    // Use environment variable or fallback to production URL  
+    // TODO: Configure reverse proxy for chat service
+    this.baseUrl = import.meta.env.VITE_CHAT_API_URL || 'https://wildedit.luminarimud.com/chat';
   }
 
   async createSession(): Promise<ChatSession> {
