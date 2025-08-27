@@ -38,6 +38,16 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Chat Agent Service...")
     
+    # Debug: Log environment variables
+    import os
+    logger.info("Environment variables check:")
+    logger.info(f"MODEL_PROVIDER: {os.getenv('MODEL_PROVIDER', 'not set')}")
+    logger.info(f"OPENAI_API_KEY: {'set' if os.getenv('OPENAI_API_KEY') else 'not set'} (len: {len(os.getenv('OPENAI_API_KEY', ''))})")
+    logger.info(f"DEEPSEEK_API_KEY: {'set' if os.getenv('DEEPSEEK_API_KEY') else 'not set'} (len: {len(os.getenv('DEEPSEEK_API_KEY', ''))})")
+    logger.info(f"Settings loaded - model_provider: {settings.model_provider}")
+    logger.info(f"Settings loaded - openai_api_key: {'set' if settings.openai_api_key else 'not set'}")
+    logger.info(f"Settings loaded - deepseek_api_key: {'set' if settings.deepseek_api_key else 'not set'}")
+    
     # Initialize storage
     storage = create_storage(
         settings.storage_backend,

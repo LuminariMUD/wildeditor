@@ -196,8 +196,12 @@ jobs:
             
             if [ $i -eq 30 ]; then
               echo "❌ Container failed to become healthy after 60 seconds"
-              echo "🔍 Container logs:"
-              $DOCKER_CMD logs --tail 20 $CONTAINER_NAME
+              echo "🔍 Container status:"
+              $DOCKER_CMD ps -a | grep $CONTAINER_NAME || true
+              echo "🔍 Full container logs:"
+              $DOCKER_CMD logs $CONTAINER_NAME 2>&1 || true
+              echo "🔍 Container inspect (environment variables):"
+              $DOCKER_CMD inspect $CONTAINER_NAME | grep -A 20 '"Env"' || true
               exit 1
             fi
             echo "Waiting... ($i/30)"
