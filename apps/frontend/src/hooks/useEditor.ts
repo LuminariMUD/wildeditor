@@ -615,6 +615,13 @@ export const useEditor = () => {
           return; // Early return since we already updated the region state
         }
         
+        // Remove from unsaved items (for update case)
+        setUnsavedItems(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(itemId);
+          return newSet;
+        });
+        
         // Mark as clean and clear staging flags (for update case)
         setRegions(prev => prev.map(r => 
           (r.id === itemId || r.vnum?.toString() === itemId) 
@@ -689,12 +696,32 @@ export const useEditor = () => {
             return; // Early return since we already updated the path state
           }
           
+          // Remove from unsaved items (for update case)
+          setUnsavedItems(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(itemId);
+            return newSet;
+          });
+          
           // Mark as clean (for update case)
           setPaths(prev => prev.map(p => 
             (p.id === itemId || p.vnum?.toString() === itemId) 
               ? { ...p, isDirty: false } 
               : p
           ));
+          
+          // Update selected item if it's the one we just saved
+          if (state.selectedItem && 
+              ((state.selectedItem.id === itemId) || 
+               ('vnum' in state.selectedItem && state.selectedItem.vnum?.toString() === itemId))) {
+            setState(prev => ({ 
+              ...prev, 
+              selectedItem: prev.selectedItem ? { 
+                ...prev.selectedItem, 
+                isDirty: false
+              } : null 
+            }));
+          }
         }
       }
       
