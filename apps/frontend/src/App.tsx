@@ -76,12 +76,13 @@ function App() {
       setUnsavedItems,
       updateSelectedItem,
       selectItem,
-      setState
+      setState,
+      centerOnCoordinate
     }, {
       onStatusUpdate: setChatStatus,
       onError: setChatError
     });
-  }, [regions, paths, setRegions, setPaths, setUnsavedItems, updateSelectedItem, selectItem, setState]);
+  }, [regions, paths, setRegions, setPaths, setUnsavedItems, updateSelectedItem, selectItem, setState, centerOnCoordinate]);
 
   const handleChatAction = async (action: ChatAction) => {
     try {

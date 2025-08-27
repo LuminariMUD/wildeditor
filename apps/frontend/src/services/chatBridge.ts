@@ -11,6 +11,7 @@ interface EditorHook {
   updateSelectedItem: (updates: Partial<Region | Path>) => void;
   selectItem: (item: Region | Path | null) => void;
   setState: (updater: (prev: Record<string, unknown>) => Record<string, unknown>) => void;
+  centerOnCoordinate?: (coordinate: Coordinate) => void;
 }
 
 interface ChatBridgeOptions {
@@ -75,6 +76,10 @@ export class ChatBridge {
           
         case 'center_view':
           await this.centerView(action.params);
+          break;
+          
+        case 'center_and_select':
+          await this.centerAndSelect(action.params);
           break;
           
         default:
@@ -284,6 +289,26 @@ export class ChatBridge {
     }
   }
 
+  private async centerAndSelect(params: Record<string, unknown>): Promise<void> {
+    if (params.vnum) {
+      const item = this.editor.regions.find(r => r.vnum === params.vnum) ||
+                   this.editor.paths.find(p => p.vnum === params.vnum);
+      if (item) {
+        // First center the view
+        this.centerOnCoordinates(item.coordinates);
+        
+        // Then select the item 
+        this.editor.selectItem(item);
+        
+        this.options.onStatusUpdate?.(`Centered and selected ${item.name}`);
+      } else {
+        throw new Error(`Item with vnum ${params.vnum} not found`);
+      }
+    } else {
+      throw new Error('center_and_select requires a vnum parameter');
+    }
+  }
+
   private parseCoordinates(coords: unknown): Coordinate[] {
     if (Array.isArray(coords)) {
       return coords.map((coord, index) => {
@@ -314,15 +339,14 @@ export class ChatBridge {
     const centerX = coordinates.reduce((sum, coord) => sum + coord.x, 0) / coordinates.length;
     const centerY = coordinates.reduce((sum, coord) => sum + coord.y, 0) / coordinates.length;
     
-    // For now, just log the centering - we'll need to implement proper view centering later
-    // The EditorState doesn't have a viewCenter field, so we'll skip this for now
-    console.log('[ChatBridge] Would center view on:', { x: centerX, y: centerY });
+    console.log('[ChatBridge] Centering view on:', { x: centerX, y: centerY });
     
-    // TODO: Implement proper view centering through the canvas component
-    // this.editor.setState((prev) => ({
-    //   ...prev,
-    //   viewCenter: { x: centerX, y: centerY }
-    // }));
+    // Use the centerOnCoordinate function if available
+    if (this.editor.centerOnCoordinate) {
+      this.editor.centerOnCoordinate({ x: centerX, y: centerY });
+    } else {
+      console.warn('[ChatBridge] centerOnCoordinate function not available');
+    }
   }
 
   private generateRegionVnum(): number {

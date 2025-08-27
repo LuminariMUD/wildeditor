@@ -1,6 +1,15 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { MessageCircle, X, Send, Loader2, Bot, User } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, Bot, User, Move, Maximize2, Minimize2 } from 'lucide-react';
+import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
+import { ResizableBox, ResizeCallbackData } from 'react-resizable';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { chatAPI, ChatAction } from '../services/chatAPI';
+
+// Import ResizableBox CSS
+import 'react-resizable/css/styles.css';
 
 interface ChatMessage {
   id: string;
@@ -14,6 +23,46 @@ interface ChatAssistantProps {
   onExecuteAction?: (action: ChatAction) => void;
 }
 
+interface WindowState {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  isMinimized: boolean;
+}
+
+interface WindowBounds {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+// Default window settings
+const DEFAULT_WINDOW: WindowState = {
+  x: -420, // Position to the right of the screen initially
+  y: 100,
+  width: 420,
+  height: 600,
+  isMinimized: false
+};
+
+// Window constraints
+const MIN_WIDTH = 300;
+const MIN_HEIGHT = 400;
+const MAX_WIDTH = Math.min(800, window.innerWidth * 0.8);
+const MAX_HEIGHT = Math.min(800, window.innerHeight * 0.9);
+
+// Helper function to get screen bounds (supports multi-monitor)  
+const getScreenBounds = (): WindowBounds => {
+  return {
+    left: -window.screen.width, // Allow dragging to left monitor
+    top: 0,
+    right: window.screen.width * 2, // Allow dragging to right monitor  
+    bottom: window.screen.height
+  };
+};
+
 export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   onExecuteAction
 }) => {
@@ -22,8 +71,62 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [windowState, setWindowState] = useState<WindowState>(() => {
+    // Load saved state from localStorage
+    try {
+      const saved = localStorage.getItem('chat-assistant-window');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Validate bounds are still within current screen
+        const bounds = getScreenBounds();
+        if (parsed.x >= bounds.left && parsed.x <= bounds.right - MIN_WIDTH &&
+            parsed.y >= bounds.top && parsed.y <= bounds.bottom - MIN_HEIGHT) {
+          return { ...DEFAULT_WINDOW, ...parsed };
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load chat window state:', error);
+    }
+    return DEFAULT_WINDOW;
+  });
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const nodeRef = useRef<HTMLDivElement>(null);
+
+  // Save window state to localStorage
+  const saveWindowState = useCallback((state: WindowState) => {
+    try {
+      localStorage.setItem('chat-assistant-window', JSON.stringify(state));
+    } catch (error) {
+      console.warn('Failed to save chat window state:', error);
+    }
+  }, []);
+
+  // Handle window drag
+  const handleDrag = useCallback((_e: DraggableEvent, data: DraggableData) => {
+    const newState = { ...windowState, x: data.x, y: data.y };
+    setWindowState(newState);
+    saveWindowState(newState);
+  }, [windowState, saveWindowState]);
+
+  // Handle window resize
+  const handleResize = useCallback((_e: React.SyntheticEvent, data: ResizeCallbackData) => {
+    const newState = { 
+      ...windowState, 
+      width: Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, data.size.width)),
+      height: Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, data.size.height))
+    };
+    setWindowState(newState);
+    saveWindowState(newState);
+  }, [windowState, saveWindowState]);
+
+  // Toggle minimize
+  const toggleMinimize = useCallback(() => {
+    const newState = { ...windowState, isMinimized: !windowState.isMinimized };
+    setWindowState(newState);
+    saveWindowState(newState);
+  }, [windowState, saveWindowState]);
 
   const addMessage = (message: ChatMessage) => {
     // Validate message structure before adding
@@ -218,23 +321,57 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   }
 
   return (
-    <div className="fixed bottom-6 right-6 w-96 h-[500px] bg-gray-900 border border-gray-700 rounded-lg shadow-xl flex flex-col z-50">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-700">
-        <div className="flex items-center gap-2">
-          <Bot className="w-5 h-5 text-blue-400" />
-          <h3 className="text-white font-medium">Wilderness Assistant</h3>
-        </div>
-        <button
-          onClick={() => setIsOpen(false)}
-          className="text-gray-400 hover:text-white p-1"
+    <Draggable
+      nodeRef={nodeRef}
+      position={{ x: windowState.x, y: windowState.y }}
+      onDrag={handleDrag}
+      handle=".chat-drag-handle"
+      bounds="parent"
+      enableUserSelectHack={false}
+    >
+      <div ref={nodeRef} style={{ position: 'absolute' }}>
+        <ResizableBox
+          width={windowState.width}
+          height={windowState.isMinimized ? 50 : windowState.height}
+          minConstraints={[MIN_WIDTH, windowState.isMinimized ? 50 : MIN_HEIGHT]}
+          maxConstraints={[MAX_WIDTH, windowState.isMinimized ? 50 : MAX_HEIGHT]}
+          onResize={handleResize}
+          resizeHandles={windowState.isMinimized ? [] : ['se', 'sw', 'nw', 'ne', 'w', 'e', 's', 'n']}
         >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+          <div className="w-full h-full bg-gray-900 border border-gray-700 rounded-lg shadow-xl flex flex-col z-50">
+            {/* Header */}
+            <div className="chat-drag-handle flex items-center justify-between p-3 border-b border-gray-700 cursor-move bg-gray-800 rounded-t-lg">
+              <div className="flex items-center gap-2">
+                <Move className="w-4 h-4 text-gray-400" />
+                <Bot className="w-5 h-5 text-blue-400" />
+                <h3 className="text-white font-medium">Wilderness Assistant</h3>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={toggleMinimize}
+                  className="text-gray-400 hover:text-white p-1 rounded"
+                  title={windowState.isMinimized ? "Maximize" : "Minimize"}
+                >
+                  {windowState.isMinimized ? (
+                    <Maximize2 className="w-4 h-4" />
+                  ) : (
+                    <Minimize2 className="w-4 h-4" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="text-gray-400 hover:text-white p-1 rounded"
+                  title="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Messages - hidden when minimized */}
+            {!windowState.isMinimized && (
+              <>
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.filter(Boolean).map((message) => {
           // Extra validation for each message during render
           if (!message || !message.id) {
@@ -264,7 +401,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-800 text-gray-100'
               }`}>
-                <div className="text-sm whitespace-pre-wrap">
+                <div className="text-sm prose prose-invert prose-sm max-w-none">
                   {(() => {
                     try {
                       const content = message.content;
@@ -276,7 +413,44 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                         console.warn('[ChatAssistant] Message too long, truncating');
                         return content.substring(0, 10000) + '...';
                       }
-                      return content;
+                      
+                      // For user messages, just return plain text
+                      if (message.type === 'user') {
+                        return <div className="whitespace-pre-wrap">{content}</div>;
+                      }
+                      
+                      // For assistant messages, render as markdown
+                      return (
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            code({inline, className, children, ...props}) {
+                              const match = /language-(\w+)/.exec(className || '');
+                              return !inline && match ? (
+                                <SyntaxHighlighter
+                                  style={oneDark}
+                                  language={match[1]}
+                                  PreTag="div"
+                                  className="rounded text-xs"
+                                  {...props}
+                                >
+                                  {String(children).replace(/\n$/, '')}
+                                </SyntaxHighlighter>
+                              ) : (
+                                <code className={`${className} bg-gray-700 px-1 py-0.5 rounded text-xs`} {...props}>
+                                  {children}
+                                </code>
+                              );
+                            },
+                            p: ({children}) => <div className="mb-2 last:mb-0">{children}</div>,
+                            ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                            ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                            blockquote: ({children}) => <blockquote className="border-l-2 border-gray-600 pl-2 italic">{children}</blockquote>
+                          }}
+                        >
+                          {content}
+                        </ReactMarkdown>
+                      );
                     } catch (renderError) {
                       console.error('[ChatAssistant] Content render error:', renderError);
                       return 'Content render error';
@@ -315,31 +489,36 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
           </div>
         )}
         
-        <div ref={messagesEndRef} />
-      </div>
+                  <div ref={messagesEndRef} />
+                </div>
 
-      {/* Input */}
-      <div className="p-4 border-t border-gray-700">
-        <div className="flex gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder={isLoading ? "I'm thinking... you can type your next message" : "Ask me to create regions, paths, descriptions..."}
-            className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            disabled={false}
-          />
-          <button
-            onClick={handleSendMessage}
-            disabled={!inputValue.trim() || isLoading}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white p-2 rounded-lg transition-colors"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </div>
+                {/* Input */}
+                <div className="p-4 border-t border-gray-700">
+                  <div className="flex gap-2">
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder={isLoading ? "I'm thinking... you can type your next message" : "Ask me to create regions, paths, descriptions..."}
+                      className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      disabled={false}
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={!inputValue.trim() || isLoading}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white p-2 rounded-lg transition-colors"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </ResizableBox>
       </div>
-    </div>
+    </Draggable>
   );
 };
