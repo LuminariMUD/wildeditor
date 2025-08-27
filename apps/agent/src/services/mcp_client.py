@@ -52,10 +52,27 @@ class MCPClient:
                 logger.error(f"MCP returned error: {error_msg}")
                 raise Exception(f"MCP error: {error_msg}")
             
-            # Return the result, which could be the direct response
-            # MCP might return the result directly or nested under 'result'
+            # Parse MCP response format
             if "result" in result:
-                return result["result"]
+                mcp_result = result["result"]
+                
+                # Handle standard MCP content format
+                if isinstance(mcp_result, dict) and "content" in mcp_result:
+                    content = mcp_result["content"]
+                    if isinstance(content, list) and len(content) > 0:
+                        first_content = content[0]
+                        if isinstance(first_content, dict) and "text" in first_content:
+                            text_content = first_content["text"]
+                            # Try to parse as Python literal (for dict/list responses)
+                            try:
+                                import ast
+                                return ast.literal_eval(text_content)
+                            except (ValueError, SyntaxError):
+                                # If not a literal, return as string
+                                return {"text": text_content}
+                
+                # Return result directly if not in content format
+                return mcp_result
             else:
                 # Some MCP responses might be direct
                 return result
