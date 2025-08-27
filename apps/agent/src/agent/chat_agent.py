@@ -76,9 +76,10 @@ class WildernessAssistantAgent:
         if provider == "openai" and settings.openai_api_key:
             try:
                 logger.info(f"Initializing OpenAI model: {settings.model_name}")
+                # Set API key in environment for OpenAI client
+                os.environ['OPENAI_API_KEY'] = settings.openai_api_key
                 return OpenAIModel(
-                    model_name=settings.model_name or "gpt-4-turbo",
-                    api_key=settings.openai_api_key
+                    model_name=settings.model_name or "gpt-4-turbo"
                 )
             except Exception as e:
                 logger.warning(f"Failed to initialize OpenAI: {e}")
@@ -87,9 +88,10 @@ class WildernessAssistantAgent:
             try:
                 logger.info(f"Initializing DeepSeek model: {settings.deepseek_model}")
                 # DeepSeek uses OpenAI-compatible API
+                # Set the API key with OPENAI prefix for the client
+                os.environ['OPENAI_API_KEY'] = settings.deepseek_api_key
                 return OpenAIModel(
                     model_name=settings.deepseek_model or "deepseek-chat",
-                    api_key=settings.deepseek_api_key,
                     base_url="https://api.deepseek.com/v1"
                 )
             except Exception as e:
@@ -98,9 +100,10 @@ class WildernessAssistantAgent:
         elif provider == "anthropic" and settings.anthropic_api_key:
             try:
                 logger.info(f"Initializing Anthropic model: {settings.model_name}")
+                # Set API key in environment for Anthropic client
+                os.environ['ANTHROPIC_API_KEY'] = settings.anthropic_api_key
                 return AnthropicModel(
-                    model_name=settings.model_name or "claude-3-opus-20240229",
-                    api_key=settings.anthropic_api_key
+                    model_name=settings.model_name or "claude-3-opus-20240229"
                 )
             except Exception as e:
                 logger.warning(f"Failed to initialize Anthropic: {e}")
@@ -112,9 +115,9 @@ class WildernessAssistantAgent:
         if settings.openai_api_key:
             try:
                 logger.info("Falling back to OpenAI")
+                os.environ['OPENAI_API_KEY'] = settings.openai_api_key
                 return OpenAIModel(
-                    model_name=settings.model_name or "gpt-4-turbo",
-                    api_key=settings.openai_api_key
+                    model_name=settings.model_name or "gpt-4-turbo"
                 )
             except Exception as e:
                 logger.warning(f"OpenAI fallback failed: {e}")
@@ -123,9 +126,9 @@ class WildernessAssistantAgent:
         if settings.deepseek_api_key:
             try:
                 logger.info("Falling back to DeepSeek")
+                os.environ['OPENAI_API_KEY'] = settings.deepseek_api_key
                 return OpenAIModel(
                     model_name=settings.deepseek_model or "deepseek-chat",
-                    api_key=settings.deepseek_api_key,
                     base_url="https://api.deepseek.com/v1"
                 )
             except Exception as e:
