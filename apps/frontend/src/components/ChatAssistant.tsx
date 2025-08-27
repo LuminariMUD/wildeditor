@@ -71,11 +71,23 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
     if (isOpen && !sessionId) {
       initializeSession();
     }
-  }, [isOpen, sessionId, initializeSession]);
+  }, [isOpen, sessionId]); // Remove initializeSession from deps to prevent loops
 
   // Auto-scroll to bottom when new messages arrive  
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    try {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    } catch (scrollError) {
+      console.warn('[ChatAssistant] Scroll error:', scrollError);
+      // Fallback: try without smooth behavior
+      try {
+        messagesEndRef.current?.scrollIntoView();
+      } catch (fallbackError) {
+        console.warn('[ChatAssistant] Fallback scroll also failed:', fallbackError);
+      }
+    }
   }, [messages]);
 
   const handleSendMessage = async () => {
