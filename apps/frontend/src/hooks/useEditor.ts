@@ -692,7 +692,9 @@ export const useEditor = () => {
       
       if (!item) {
         console.error('[Save] Item not found:', itemId);
-        setError('Item not found for saving');
+        console.error('[Save] Available regions:', regions.map(r => ({ id: r.id, vnum: r.vnum })));
+        console.error('[Save] Available paths:', paths.map(p => ({ id: p.id, vnum: p.vnum })));
+        setError(`Item not found for saving: ${itemId}`);
         return;
       }
       

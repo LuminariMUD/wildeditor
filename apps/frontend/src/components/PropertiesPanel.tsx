@@ -154,7 +154,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <button 
               onClick={() => {
                 if (onDelete && selectedItem) {
-                  const itemId = selectedItem.vnum?.toString() || '';
+                  const itemId = selectedItem.id || selectedItem.vnum?.toString() || '';
                   if (itemId && confirm(`Are you sure you want to delete this region?\n\n"${selectedItem.name}"\n\nThis action cannot be undone.`)) {
                     onDelete(itemId);
                   }
@@ -209,7 +209,11 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         <div className="p-4 pt-0">
           <div className="flex gap-2 pt-4 border-t border-gray-700">
             <button 
-              onClick={() => onSave?.(selectedItem.vnum?.toString() || '')}
+              onClick={() => {
+                // Use id if available, otherwise use vnum string
+                const itemId = selectedItem.id || selectedItem.vnum?.toString() || '';
+                onSave?.(itemId);
+              }}
               disabled={isSaving || !hasUnsavedChanges}
               className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm ${
                 isSaving || !hasUnsavedChanges
@@ -223,7 +227,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <button 
               onClick={() => {
                 if (onDiscard && hasUnsavedChanges) {
-                  const itemId = selectedItem.vnum?.toString() || '';
+                  const itemId = selectedItem.id || selectedItem.vnum?.toString() || '';
                   if (itemId && confirm('Discard unsaved changes?')) {
                     onDiscard(itemId);
                   }
@@ -716,9 +720,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         <button 
           onClick={() => {
             if (selectedItem && onSave) {
-              const itemId = ('vnum' in selectedItem && selectedItem.vnum) 
-                ? selectedItem.vnum.toString() 
-                : selectedItem.id || '';
+              // Use id first, then fall back to vnum
+              const itemId = selectedItem.id || 
+                (('vnum' in selectedItem && selectedItem.vnum) ? selectedItem.vnum.toString() : '');
               if (itemId) {
                 onSave(itemId);
               }
@@ -737,9 +741,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         <button 
           onClick={() => {
             if (selectedItem && onDiscard && hasUnsavedChanges) {
-              const itemId = ('vnum' in selectedItem && selectedItem.vnum) 
-                ? selectedItem.vnum.toString() 
-                : selectedItem.id || '';
+              // Use id first, then fall back to vnum
+              const itemId = selectedItem.id || 
+                (('vnum' in selectedItem && selectedItem.vnum) ? selectedItem.vnum.toString() : '');
               if (itemId && confirm('Are you sure you want to discard unsaved changes?')) {
                 onDiscard(itemId);
               }
