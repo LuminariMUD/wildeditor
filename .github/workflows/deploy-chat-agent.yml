@@ -9,135 +9,233 @@ on:
       - '.github/workflows/deploy-chat-agent.yml'
   workflow_dispatch:
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: wildeditor-chat-agent
+
 jobs:
-  deploy:
+  # Build and push Docker image
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.7.0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/luminarimud/wildeditor-chat-agent
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/agent/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Deploy to production
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    environment:
+      name: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
       
-      - name: Add VPS to known hosts
+      - name: Add server to known hosts
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
       
-      - name: Deploy to VPS
+      - name: Deploy Chat Agent to Production
         env:
-          VPS_HOST: ${{ secrets.PRODUCTION_HOST }}
-          VPS_USER: ${{ secrets.PRODUCTION_USER }}
+          # Map existing secrets to chat agent env vars
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          DEEPSEEK_MODEL: ${{ secrets.DEEPSEEK_MODEL }}
+          MCP_API_KEY: ${{ secrets.WILDEDITOR_MCP_KEY }}
+          BACKEND_API_KEY: ${{ secrets.WILDEDITOR_API_KEY }}
         run: |
-          # Create deployment script
-          cat > deploy_chat_agent.sh << 'EOF'
+          # Create deployment script (following MCP pattern)
+          cat > deploy-agent.sh << 'EOF'
           #!/bin/bash
           set -e
           
-          echo "Deploying Chat Agent Service..."
+          echo "🚀 Starting Chat Agent deployment..."
           
-          # Navigate to project directory
-          PROJECT_DIR="$HOME/wildeditor"
-          if [ ! -d "$PROJECT_DIR" ]; then
-            echo "Error: Project directory not found at $PROJECT_DIR"
-            echo "Current user: $(whoami)"
-            echo "Home directory: $HOME"
-            echo "Looking for wildeditor in home:"
-            ls -la $HOME | grep wild || echo "No wildeditor directory found"
+          # Configuration
+          DOCKER_IMAGE="ghcr.io/luminarimud/wildeditor-chat-agent:latest"
+          CONTAINER_NAME="wildeditor-chat-agent"
+          
+          # Check Docker access
+          if groups | grep -q docker; then
+            DOCKER_CMD="docker"
+            echo "✅ User is in docker group"
+          elif sudo -n true 2>/dev/null; then
+            DOCKER_CMD="sudo docker"
+            echo "✅ Passwordless sudo available"
+          else
+            echo "❌ Error: User needs to be in docker group or have passwordless sudo access"
             exit 1
           fi
           
-          cd "$PROJECT_DIR"
-          echo "Changed to directory: $(pwd)"
+          # Create agent directory
+          echo "📁 Setting up agent directory..."
+          mkdir -p ~/wildeditor-chat-agent
+          cd ~/wildeditor-chat-agent
+          echo "✅ Working directory: $(pwd)"
           
-          # Pull latest code
-          git pull origin main
+          # Login to GitHub Container Registry
+          echo "GITHUB_TOKEN_PLACEHOLDER" | $DOCKER_CMD login ghcr.io -u GITHUB_ACTOR_PLACEHOLDER --password-stdin
           
-          # Navigate to agent directory
-          cd apps/agent
+          # Pull latest image
+          echo "📦 Pulling latest Chat Agent Docker image..."
+          $DOCKER_CMD pull $DOCKER_IMAGE
           
-          # Create .env file with provided secrets
-          cat > .env << ENVFILE
-          # AI Configuration
-          MODEL_PROVIDER=${MODEL_PROVIDER:-openai}
-          OPENAI_API_KEY=${OPENAI_API_KEY}
-          DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-          MODEL_NAME=${MODEL_NAME:-gpt-4-turbo}
+          # Stop existing container
+          echo "🛑 Stopping existing container..."
+          $DOCKER_CMD stop $CONTAINER_NAME || true
+          $DOCKER_CMD rm $CONTAINER_NAME || true
           
-          # Service Integration
-          MCP_API_KEY=${MCP_API_KEY}
-          BACKEND_API_KEY=${BACKEND_API_KEY}
+          # Start new container with host networking (same as MCP and backend)
+          echo "🏃 Starting new Chat Agent container..."
+          $DOCKER_CMD run -d \
+            --name $CONTAINER_NAME \
+            --restart unless-stopped \
+            --network host \
+            -e MODEL_PROVIDER="${AI_PROVIDER:-openai}" \
+            -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+            -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
+            -e MODEL_NAME="${OPENAI_MODEL:-gpt-4-turbo}" \
+            -e DEEPSEEK_MODEL="${DEEPSEEK_MODEL:-deepseek-chat}" \
+            -e MCP_API_KEY="$MCP_API_KEY" \
+            -e BACKEND_API_KEY="$BACKEND_API_KEY" \
+            -e WILDERNESS_MCP_URL="http://localhost:8001" \
+            -e BACKEND_API_URL="http://localhost:8000" \
+            -e FRONTEND_URL="https://wildedit.luminarimud.com" \
+            -e HOST="0.0.0.0" \
+            -e PORT="8002" \
+            -e LOG_LEVEL="INFO" \
+            -v $HOME/logs/wildeditor-chat-agent:/var/log/chat-agent \
+            $DOCKER_IMAGE
           
-          # URLs - using localhost since containers use host networking
-          WILDERNESS_MCP_URL=http://localhost:8001
-          BACKEND_API_URL=http://localhost:8000
-          FRONTEND_URL=${FRONTEND_URL:-https://wildedit.luminarimud.com}
-          
-          # Server Config
-          HOST=0.0.0.0
-          PORT=8002
-          LOG_LEVEL=${LOG_LEVEL:-INFO}
-          ENVFILE
-          
-          # Check Docker access
-          if ! docker ps >/dev/null 2>&1; then
-            echo "Error: Cannot access Docker. Checking permissions..."
-            groups
-            echo "Trying with sudo..."
-            if sudo docker ps >/dev/null 2>&1; then
-              DOCKER_CMD="sudo docker"
-              DOCKER_COMPOSE_CMD="sudo docker-compose"
-            else
-              echo "Error: Cannot access Docker even with sudo"
+          # Wait for container to be healthy
+          echo "🏥 Waiting for health check..."
+          for i in {1..30}; do
+            if ! $DOCKER_CMD ps | grep -q $CONTAINER_NAME; then
+              echo "❌ Container is not running"
+              $DOCKER_CMD logs --tail 10 $CONTAINER_NAME
               exit 1
             fi
+            
+            if curl -s --connect-timeout 5 --max-time 10 http://localhost:8002/health/ >/dev/null 2>&1; then
+              echo "✅ Chat Agent container is healthy!"
+              break
+            fi
+            
+            if [ $i -eq 30 ]; then
+              echo "❌ Container failed to become healthy after 60 seconds"
+              echo "🔍 Container logs:"
+              $DOCKER_CMD logs --tail 20 $CONTAINER_NAME
+              exit 1
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+          
+          # Test endpoints
+          echo "🧪 Testing Chat Agent endpoints..."
+          if curl -s --connect-timeout 5 --max-time 10 http://localhost:8002/health/ >/dev/null; then
+            echo "✅ Health endpoint working"
           else
-            DOCKER_CMD="docker"
-            DOCKER_COMPOSE_CMD="docker-compose"
+            echo "❌ Health endpoint failed"
+            exit 1
           fi
           
-          echo "Using Docker command: $DOCKER_CMD"
+          # Cleanup old images
+          echo "🧹 Cleaning up old images..."
+          $DOCKER_CMD image prune -f
           
-          # Build and restart the service
-          $DOCKER_COMPOSE_CMD down || true
-          $DOCKER_COMPOSE_CMD build --no-cache
-          $DOCKER_COMPOSE_CMD up -d
-          
-          # Check if service is running
-          sleep 10
-          $DOCKER_CMD ps | grep wildeditor-chat-agent || echo "Warning: Container not found in docker ps"
-          
-          # Test health endpoint
-          curl -f http://localhost:8002/health/ || exit 1
-          
-          echo "Chat Agent Service deployed successfully!"
+          echo "🎉 Chat Agent deployment completed successfully!"
           EOF
           
-          # Copy and execute deployment script
-          scp deploy_chat_agent.sh $VPS_USER@$VPS_HOST:/tmp/
+          # Replace placeholders
+          sed -i "s/GITHUB_TOKEN_PLACEHOLDER/${{ secrets.GITHUB_TOKEN }}/g" deploy-agent.sh
+          sed -i "s/GITHUB_ACTOR_PLACEHOLDER/${{ github.actor }}/g" deploy-agent.sh
           
-          # Execute with proper environment variables mapping existing secrets
-          ssh $VPS_USER@$VPS_HOST << ENDSSH
-            export MODEL_PROVIDER="${{ secrets.AI_PROVIDER || 'openai' }}"
-            export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
-            export DEEPSEEK_API_KEY="${{ secrets.DEEPSEEK_API_KEY }}"
-            export MODEL_NAME="${{ secrets.OPENAI_MODEL || 'gpt-4-turbo' }}"
-            export MCP_API_KEY="${{ secrets.WILDEDITOR_MCP_KEY }}"
-            export BACKEND_API_KEY="${{ secrets.WILDEDITOR_API_KEY }}"
-            export FRONTEND_URL="https://wildedit.luminarimud.com"
-            export LOG_LEVEL="INFO"
-            bash /tmp/deploy_chat_agent.sh
-          ENDSSH
+          # Copy deployment script to server
+          echo "📋 Copying deployment script to server..."
+          scp -o StrictHostKeyChecking=no deploy-agent.sh ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:/tmp/
           
-          # Clean up
-          rm deploy_chat_agent.sh
+          # Execute deployment on server
+          echo "🚀 Executing deployment on server..."
+          ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
+            chmod +x /tmp/deploy-agent.sh
+            export AI_PROVIDER='${AI_PROVIDER:-openai}'
+            export OPENAI_API_KEY='$OPENAI_API_KEY'
+            export DEEPSEEK_API_KEY='$DEEPSEEK_API_KEY'
+            export OPENAI_MODEL='${OPENAI_MODEL:-gpt-4-turbo}'
+            export DEEPSEEK_MODEL='${DEEPSEEK_MODEL:-deepseek-chat}'
+            export MCP_API_KEY='$MCP_API_KEY'
+            export BACKEND_API_KEY='$BACKEND_API_KEY'
+            /tmp/deploy-agent.sh
+          "
       
       - name: Verify deployment
-        env:
-          VPS_HOST: ${{ secrets.PRODUCTION_HOST }}
-          VPS_USER: ${{ secrets.PRODUCTION_USER }}
         run: |
-          ssh $VPS_USER@$VPS_HOST 'curl -f http://localhost:8002/health/ && echo "Chat Agent is healthy!"'
+          sleep 10
+          echo "🔍 Verifying Chat Agent deployment..."
+          
+          # Test from server
+          ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
+            echo '🏥 Testing Chat Agent health endpoint from server:'
+            if curl -s --connect-timeout 5 --max-time 10 http://localhost:8002/health/; then
+              echo ''
+              echo '✅ Chat Agent health check PASSED'
+              exit 0
+            else
+              echo ''
+              echo '❌ Chat Agent health check FAILED'
+              echo 'Container logs:'
+              docker logs --tail 10 wildeditor-chat-agent || true
+              exit 1
+            fi
+          "
+          
+          echo "✅ Chat Agent deployment verified successfully!"
