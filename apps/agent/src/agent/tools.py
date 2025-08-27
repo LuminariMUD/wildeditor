@@ -11,6 +11,8 @@ class WildernessTools:
     def __init__(self, mcp_client):
         """Initialize with only MCP client - single contact surface"""
         self.mcp = mcp_client
+        # Track tool calls for frontend action conversion
+        self.captured_tool_calls = []
         logger.info("Initialized WildernessTools with MCP-only architecture")
     
     async def create_region(
@@ -30,6 +32,19 @@ class WildernessTools:
         which handles both database operations and optional AI description generation.
         """
         try:
+            # Capture this tool call for frontend action conversion
+            self.captured_tool_calls.append({
+                "tool_name": "create_region",
+                "args": {
+                    "name": name,
+                    "region_type": region_type,
+                    "coordinates": coordinates,
+                    "zone_vnum": zone_vnum,
+                    "auto_generate_description": auto_generate_description
+                }
+            })
+            logger.info(f"Captured create_region call for: {name}")
+            
             # Generate a vnum if not provided (simple auto-increment logic)
             if vnum is None:
                 import random

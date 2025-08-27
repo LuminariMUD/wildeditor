@@ -1,0 +1,243 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { MessageCircle, X, Send, Loader2, Bot, User } from 'lucide-react';
+import { chatAPI } from '../services/chatAPI';
+
+interface ChatMessage {
+  id: string;
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  actions?: ChatAction[];
+}
+
+interface ChatAction {
+  type: 'create_region' | 'create_path' | 'stage_description' | 'stage_hints' | 'select_item';
+  params: Record<string, unknown>;
+  ui_hints?: {
+    select?: boolean;
+    center_map?: boolean;
+  };
+}
+
+interface ChatAssistantProps {
+  onExecuteAction?: (action: ChatAction) => void;
+}
+
+export const ChatAssistant: React.FC<ChatAssistantProps> = ({
+  onExecuteAction
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Initialize session when component mounts
+  useEffect(() => {
+    if (isOpen && !sessionId) {
+      initializeSession();
+    }
+  }, [isOpen, sessionId, initializeSession]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const initializeSession = useCallback(async () => {
+    try {
+      const session = await chatAPI.createSession();
+      setSessionId(session.session_id);
+      
+      // Add welcome message
+      addMessage({
+        id: 'welcome',
+        type: 'assistant',
+        content: "Hi! I'm your wilderness building assistant. I can help you create regions, paths, generate descriptions, and more. What would you like to build?",
+        timestamp: new Date()
+      });
+    } catch (error) {
+      console.error('Failed to initialize chat session:', error);
+      addMessage({
+        id: 'error',
+        type: 'assistant', 
+        content: "Sorry, I'm having trouble connecting. Please try again later.",
+        timestamp: new Date()
+      });
+    }
+  }, []);
+
+  const addMessage = (message: ChatMessage) => {
+    setMessages(prev => [...prev, message]);
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || isLoading || !sessionId) return;
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      type: 'user',
+      content: inputValue,
+      timestamp: new Date()
+    };
+
+    addMessage(userMessage);
+    setInputValue('');
+    setIsLoading(true);
+
+    try {
+      const data = await chatAPI.sendMessage(inputValue, sessionId);
+      
+      const assistantMessage: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        type: 'assistant',
+        content: data.response || "I received your message but couldn't process it properly.",
+        timestamp: new Date(),
+        actions: data.actions || []
+      };
+
+      addMessage(assistantMessage);
+
+      // Execute any actions returned by the assistant
+      if (data.actions && onExecuteAction) {
+        for (const action of data.actions) {
+          onExecuteAction(action);
+        }
+      }
+
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      addMessage({
+        id: `error-${Date.now()}`,
+        type: 'assistant',
+        content: "Sorry, I couldn't process your message. Please try again.",
+        timestamp: new Date()
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-colors z-50"
+        title="Open Chat Assistant"
+      >
+        <MessageCircle className="w-6 h-6" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="fixed bottom-6 right-6 w-96 h-[500px] bg-gray-900 border border-gray-700 rounded-lg shadow-xl flex flex-col z-50">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-700">
+        <div className="flex items-center gap-2">
+          <Bot className="w-5 h-5 text-blue-400" />
+          <h3 className="text-white font-medium">Wilderness Assistant</h3>
+        </div>
+        <button
+          onClick={() => setIsOpen(false)}
+          className="text-gray-400 hover:text-white p-1"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`flex gap-3 ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+          >
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+              message.type === 'user' 
+                ? 'bg-blue-600' 
+                : 'bg-gray-700'
+            }`}>
+              {message.type === 'user' ? (
+                <User className="w-4 h-4 text-white" />
+              ) : (
+                <Bot className="w-4 h-4 text-blue-400" />
+              )}
+            </div>
+            <div className={`max-w-[80%] ${message.type === 'user' ? 'text-right' : 'text-left'}`}>
+              <div className={`inline-block p-3 rounded-lg ${
+                message.type === 'user'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-800 text-gray-100'
+              }`}>
+                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                {message.actions && message.actions.length > 0 && (
+                  <div className="mt-2 text-xs text-gray-300">
+                    <div className="flex items-center gap-1">
+                      <Bot className="w-3 h-3" />
+                      <span>Executed {message.actions.length} action{message.actions.length > 1 ? 's' : ''}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {formatTime(message.timestamp)}
+              </div>
+            </div>
+          </div>
+        ))}
+        
+        {/* Loading indicator */}
+        {isLoading && (
+          <div className="flex gap-3">
+            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+              <Bot className="w-4 h-4 text-blue-400" />
+            </div>
+            <div className="bg-gray-800 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                <span className="text-sm text-gray-300">Thinking...</span>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div className="p-4 border-t border-gray-700">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Ask me to create regions, paths, descriptions..."
+            className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={isLoading}
+          />
+          <button
+            onClick={handleSendMessage}
+            disabled={!inputValue.trim() || isLoading}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white p-2 rounded-lg transition-colors"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

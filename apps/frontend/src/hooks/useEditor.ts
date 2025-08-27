@@ -1066,6 +1066,11 @@ export const useEditor = () => {
     deleteItem,
     // Region layering
     createLayer,
-    findRelatedRegions
+    findRelatedRegions,
+    // Chat integration setters
+    setRegions,
+    setPaths,
+    setState,
+    setUnsavedItems
   };
 };

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { AuthCallback } from './components/AuthCallback';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { SimpleMapCanvas } from './components/SimpleMapCanvas';
@@ -10,8 +10,10 @@ import { PropertiesPanel } from './components/PropertiesPanel';
 import { StatusBar } from './components/StatusBar';
 import { ErrorNotification } from './components/ErrorNotification';
 import { LoadingOverlay } from './components/LoadingOverlay';
+import { ChatAssistant } from './components/ChatAssistant';
 import { useEditor } from './hooks/useEditor';
 import { useAuth } from './hooks/useAuth';
+import { ChatBridge } from './services/chatBridge';
 import { Region } from './types';
 import { User, Settings, LogOut } from 'lucide-react';
 
@@ -50,8 +52,59 @@ function App() {
     discardAllUnsaved,
     deleteItem,
     createLayer,
-    findRelatedRegions
+    findRelatedRegions,
+    // Chat integration setters
+    setRegions,
+    setPaths,
+    setState,
+    setUnsavedItems
   } = useEditor();
+
+  // Chat functionality
+  const [chatStatus, setChatStatus] = useState<string>('');
+  const [chatError, setChatError] = useState<string>('');
+
+  // Create chat bridge with editor functions
+  const chatBridge = useMemo(() => {
+    return new ChatBridge({
+      regions,
+      paths,
+      setRegions,
+      setPaths,
+      setUnsavedItems,
+      updateSelectedItem,
+      selectItem,
+      setState
+    }, {
+      onStatusUpdate: setChatStatus,
+      onError: setChatError
+    });
+  }, [regions, paths, setRegions, setPaths, setUnsavedItems, updateSelectedItem, selectItem, setState]);
+
+  const handleChatAction = async (action: { type: string; params: Record<string, unknown>; ui_hints?: Record<string, unknown> }) => {
+    try {
+      await chatBridge.executeAction(action);
+    } catch (error) {
+      console.error('Failed to execute chat action:', error);
+      setChatError(error instanceof Error ? error.message : 'Unknown error');
+    }
+  };
+
+  // Clear chat status after a delay
+  useEffect(() => {
+    if (chatStatus) {
+      const timer = setTimeout(() => setChatStatus(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [chatStatus]);
+
+  // Clear chat error after a delay
+  useEffect(() => {
+    if (chatError) {
+      const timer = setTimeout(() => setChatError(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [chatError]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -229,6 +282,9 @@ function App() {
       
       {/* Loading overlay */}
       <LoadingOverlay isLoading={loading} message="Loading wilderness data..." />
+      
+      {/* Chat Assistant */}
+      <ChatAssistant onExecuteAction={handleChatAction} />
     </ProtectedRoute>
   );
 }
