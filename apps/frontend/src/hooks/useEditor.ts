@@ -508,8 +508,6 @@ export const useEditor = () => {
       return;
     }
 
-    console.log('[Save] Starting save for itemId:', itemId);
-    console.log('[Save] Selected item:', state.selectedItem);
     
     setSavingItems(prev => new Set(prev).add(itemId));
     
@@ -518,35 +516,23 @@ export const useEditor = () => {
       let item: Region | Path | undefined;
       
       // Check regions first
-      console.log('[Save] Searching regions for itemId:', itemId);
-      console.log('[Save] Available regions:', regions.map(r => ({ id: r.id, vnum: r.vnum, name: r.name })));
-      item = regions.find(r => {
-        const matches = r.id === itemId || r.vnum?.toString() === itemId;
-        console.log(`[Save] Region "${r.name}": id="${r.id}" vnum="${r.vnum}" matches="${matches}"`);
-        return matches;
-      });
+      item = regions.find(r => r.id === itemId || r.vnum?.toString() === itemId);
       if (item && 'region_type' in item) {
         const region = item as Region;
         
         // Check if region exists in database by trying to fetch it
         let existsInDatabase = false;
-        console.log('[Save] About to check if region exists in database:', region.vnum);
         if (region.vnum && region.vnum > 0) {
-          console.log('[Save] Region has valid vnum, checking database existence');
           try {
             await apiClient.getRegion(region.vnum.toString());
             existsInDatabase = true;
             console.log('[Save] Region exists in database, will update:', region.vnum);
           } catch (error) {
-            console.log('[Save] Error checking if region exists:', error);
-            console.log('[Save] Error message:', error instanceof Error ? error.message : 'Not an Error object');
-            console.log('[Save] Error instanceof Error:', error instanceof Error);
             if (error instanceof Error && (error.message.includes('404') || error.message.includes('not found'))) {
               existsInDatabase = false;
               console.log('[Save] Region not found in database, will create:', region.vnum);
             } else {
               // Re-throw other errors (network, auth, etc.)
-              console.log('[Save] Re-throwing error because it does not match 404/not found pattern');
               throw error;
             }
           }
@@ -707,8 +693,6 @@ export const useEditor = () => {
       
       if (!item) {
         console.error('[Save] Item not found:', itemId);
-        console.error('[Save] Available regions:', regions.map(r => ({ id: r.id, vnum: r.vnum })));
-        console.error('[Save] Available paths:', paths.map(p => ({ id: p.id, vnum: p.vnum })));
         setError(`Item not found for saving: ${itemId}`);
         return;
       }

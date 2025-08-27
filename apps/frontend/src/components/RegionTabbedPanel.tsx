@@ -1151,12 +1151,6 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         
         // Close dialog on success
         setShowGenerateDialog(false);
-        
-        // Auto-generate hints using the staged description
-        // Reduced timeout since we pass description explicitly to avoid timing issues
-        setTimeout(() => {
-          generateHintsFromDescription(result.generated_description, false);
-        }, 100);
       }
     } catch (error) {
       console.error('Failed to generate description:', error);

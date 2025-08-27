@@ -129,8 +129,7 @@ export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps>
                     <p className="font-medium mb-1">This will replace existing content:</p>
                     <ul className="space-y-1 text-amber-300">
                       {hasExistingDescription && <li>• Current description will be overwritten</li>}
-                      {hasExistingHints && <li>• All existing hints will be deleted and regenerated</li>}
-                      <li>• New hints will be generated from the new description</li>
+                      {hasExistingHints && <li>• Existing hints will remain unchanged</li>}
                     </ul>
                   </div>
                 </div>

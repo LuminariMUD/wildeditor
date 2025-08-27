@@ -212,7 +212,6 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               onClick={() => {
                 // Use id if available, otherwise use vnum string
                 const itemId = selectedItem.id || selectedItem.vnum?.toString() || '';
-                console.log('[PropertiesPanel] Save clicked for:', { selectedItem, itemId });
                 onSave?.(itemId);
               }}
               disabled={isSaving || !hasUnsavedChanges}
