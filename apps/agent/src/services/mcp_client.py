@@ -47,7 +47,7 @@ class MCPClient:
             logger.debug(f"MCP response: {result}")
             
             # Check for error in response
-            if "error" in result:
+            if "error" in result and result["error"] is not None:
                 error_msg = result.get('error', 'Unknown error')
                 logger.error(f"MCP returned error: {error_msg}")
                 raise Exception(f"MCP error: {error_msg}")

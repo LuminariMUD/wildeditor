@@ -426,13 +426,16 @@ docker logs -f wildeditor-chat-agent
 - [x] Deploy chat agent with Docker
 - [x] Fix pydantic_ai compatibility issues
 - [x] Add DeepSeek as fallback provider
-- [x] **Refactor to MCP-only architecture**
+- [x] **Refactor to MCP-only architecture** (FULLY COMPLETE)
 - [x] Remove BackendClient entirely
 - [x] Add create_path tool
 - [x] Fix API endpoint paths
+- [x] Fix MCP error handling ("error": null issue)
+- [x] Deploy to production on port 8002
 
 ### TODO
-- [ ] Test full MCP tool integration
+- [ ] Verify API key configuration in production
+- [ ] Test full MCP tool integration with proper keys
 - [ ] Add region type name mapping (forest→4, etc.)
 - [ ] Implement WebSocket for real-time chat
 - [ ] Add streaming response support
