@@ -285,8 +285,16 @@ to select appropriate coordinates and parameters for tool calls."""
             # Extract the response text from the result
             if hasattr(result, 'data'):
                 return result.data
+            elif hasattr(result, 'output'):
+                # Extract output from AgentRunResult
+                return AssistantResponse(
+                    message=result.output if isinstance(result.output, str) else str(result.output),
+                    tool_calls=[],
+                    suggestions=[],
+                    warnings=[]
+                )
             else:
-                # Create a response from the raw result
+                # Fallback: create a response from the raw result
                 return AssistantResponse(
                     message=str(result),
                     tool_calls=[],
@@ -344,8 +352,16 @@ to select appropriate coordinates and parameters for tool calls."""
             # Extract the response text from the result
             if hasattr(result, 'data'):
                 return result.data
+            elif hasattr(result, 'output'):
+                # Extract output from AgentRunResult
+                return AssistantResponse(
+                    message=result.output if isinstance(result.output, str) else str(result.output),
+                    tool_calls=[],
+                    suggestions=[],
+                    warnings=[]
+                )
             else:
-                # Create a response from the raw result
+                # Fallback: create a response from the raw result
                 return AssistantResponse(
                     message=str(result),
                     tool_calls=[],
