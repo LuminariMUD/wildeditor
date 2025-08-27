@@ -99,16 +99,6 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
     }
   }, [messages]);
 
-  // Restore input focus after loading completes
-  useEffect(() => {
-    if (!isLoading && isOpen && inputRef.current) {
-      // Small delay to ensure DOM updates are complete
-      const timer = setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, isOpen]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading || !sessionId) return;
@@ -337,9 +327,9 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask me to create regions, paths, descriptions..."
+            placeholder={isLoading ? "I'm thinking... you can type your next message" : "Ask me to create regions, paths, descriptions..."}
             className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            disabled={isLoading}
+            disabled={false}
           />
           <button
             onClick={handleSendMessage}
