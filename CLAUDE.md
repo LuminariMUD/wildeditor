@@ -361,31 +361,40 @@ For comprehensive information beyond this technical overview, refer to:
 
 All documentation is kept up-to-date and reflects the current Python FastAPI backend architecture.
 
-## Chat Agent Integration (NEW - December 2024)
+## Chat Agent Integration (DEPLOYED - December 2024)
 
 ### Overview
 AI-powered chat assistant for wilderness building, running on port 8002 as a separate Docker container.
 
-### Architecture
+### Architecture (MCP-Only Design)
 - **Service**: FastAPI application with PydanticAI
-- **Port**: 8002 (separate from MCP on 8001, backend on 8000)
+- **Port**: 8002 (uses MCP on 8001 as single contact surface)
 - **Location**: `/apps/agent/`
-- **Status**: Core implementation complete, ready for testing
+- **Status**: **DEPLOYED AND RUNNING** - MCP-only refactor complete
+- **Data Flow**: Chat Agent (8002) → MCP Server (8001) → Backend (8000) → MySQL
 
 ### Key Features
-- Natural language region creation and management
+- Natural language region and path creation
 - AI-powered description generation via MCP
+- Dynamic hint generation for weather/time variations
 - Terrain analysis and map generation
 - Session management for conversation history
-- MCP tool integration for wilderness operations
+- **MCP-only architecture** - single contact surface
 
-### Available Tools
-1. **create_region** - Create new regions with coordinates
-2. **generate_region_description** - AI-powered descriptions
-3. **generate_region_hints** - Dynamic weather/time variations
-4. **analyze_terrain** - Examine terrain at coordinates
-5. **find_zone_entrances** - Locate nearby connections
-6. **generate_map** - Create area maps
+### Available Tools (All via MCP)
+1. **create_region** - Create regions with coordinates (integer types)
+2. **create_path** - Create paths/roads/rivers
+3. **generate_region_description** - AI-powered descriptions
+4. **generate_hints_from_description** - Dynamic weather/time variations
+5. **analyze_terrain_at_coordinates** - Real-time terrain data
+6. **analyze_complete_terrain_map** - Area analysis with overlays
+7. **find_zone_entrances** - Locate zone connections
+8. **find_static_wilderness_room** - Find static content
+9. **generate_wilderness_map** - Create area maps
+10. **search_regions** - Search by location/type/name
+11. **search_by_coordinates** - Find regions/paths at coordinates
+12. **store_region_hints** - Save generated hints
+13. **get_region_hints** - Retrieve existing hints
 
 ### API Endpoints
 - `POST /api/chat/message` - Send message and get response
@@ -395,30 +404,40 @@ AI-powered chat assistant for wilderness building, running on port 8002 as a sep
 
 ### Deployment
 ```bash
-# Local development
-cd apps/agent
-python run_dev.py
+# Test deployed agent
+SESSION_ID=$(curl -X POST http://localhost:8002/api/session/ -H "Content-Type: application/json" -d '{}' | jq -r .session_id)
+curl -X POST http://localhost:8002/api/chat/message \
+  -H "Content-Type: application/json" \
+  -d "{\"message\": \"Help me create a forest region\", \"session_id\": \"$SESSION_ID\"}" | jq .
 
-# Docker deployment
-docker-compose up -d
-
-# Test endpoint
-curl http://localhost:8002/health/
+# Docker logs
+docker logs -f wildeditor-chat-agent
 ```
 
-### GitHub Secrets Required
-- `MODEL_PROVIDER` - Either "openai" or "anthropic"
-- `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` - AI service key
-- `MODEL_NAME` - Model to use (e.g., "gpt-4-turbo")
-- `MCP_API_KEY` - For MCP server integration
-- `BACKEND_API_KEY` - For backend API integration
+### GitHub Secrets (Reusing Existing)
+- `AI_PROVIDER` - "openai" or "deepseek" (defaults to openai)
+- `OPENAI_API_KEY` - OpenAI API key
+- `DEEPSEEK_API_KEY` - DeepSeek API key (fallback)
+- `OPENAI_MODEL` - Model name (defaults to gpt-4-turbo)
+- `DEEPSEEK_MODEL` - DeepSeek model (defaults to deepseek-chat)
+- `WILDEDITOR_MCP_KEY` - MCP server authentication
+
+### Completed ✅
+- [x] Deploy chat agent with Docker
+- [x] Fix pydantic_ai compatibility issues
+- [x] Add DeepSeek as fallback provider
+- [x] **Refactor to MCP-only architecture**
+- [x] Remove BackendClient entirely
+- [x] Add create_path tool
+- [x] Fix API endpoint paths
 
 ### TODO
-- [ ] Test MCP tool integration after deployment
+- [ ] Test full MCP tool integration
+- [ ] Add region type name mapping (forest→4, etc.)
 - [ ] Implement WebSocket for real-time chat
 - [ ] Add streaming response support
 - [ ] Create frontend React components
-- [ ] Add more tools (paths, points, validation)
+- [ ] Configure Redis for session persistence
 
 See `/apps/agent/TODO.md` for detailed status and next steps.
 
