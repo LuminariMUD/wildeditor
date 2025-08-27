@@ -320,14 +320,14 @@ to select appropriate coordinates and parameters for tool calls."""
         """
         try:
             # Convert history to agent format
-            from pydantic_ai.messages import UserPrompt, ModelTextResponse
+            from pydantic_ai.messages import UserPromptPart, ModelRequest, ModelResponse, TextPart
             
             messages = []
             for msg in history:
                 if msg["role"] == "user":
-                    messages.append(UserPrompt(content=msg["content"]))
+                    messages.append(ModelRequest(parts=[UserPromptPart(content=msg["content"])]))
                 elif msg["role"] == "assistant":
-                    messages.append(ModelTextResponse(content=msg["content"]))
+                    messages.append(ModelResponse(parts=[TextPart(content=msg["content"])]))
             
             # Create context dict
             agent_context = {}
