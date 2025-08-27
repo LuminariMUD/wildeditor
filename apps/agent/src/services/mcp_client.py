@@ -37,13 +37,28 @@ class MCPClient:
                 headers=self.headers,
                 timeout=60.0
             )
-            response.raise_for_status()
+            
+            # Check HTTP status first
+            if response.status_code != 200:
+                logger.error(f"MCP request failed with status {response.status_code}: {response.text}")
+                raise Exception(f"MCP request failed: {response.status_code}")
+            
             result = response.json()
+            logger.debug(f"MCP response: {result}")
             
+            # Check for error in response
             if "error" in result:
-                raise Exception(f"MCP error: {result['error']}")
+                error_msg = result.get('error', 'Unknown error')
+                logger.error(f"MCP returned error: {error_msg}")
+                raise Exception(f"MCP error: {error_msg}")
             
-            return result.get("result", {})
+            # Return the result, which could be the direct response
+            # MCP might return the result directly or nested under 'result'
+            if "result" in result:
+                return result["result"]
+            else:
+                # Some MCP responses might be direct
+                return result
     
     async def generate_description(
         self,
@@ -53,33 +68,20 @@ class MCPClient:
         description_style: str = "immersive",
         description_length: str = "medium",
         user_prompt: Optional[str] = None
-    ) -> str:
-        """Generate a region description using AI"""
-        # Use the backend proxy for description generation
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{settings.backend_api_url}/api/mcp/generate-description",
-                json={
-                    "region_name": region_name,
-                    "region_type": region_type,
-                    "terrain_theme": terrain_theme,
-                    "description_style": description_style,
-                    "description_length": description_length,
-                    "user_prompt": user_prompt
-                },
-                headers={
-                    "X-API-Key": settings.backend_api_key,
-                    "Content-Type": "application/json"
-                },
-                timeout=60.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            
-            if result.get("success") and result.get("result"):
-                return result["result"].get("description", "")
-            else:
-                raise Exception(f"Failed to generate description: {result.get('error', 'Unknown error')}")
+    ) -> Dict[str, Any]:
+        """Generate a region description using AI via MCP"""
+        # Use MCP's generate_region_description tool
+        return await self.call_tool(
+            "generate_region_description",
+            {
+                "region_name": region_name,
+                "region_type": region_type,
+                "terrain_theme": terrain_theme,
+                "description_style": description_style,
+                "description_length": description_length,
+                "user_prompt": user_prompt
+            }
+        )
     
     async def analyze_terrain(self, x: int, y: int) -> Dict[str, Any]:
         """Analyze terrain at specific coordinates"""
