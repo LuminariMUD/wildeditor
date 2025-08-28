@@ -397,11 +397,11 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
         >
           <div className="w-full h-full bg-gray-900 border border-gray-700 rounded-lg shadow-xl flex flex-col" style={{ position: 'relative', zIndex: 50 }}>
             {/* Header */}
-            <div 
-              className="chat-drag-handle flex items-center justify-between p-3 border-b border-gray-700 cursor-move bg-gray-800 rounded-t-lg"
-              style={{ touchAction: 'none', userSelect: 'none' }}
-            >
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between p-3 border-b border-gray-700 bg-gray-800 rounded-t-lg">
+              <div 
+                className="chat-drag-handle flex items-center gap-2 cursor-move flex-1 mr-2"
+                style={{ touchAction: 'none', userSelect: 'none' }}
+              >
                 <Move className="w-4 h-4 text-gray-400" />
                 <Bot className="w-5 h-5 text-blue-400" />
                 <h3 className="text-white font-medium">Wilderness Assistant</h3>
