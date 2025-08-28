@@ -38,11 +38,14 @@ interface ChatResponse {
 }
 
 interface StreamChunk {
-  type: 'status' | 'chunk' | 'actions' | 'complete' | 'error';
+  type: 'status' | 'chunk' | 'actions' | 'complete' | 'error' | 'tool_call' | 'tool_result';
   content?: string;
   message?: string;
   actions?: ChatAction[];
   error?: string;
+  tool_name?: string;
+  tool_args?: Record<string, unknown>;
+  tool_result?: Record<string, unknown>;
 }
 
 class ChatAPIClient {

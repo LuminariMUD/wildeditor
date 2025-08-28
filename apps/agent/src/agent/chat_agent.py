@@ -292,6 +292,36 @@ class WildernessAssistantAgent:
             """Generate a wilderness map"""
             return await self.tools.generate_wilderness_map(center_x, center_y, radius)
         
+        @agent.tool
+        async def search_regions(
+            ctx: RunContext[EditorContext],
+            name: Optional[str] = None,
+            x: Optional[float] = None,
+            y: Optional[float] = None,
+            radius: Optional[float] = None,
+            region_type: Optional[int] = None,
+            include_descriptions: str = "false"
+        ) -> Dict[str, Any]:
+            """Search for wilderness regions by name, location, or type"""
+            return await self.tools.search_regions(
+                name=name,
+                x=x, 
+                y=y,
+                radius=radius,
+                region_type=region_type,
+                include_descriptions=include_descriptions
+            )
+        
+        @agent.tool
+        async def search_by_coordinates(
+            ctx: RunContext[EditorContext],
+            x: float,
+            y: float,
+            radius: float = 10
+        ) -> Dict[str, Any]:
+            """Search for regions and paths at or near specific coordinates"""
+            return await self.tools.search_by_coordinates(x=x, y=y, radius=radius)
+        
         return agent
     
     def _convert_tool_calls_to_actions(self, result) -> List[ChatAction]:

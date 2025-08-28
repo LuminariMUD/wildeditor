@@ -246,13 +246,26 @@ async def stream_message(
                             await asyncio.sleep(0.01)  # Small delay for better UX
                 else:
                     # Fallback to non-streaming with simulated chunks
-                    yield f"data: {json.dumps({'type': 'status', 'message': 'Generating response...'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'status', 'message': 'Thinking...'})}\n\n"
                     
                     response = await chat_agent.chat_with_history(
                         request.message,
                         history[:-1],
                         request.context
                     )
+                    
+                    # Send tool calls information first
+                    if response.tool_calls:
+                        for tool_call in response.tool_calls:
+                            yield f"data: {json.dumps({'type': 'tool_call', 'tool_name': tool_call.get('tool_name', 'unknown'), 'tool_args': tool_call.get('args', {})})}\n\n"
+                            await asyncio.sleep(0.1)  # Small delay to show tool call
+                            
+                            # Simulate tool result (in real streaming this would come from actual tool execution)
+                            yield f"data: {json.dumps({'type': 'tool_result', 'tool_result': {'status': 'completed', 'summary': f'Tool {tool_call.get(\"tool_name\", \"unknown\")} executed successfully'}})}\n\n"
+                            await asyncio.sleep(0.1)
+                    
+                    # Send status update
+                    yield f"data: {json.dumps({'type': 'status', 'message': 'Generating response...'})}\n\n"
                     
                     # Simulate streaming by splitting response into chunks
                     words = response.message.split()

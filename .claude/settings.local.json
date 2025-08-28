@@ -42,7 +42,8 @@
       "Bash(mysql:*)",
       "Bash(sudo docker logs:*)",
       "Bash(sudo docker:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(docker ps:*)"
     ],
     "deny": []
   }

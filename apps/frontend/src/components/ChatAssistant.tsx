@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { chatAPI, ChatAction } from '../services/chatAPI';
+import { chatAPI, ChatAction, StreamChunk } from '../services/chatAPI';
 
 // Import ResizableBox CSS
 import 'react-resizable/css/styles.css';
@@ -244,76 +244,197 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
     setInputValue('');
     setIsLoading(true);
 
-    try {
-      const data = await chatAPI.sendMessage(inputValue, sessionId);
-      
-      // Validate API response structure
-      if (!data || typeof data !== 'object') {
-        throw new Error('Invalid API response format');
-      }
-      
-      // Handle nested response structure from chat agent
-      let responseContent: string;
-      let responseActions: ChatAction[];
-      
-      if (data.response && typeof data.response === 'object') {
-        // New nested structure: data.response.message
-        responseContent = typeof data.response.message === 'string' 
-          ? data.response.message 
-          : "I received your message but couldn't process it properly.";
-        responseActions = Array.isArray(data.response.actions) 
-          ? data.response.actions.filter(action => action && typeof action.type === 'string')
-          : [];
-      } else {
-        // Legacy flat structure: data.response  
-        responseContent = typeof data.response === 'string' 
-          ? data.response 
-          : "I received your message but couldn't process it properly.";
-        responseActions = Array.isArray(data.actions) 
-          ? data.actions.filter(action => action && typeof action.type === 'string')
-          : [];
-      }
-      
-      const assistantMessage: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        type: 'assistant',
-        content: responseContent,
-        timestamp: new Date(),
-        actions: responseActions
-      };
+    if (useStreaming) {
+      // Use streaming response
+      try {
+        const messageText = inputValue;
+        const assistantMessageId = `assistant-${Date.now()}`;
+        let currentContent = '';
+        let pendingActions: ChatAction[] = [];
 
-      addMessage(assistantMessage);
+        // Create streaming placeholder message
+        const streamingMessage: ChatMessage = {
+          id: assistantMessageId,
+          type: 'assistant',
+          content: '',
+          timestamp: new Date(),
+          actions: []
+        };
 
-      // Execute any actions returned by the assistant
-      if (data.actions && data.actions.length > 0 && onExecuteAction) {
-        console.log('[ChatAssistant] Executing actions:', data.actions);
-        for (const action of data.actions) {
-          try {
-            await onExecuteAction(action);
-          } catch (actionError) {
-            console.error('[ChatAssistant] Action execution failed:', actionError);
-            // Show error message to user
-            addMessage({
-              id: `action-error-${Date.now()}`,
-              type: 'assistant',
-              content: `Sorry, I couldn't complete the action "${action.type}". Error: ${actionError instanceof Error ? actionError.message : 'Unknown error'}`,
-              timestamp: new Date()
-            });
+        addMessage(streamingMessage);
+        
+        // Process streaming chunks 
+        for await (const chunk of chatAPI.sendMessageStream(messageText, sessionId)) {
+          // Ensure chunk is properly typed as StreamChunk
+          const typedChunk = chunk as StreamChunk;
+          switch (typedChunk.type) {
+            case 'status':
+              // Update with status message
+              if (typedChunk.message) {
+                setMessages(prev => prev.map(msg => 
+                  msg.id === assistantMessageId 
+                    ? { ...msg, content: `🔄 ${typedChunk.message}` }
+                    : msg
+                ));
+              }
+              break;
+              
+            case 'tool_call':
+              // Show tool usage
+              if (typedChunk.tool_name) {
+                const toolInfo = `🔧 Calling tool: **${typedChunk.tool_name}**${typedChunk.tool_args ? `\n\`\`\`json\n${JSON.stringify(typedChunk.tool_args, null, 2)}\n\`\`\`` : ''}`;
+                currentContent += `\n\n${toolInfo}\n\n`;
+                setMessages(prev => prev.map(msg => 
+                  msg.id === assistantMessageId 
+                    ? { ...msg, content: currentContent }
+                    : msg
+                ));
+              }
+              break;
+              
+            case 'tool_result':
+              // Show tool results
+              if (typedChunk.tool_result) {
+                const resultInfo = `✅ Tool result:\n\`\`\`json\n${JSON.stringify(typedChunk.tool_result, null, 2)}\n\`\`\`\n\n`;
+                currentContent += resultInfo;
+                setMessages(prev => prev.map(msg => 
+                  msg.id === assistantMessageId 
+                    ? { ...msg, content: currentContent }
+                    : msg
+                ));
+              }
+              break;
+              
+            case 'chunk':
+              if (typedChunk.content) {
+                currentContent += typedChunk.content;
+                setMessages(prev => prev.map(msg => 
+                  msg.id === assistantMessageId 
+                    ? { ...msg, content: currentContent }
+                    : msg
+                ));
+              }
+              break;
+              
+            case 'actions':
+              if (typedChunk.actions) {
+                pendingActions = typedChunk.actions;
+                setMessages(prev => prev.map(msg => 
+                  msg.id === assistantMessageId 
+                    ? { ...msg, actions: pendingActions }
+                    : msg
+                ));
+              }
+              break;
+              
+            case 'complete':
+              // Stream completed successfully
+              break;
+              
+            case 'error':
+              throw new Error(typedChunk.error || 'Streaming error');
           }
         }
-      }
 
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      addMessage({
-        id: `error-${Date.now()}`,
-        type: 'assistant',
-        content: "Sorry, I couldn't process your message. Please try again.",
-        timestamp: new Date()
-      });
-    } finally {
-      setIsLoading(false);
+        // Execute any actions that were received
+        if (pendingActions.length > 0 && onExecuteAction) {
+          console.log('[ChatAssistant] Executing streaming actions:', pendingActions);
+          for (const action of pendingActions) {
+            try {
+              await onExecuteAction(action);
+            } catch (actionError) {
+              console.error('[ChatAssistant] Action execution failed:', actionError);
+              addMessage({
+                id: `action-error-${Date.now()}`,
+                type: 'assistant',
+                content: `Sorry, I couldn't complete the action "${action.type}". Error: ${actionError instanceof Error ? actionError.message : 'Unknown error'}`,
+                timestamp: new Date()
+              });
+            }
+          }
+        }
+
+      } catch (error) {
+        console.error('[ChatAssistant] Streaming error:', error);
+        addMessage({
+          id: `error-${Date.now()}`,
+          type: 'assistant',
+          content: `Sorry, streaming failed: ${error instanceof Error ? error.message : 'Unknown error'}. Try switching to BATCH mode.`,
+          timestamp: new Date()
+        });
+      }
+    } else {
+      // Use non-streaming fallback
+      try {
+        const data = await chatAPI.sendMessage(inputValue, sessionId);
+        
+        // Validate API response structure
+        if (!data || typeof data !== 'object') {
+          throw new Error('Invalid API response format');
+        }
+        
+        // Handle nested response structure from chat agent
+        let responseContent: string;
+        let responseActions: ChatAction[];
+        
+        if (data.response && typeof data.response === 'object') {
+          // New nested structure: data.response.message
+          responseContent = typeof data.response.message === 'string' 
+            ? data.response.message 
+            : "I received your message but couldn't process it properly.";
+          responseActions = Array.isArray(data.response.actions) 
+            ? data.response.actions.filter(action => action && typeof action.type === 'string')
+            : [];
+        } else {
+          // Legacy flat structure: data.response  
+          responseContent = typeof data.response === 'string' 
+            ? data.response 
+            : "I received your message but couldn't process it properly.";
+          responseActions = Array.isArray(data.actions) 
+            ? data.actions.filter(action => action && typeof action.type === 'string')
+            : [];
+        }
+        
+        const assistantMessage: ChatMessage = {
+          id: `assistant-${Date.now()}`,
+          type: 'assistant',
+          content: responseContent,
+          timestamp: new Date(),
+          actions: responseActions
+        };
+
+        addMessage(assistantMessage);
+
+        // Execute any actions returned by the assistant
+        if (data.actions && data.actions.length > 0 && onExecuteAction) {
+          console.log('[ChatAssistant] Executing actions:', data.actions);
+          for (const action of data.actions) {
+            try {
+              await onExecuteAction(action);
+            } catch (actionError) {
+              console.error('[ChatAssistant] Action execution failed:', actionError);
+              addMessage({
+                id: `action-error-${Date.now()}`,
+                type: 'assistant',
+                content: `Sorry, I couldn't complete the action "${action.type}". Error: ${actionError instanceof Error ? actionError.message : 'Unknown error'}`,
+                timestamp: new Date()
+              });
+            }
+          }
+        }
+
+      } catch (error) {
+        console.error('[ChatAssistant] Non-streaming error:', error);
+        addMessage({
+          id: `error-${Date.now()}`,
+          type: 'assistant',
+          content: `Sorry, I couldn't process your message: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          timestamp: new Date()
+        });
+      }
     }
+    
+    setIsLoading(false);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
