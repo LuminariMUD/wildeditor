@@ -300,16 +300,16 @@ class WildernessAssistantAgent:
             y: Optional[float] = None,
             radius: Optional[float] = None,
             region_type: Optional[int] = None,
-            include_descriptions: str = "false"
+            zone_vnum: Optional[int] = None
         ) -> Dict[str, Any]:
             """Search for wilderness regions by name, location, or type"""
             return await self.tools.search_regions(
-                name=name,
+                name_pattern=name,
                 x=x, 
                 y=y,
                 radius=radius,
                 region_type=region_type,
-                include_descriptions=include_descriptions
+                zone_vnum=zone_vnum
             )
         
         @agent.tool
