@@ -81,10 +81,14 @@ class ToolRegistry:
         self.register_tool(
             "search_regions",
             self._search_regions,
-            "Search for regions by coordinates/radius, type, zone, or descriptions",
+            "Search for regions by name, coordinates/radius, type, zone, or descriptions",
             {
                 "type": "object",
                 "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Search by region name (partial match, case-insensitive)"
+                    },
                     "x": {
                         "type": "number",
                         "description": "X coordinate for spatial search"
