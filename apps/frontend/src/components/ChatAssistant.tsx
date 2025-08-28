@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { chatAPI, ChatAction, StreamChunk } from '../services/chatAPI';
+import { chatAPI, ChatAction } from '../services/chatAPI';
 
 // Import ResizableBox CSS
 import 'react-resizable/css/styles.css';
