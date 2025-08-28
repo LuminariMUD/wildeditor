@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { chatAPI, ChatAction } from '../services/chatAPI';
+import { chatAPI, ChatAction, StreamChunk } from '../services/chatAPI';
 
 // Import ResizableBox CSS
 import 'react-resizable/css/styles.css';
@@ -71,6 +71,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [useStreaming, setUseStreaming] = useState(true); // Enable streaming by default
   const [windowState, setWindowState] = useState<WindowState>(() => {
     // Load saved state from localStorage
     try {

@@ -1,9 +1,12 @@
 """Chat API endpoints"""
 from fastapi import APIRouter, HTTPException, Depends, Request
-from typing import Optional, List
+from fastapi.responses import StreamingResponse
+from typing import Optional, List, AsyncGenerator
 from pydantic import BaseModel, Field
 from datetime import datetime
 import logging
+import json
+import asyncio
 
 from agent.chat_agent import EditorContext, AssistantResponse
 from session.manager import Message
@@ -181,3 +184,122 @@ async def clear_history(
     except Exception as e:
         logger.error(f"Error clearing history: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to clear history: {str(e)}")
+
+
+@router.post("/stream")
+async def stream_message(
+    request: ChatMessageRequest,
+    deps: dict = Depends(get_dependencies)
+) -> StreamingResponse:
+    """
+    Send a message to the chat agent with streaming response
+    
+    This endpoint processes a user message and streams the assistant's response
+    using Server-Sent Events (SSE).
+    """
+    chat_agent = deps["chat_agent"]
+    session_manager = deps["session_manager"]
+    
+    async def generate_response() -> AsyncGenerator[str, None]:
+        try:
+            # Verify session exists
+            if not await session_manager.session_exists(request.session_id):
+                yield f"data: {json.dumps({'error': f'Session {request.session_id} not found'})}\n\n"
+                return
+            
+            # Add user message to history
+            user_message = await session_manager.add_message(
+                request.session_id,
+                "user",
+                request.message
+            )
+            
+            if not user_message:
+                yield f"data: {json.dumps({'error': 'Failed to save user message'})}\n\n"
+                return
+            
+            # Send initial status
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Processing your request...'})}\n\n"
+            
+            # Get conversation history
+            history = await session_manager.get_history_for_agent(request.session_id)
+            
+            # Update session context if provided
+            if request.context:
+                await session_manager.update_context(
+                    request.session_id,
+                    request.context.model_dump()
+                )
+            
+            # Get response from agent with streaming
+            try:
+                # Check if agent supports streaming
+                if hasattr(chat_agent, 'chat_with_history_stream'):
+                    # Streaming version
+                    async for chunk in chat_agent.chat_with_history_stream(
+                        request.message,
+                        history[:-1],  # Exclude the just-added message
+                        request.context
+                    ):
+                        if chunk.strip():  # Only send non-empty chunks
+                            yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+                            await asyncio.sleep(0.01)  # Small delay for better UX
+                else:
+                    # Fallback to non-streaming with simulated chunks
+                    yield f"data: {json.dumps({'type': 'status', 'message': 'Generating response...'})}\n\n"
+                    
+                    response = await chat_agent.chat_with_history(
+                        request.message,
+                        history[:-1],
+                        request.context
+                    )
+                    
+                    # Simulate streaming by splitting response into chunks
+                    words = response.message.split()
+                    chunk_size = max(3, len(words) // 20)  # Roughly 20 chunks
+                    
+                    for i in range(0, len(words), chunk_size):
+                        chunk = " ".join(words[i:i+chunk_size])
+                        if i + chunk_size < len(words):
+                            chunk += " "
+                        
+                        yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+                        await asyncio.sleep(0.05)  # Simulate typing delay
+                    
+                    # Send actions if any
+                    if response.actions:
+                        yield f"data: {json.dumps({'type': 'actions', 'actions': [action.model_dump() for action in response.actions]})}\n\n"
+                    
+                    # Add assistant response to history
+                    assistant_message = await session_manager.add_message(
+                        request.session_id,
+                        "assistant", 
+                        response.message,
+                        tool_calls=response.tool_calls
+                    )
+                    
+                    if not assistant_message:
+                        logger.error("Failed to save assistant message")
+            
+            except Exception as e:
+                logger.error(f"Error during streaming: {str(e)}")
+                yield f"data: {json.dumps({'error': f'Failed to process message: {str(e)}'})}\n\n"
+                return
+            
+            # Send completion signal
+            yield f"data: {json.dumps({'type': 'complete', 'message': 'Response complete'})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"Error in stream generator: {str(e)}")
+            yield f"data: {json.dumps({'error': f'Stream error: {str(e)}'})}\n\n"
+    
+    return StreamingResponse(
+        generate_response(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )

@@ -37,6 +37,14 @@ interface ChatResponse {
   timestamp: string;
 }
 
+interface StreamChunk {
+  type: 'status' | 'chunk' | 'actions' | 'complete' | 'error';
+  content?: string;
+  message?: string;
+  actions?: ChatAction[];
+  error?: string;
+}
+
 class ChatAPIClient {
   private baseUrl: string;
 
@@ -80,6 +88,75 @@ class ChatAPIClient {
     return response.json();
   }
 
+  async *sendMessageStream(
+    message: string, 
+    sessionId: string,
+    onChunk?: (chunk: StreamChunk) => void
+  ): AsyncGenerator<StreamChunk, void, unknown> {
+    const response = await fetch(`${this.baseUrl}/api/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+      },
+      body: JSON.stringify({
+        message,
+        session_id: sessionId
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to start streaming: ${response.status}`);
+    }
+
+    if (!response.body) {
+      throw new Error('Response body is null');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = line.slice(6); // Remove 'data: ' prefix
+              if (data.trim()) {
+                const chunk: StreamChunk = JSON.parse(data);
+                
+                // Call optional callback
+                if (onChunk) {
+                  onChunk(chunk);
+                }
+                
+                yield chunk;
+                
+                // Break on completion or error
+                if (chunk.type === 'complete' || chunk.type === 'error') {
+                  return;
+                }
+              }
+            } catch (parseError) {
+              console.warn('Failed to parse SSE data:', line, parseError);
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }
+
   async getHistory(sessionId: string): Promise<Record<string, unknown>> {
     const response = await fetch(`${this.baseUrl}/api/chat/history?session_id=${sessionId}`);
 
@@ -108,4 +185,4 @@ class ChatAPIClient {
 }
 
 export const chatAPI = new ChatAPIClient();
-export type { ChatSession, ChatMessage, ChatResponse, ChatAction };
+export type { ChatSession, ChatMessage, ChatResponse, ChatAction, StreamChunk };
