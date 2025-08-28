@@ -408,6 +408,17 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
               </div>
               <div className="flex items-center gap-1">
                 <button
+                  onClick={() => setUseStreaming(!useStreaming)}
+                  className={`p-1 rounded text-xs px-2 transition-colors ${
+                    useStreaming 
+                      ? 'bg-green-600 text-white' 
+                      : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                  }`}
+                  title={useStreaming ? "Streaming: ON" : "Streaming: OFF"}
+                >
+                  {useStreaming ? "LIVE" : "BATCH"}
+                </button>
+                <button
                   onClick={toggleMinimize}
                   className="text-gray-400 hover:text-white p-1 rounded"
                   title={windowState.isMinimized ? "Maximize" : "Minimize"}
