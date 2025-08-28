@@ -261,7 +261,15 @@ async def stream_message(
                             await asyncio.sleep(0.1)  # Small delay to show tool call
                             
                             # Simulate tool result (in real streaming this would come from actual tool execution)
-                            yield f"data: {json.dumps({'type': 'tool_result', 'tool_result': {'status': 'completed', 'summary': f'Tool {tool_call.get(\"tool_name\", \"unknown\")} executed successfully'}})}\n\n"
+                            tool_name = tool_call.get('tool_name', 'unknown')
+                            tool_result_data = {
+                                'type': 'tool_result',
+                                'tool_result': {
+                                    'status': 'completed',
+                                    'summary': f'Tool {tool_name} executed successfully'
+                                }
+                            }
+                            yield f"data: {json.dumps(tool_result_data)}\n\n"
                             await asyncio.sleep(0.1)
                     
                     # Send status update

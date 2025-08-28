@@ -322,6 +322,142 @@ class WildernessAssistantAgent:
             """Search for regions and paths at or near specific coordinates"""
             return await self.tools.search_by_coordinates(x=x, y=y, radius=radius)
         
+        @agent.tool
+        async def analyze_region(
+            ctx: RunContext[EditorContext],
+            region_id: int,
+            include_paths: bool = True
+        ) -> Dict[str, Any]:
+            """Analyze a wilderness region by ID to get terrain, exits, and environmental data"""
+            return await self.tools.analyze_region(region_id=region_id, include_paths=include_paths)
+        
+        @agent.tool
+        async def analyze_complete_terrain_map(
+            ctx: RunContext[EditorContext],
+            center_x: int,
+            center_y: int,
+            radius: int = 5,
+            include_regions: bool = True,
+            include_paths: bool = True
+        ) -> Dict[str, Any]:
+            """Generate complete wilderness map including base terrain PLUS region and path overlays"""
+            return await self.tools.analyze_complete_terrain(
+                center_x=center_x,
+                center_y=center_y, 
+                radius=radius
+            )
+        
+        @agent.tool
+        async def find_static_wilderness_room(
+            ctx: RunContext[EditorContext],
+            x: Optional[int] = None,
+            y: Optional[int] = None,
+            vnum: Optional[int] = None
+        ) -> Dict[str, Any]:
+            """Find static wilderness room at coordinates or by VNUM"""
+            if vnum is not None:
+                return await self.tools.find_static_wilderness_room(x=None, y=None, vnum=vnum)
+            else:
+                return await self.tools.find_static_wilderness_room(x=x, y=y)
+        
+        @agent.tool
+        async def generate_hints_from_description(
+            ctx: RunContext[EditorContext],
+            region_vnum: Optional[int] = None,
+            description: Optional[str] = None,
+            region_name: Optional[str] = None,
+            target_hint_count: int = 15,
+            include_profile: bool = True
+        ) -> Dict[str, Any]:
+            """Generate categorized hints for dynamic descriptions from region description"""
+            return await self.tools.generate_region_hints(
+                region_vnum=region_vnum,
+                description=description,
+                region_name=region_name,
+                target_hint_count=target_hint_count,
+                include_profile=include_profile
+            )
+        
+        @agent.tool
+        async def store_region_hints(
+            ctx: RunContext[EditorContext],
+            region_vnum: int,
+            hints: List[Dict[str, Any]],
+            profile: Optional[Dict[str, Any]] = None
+        ) -> Dict[str, Any]:
+            """Store generated hints in the database for a region"""
+            return await self.tools.store_region_hints(
+                region_vnum=region_vnum,
+                hints=hints,
+                profile=profile
+            )
+        
+        @agent.tool
+        async def get_region_hints(
+            ctx: RunContext[EditorContext],
+            region_vnum: int,
+            category: Optional[str] = None,
+            active_only: bool = True
+        ) -> Dict[str, Any]:
+            """Retrieve existing hints for a region from the database"""
+            return await self.tools.get_region_hints(
+                region_vnum=region_vnum,
+                category=category,
+                active_only=active_only
+            )
+        
+        @agent.tool
+        async def update_region_description(
+            ctx: RunContext[EditorContext],
+            vnum: int,
+            region_description: Optional[str] = None,
+            description_style: Optional[str] = None,
+            description_length: Optional[str] = None,
+            has_historical_context: Optional[bool] = None,
+            has_resource_info: Optional[bool] = None,
+            has_wildlife_info: Optional[bool] = None,
+            has_geological_info: Optional[bool] = None,
+            has_cultural_info: Optional[bool] = None,
+            description_quality_score: Optional[float] = None,
+            requires_review: Optional[bool] = None,
+            is_approved: Optional[bool] = None
+        ) -> Dict[str, Any]:
+            """Update the description and metadata for an existing region"""
+            return await self.tools.update_region_description(
+                vnum=vnum,
+                region_description=region_description,
+                description_style=description_style,
+                description_length=description_length,
+                has_historical_context=has_historical_context,
+                has_resource_info=has_resource_info,
+                has_wildlife_info=has_wildlife_info,
+                has_geological_info=has_geological_info,
+                has_cultural_info=has_cultural_info,
+                description_quality_score=description_quality_score,
+                requires_review=requires_review,
+                is_approved=is_approved
+            )
+        
+        @agent.tool
+        async def analyze_description_quality(
+            ctx: RunContext[EditorContext],
+            vnum: int,
+            suggest_improvements: bool = True
+        ) -> Dict[str, Any]:
+            """Analyze the quality and completeness of a region's description"""
+            # Need to check if this method exists in WildernessTools
+            if hasattr(self.tools, 'analyze_description_quality'):
+                return await self.tools.analyze_description_quality(
+                    vnum=vnum,
+                    suggest_improvements=suggest_improvements
+                )
+            else:
+                # Fallback to MCP call directly
+                return await self.tools.mcp.call_tool(
+                    "analyze_description_quality",
+                    {"vnum": vnum, "suggest_improvements": suggest_improvements}
+                )
+        
         return agent
     
     def _convert_tool_calls_to_actions(self, result) -> List[ChatAction]:
