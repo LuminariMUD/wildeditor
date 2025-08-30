@@ -8,7 +8,7 @@ import os
 import sys
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
-
+ 
 # Load environment variables
 load_dotenv()
 
