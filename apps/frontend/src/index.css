@@ -1,3 +1,50 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Chat Assistant Resizable Styles */
+.chat-assistant-resizable .react-resizable-handle {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.chat-assistant-resizable:hover .react-resizable-handle {
+  opacity: 1;
+}
+
+/* Make corner handles more visible */
+.chat-assistant-resizable .react-resizable-handle-se,
+.chat-assistant-resizable .react-resizable-handle-sw,
+.chat-assistant-resizable .react-resizable-handle-nw,
+.chat-assistant-resizable .react-resizable-handle-ne {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+/* Southeast handle (most common) - add a visual indicator */
+.chat-assistant-resizable .react-resizable-handle-se::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid rgba(156, 163, 175, 0.5);
+  border-bottom: 2px solid rgba(156, 163, 175, 0.5);
+}
+
+.chat-assistant-resizable:hover .react-resizable-handle-se::after {
+  border-right: 2px solid rgba(156, 163, 175, 0.8);
+  border-bottom: 2px solid rgba(156, 163, 175, 0.8);
+}
+
+/* Edge handles - make them wider for easier grabbing */
+.chat-assistant-resizable .react-resizable-handle-w,
+.chat-assistant-resizable .react-resizable-handle-e {
+  width: 10px !important;
+}
+
+.chat-assistant-resizable .react-resizable-handle-n,
+.chat-assistant-resizable .react-resizable-handle-s {
+  height: 10px !important;
+}

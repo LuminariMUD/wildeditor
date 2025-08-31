@@ -38,20 +38,21 @@ interface WindowBounds {
   bottom: number;
 }
 
-// Default window settings
+// Default window settings - adaptive to screen size
 const DEFAULT_WINDOW: WindowState = {
-  x: window.innerWidth - 440, // Position 20px from right edge
+  x: window.innerWidth - Math.min(620, window.innerWidth * 0.4), // Position from right edge
   y: 100,
-  width: 420,
-  height: 600,
+  width: Math.min(600, window.innerWidth * 0.35), // Start at 35% of screen width, max 600px
+  height: Math.min(800, window.innerHeight * 0.7), // Start at 70% of screen height, max 800px
   isMinimized: false
 };
 
 // Window constraints
 const MIN_WIDTH = 300;
 const MIN_HEIGHT = 400;
-const MAX_WIDTH = Math.min(800, window.innerWidth * 0.8);
-const MAX_HEIGHT = Math.min(800, window.innerHeight * 0.9);
+// Allow much larger sizes for high-resolution monitors
+const MAX_WIDTH = Math.min(1600, window.innerWidth * 0.95);  // Up to 1600px or 95% of screen width
+const MAX_HEIGHT = Math.min(1200, window.innerHeight * 0.95); // Up to 1200px or 95% of screen height
 
 // Helper function to get screen bounds (supports multi-monitor)  
 const getScreenBounds = (): WindowBounds => {
@@ -505,6 +506,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
           maxConstraints={[MAX_WIDTH, windowState.isMinimized ? 50 : MAX_HEIGHT]}
           onResize={handleResize}
           resizeHandles={windowState.isMinimized ? [] : ['se', 'sw', 'nw', 'ne', 'w', 'e', 's', 'n']}
+          className="chat-assistant-resizable"
           handleStyle={{
             se: { cursor: 'se-resize', touchAction: 'none' },
             sw: { cursor: 'sw-resize', touchAction: 'none' },
