@@ -144,7 +144,7 @@ jobs:
           
       - name: Deploy preview
         run: |
-          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" deploy --dir=apps/frontend/dist --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="PR #${PR_NUMBER}: ${PR_TITLE}"
+          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" deploy --no-build --dir=apps/frontend/dist --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="PR #${PR_NUMBER}: ${PR_TITLE}"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_PROD_SITE_ID }}
@@ -283,18 +283,56 @@ jobs:
           VITE_CHAT_API_URL: ${{ env.PROD_CHAT_URL }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           
-      - name: Deploy to Netlify
+      - name: Synchronize Netlify build environment
+        run: |
+          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" env:set VITE_API_URL "$VITE_API_URL" --context production --scope builds --force --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
+          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" env:set VITE_CHAT_API_URL "$VITE_CHAT_API_URL" --context production --scope builds --force --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
+        env:
+          VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
+          VITE_CHAT_API_URL: ${{ env.PROD_CHAT_URL }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_PROD_SITE_ID }}
+
+      - name: Deploy verified build to Netlify
         run: |
           echo "=== PRE-DEPLOYMENT FINAL CHECK ==="
           echo "Final verification of what's being deployed:"
           grep -Rqs "localhost:3001" apps/frontend/dist && echo "❌ FOUND localhost:3001 in build!" || echo "✅ No localhost:3001 found"
           grep -RqsF "$VITE_API_URL" apps/frontend/dist && echo "✅ Found configured API URL" || echo "❌ Configured API URL not found"
           echo ""
-          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" deploy --prod --dir=apps/frontend/dist --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="Production deploy from ${GITHUB_SHA}"
+          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" deploy --prod --no-build --dir=apps/frontend/dist --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="Production deploy from ${GITHUB_SHA}"
         env:
           VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_PROD_SITE_ID }}
+
+      - name: Verify live production bundle
+        run: |
+          index_file=$(mktemp)
+          bundle_file=$(mktemp)
+          for attempt in {1..12}; do
+            curl --fail --silent --show-error --output "$index_file" "$PRODUCTION_URL/"
+            asset_path=$(sed -n 's/.*src="\([^"]*\/assets\/index-[^"]*\.js\)".*/\1/p' "$index_file")
+            if [ -n "$asset_path" ]; then
+              curl --fail --silent --show-error --output "$bundle_file" "$PRODUCTION_URL$asset_path"
+            fi
+            if [ -n "$asset_path" ] && \
+               grep -qF "$EXPECTED_API_URL" "$bundle_file" && \
+               grep -qF "$EXPECTED_CHAT_URL" "$bundle_file" && \
+               ! grep -qF "$RETIRED_API_URL" "$bundle_file"; then
+              echo "Live production bundle contains the canonical API and chat endpoints"
+              exit 0
+            fi
+            echo "Waiting for the verified bundle to become live (attempt $attempt/12)"
+            sleep 5
+          done
+          echo "Live production bundle did not converge to the verified configuration"
+          exit 1
+        env:
+          PRODUCTION_URL: https://wildedit.luminarimud.com
+          EXPECTED_API_URL: ${{ env.PROD_API_FALLBACK }}
+          EXPECTED_CHAT_URL: ${{ env.PROD_CHAT_URL }}
+          RETIRED_API_URL: https://api.wildedit.luminarimud.com/api
           
   # Notify on deployment
   notify:
