@@ -36,6 +36,10 @@ Wildeditor game/wilderness data remains exclusively in MariaDB.
 - The repository-root `.env` is the ignored, mode-`0600` operator environment.
   `SMTP2GO_API_KEY` lives there for SMTP2GO API administration only; GoTrue
   does not use it and it must not be copied into this stack.
+- The backup recovery identity lives off-host at
+  `~/.config/wildeditor/auth-backup-age-identity.txt` with mode `0600` and in
+  the protected `AUTH_BACKUP_AGE_IDENTITY` GitHub secret. This stack receives
+  only its public `AUTH_BACKUP_AGE_RECIPIENT`.
 - Values never belong in `.env.example`, documentation, Git history, Vite
   variables, or command output.
 

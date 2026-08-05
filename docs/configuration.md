@@ -11,12 +11,14 @@ owner-readable files:
 | --- | --- | --- |
 | `infrastructure/supabase/.env` | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | Supabase Auth/GoTrue SMTP delivery |
 | Root `.env` | `SMTP2GO_API_KEY` | Operator-only SMTP2GO API access; not mounted into or required by Auth |
+| `~/.config/wildeditor/auth-backup-age-identity.txt` | `age` recovery identity | Off-production-host backup recovery; mirrored in the protected `AUTH_BACKUP_AGE_IDENTITY` GitHub secret |
 
 Both files must remain Git-ignored with mode `0600`. Never copy their values
 into examples or documentation. On first production installation, the complete
 reviewed `infrastructure/supabase/.env` is transported through the protected
 `SELF_HOSTED_AUTH_ENV_B64` GitHub secret; the root operator `.env` is never
-deployed.
+deployed. Only the public `age1…` recipient belongs in the Auth environment;
+the matching identity must never be copied to production.
 
 ## Frontend
 

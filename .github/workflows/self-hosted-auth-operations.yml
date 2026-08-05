@@ -40,6 +40,7 @@ jobs:
           backup_output=$(
             ssh "$PRODUCTION_USER@$PRODUCTION_HOST" '
               set -eu
+              export PATH="$HOME/bin:$PATH"
               cd /home/wildedit/self-hosted-auth
               command -v age >/dev/null 2>&1
               recipient=$(sed -n "s/^AUTH_BACKUP_AGE_RECIPIENT=//p" .env | tail -n 1)

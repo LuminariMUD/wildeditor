@@ -17,7 +17,7 @@ profiles, and usage logs.
 | Roles | `viewer`, `editor`, `admin`; this is a clean start, so assign the first approved accounts explicitly and keep the smallest practical admin set | Initial account/role assignment needed |
 | Stack | Official Docker snapshot `self-hosted/v0.7.2`; exact commit in `UPSTREAM_VERSION`; PostgreSQL 17 and GoTrue versions are pinned in Compose | Selected |
 | SMTP | Dedicated SMTP2GO SMTP credentials are stored in the protected local Auth environment; TLS authentication passed without sending mail on 2026-08-06 | **Cutover blocker: prove delivery/recovery end to end** |
-| Backup policy | Daily encrypted database dump; 30-day online retention; GitHub Actions artifact is the selected off-host destination | Encryption recipient, recoverable off-host identity, and owner needed |
+| Backup policy | Daily encrypted database dump; 30-day online retention; GitHub Actions artifact is the off-host destination; a recovery identity is stored off production and in a protected GitHub secret | Selected; clean restore still required before cutover |
 | Recovery objective | RPO 24 hours and RTO 4 hours | Selected |
 | Rollback window | Seven days | Selected |
 | Rollback owner | GitHub operator `moshehbenavraham` | Selected |
@@ -70,6 +70,11 @@ the Redis credential are populated in GitHub by name-only verification. Both
 values does not authorize or trigger a deployment. The generated values were
 not printed or copied into this repository.
 
+As of 2026-08-06, the complete initial Auth environment, publishable key, test
+account inputs, and backup recovery identity are present as protected GitHub
+secrets by name-only verification. `age` v1.3.1 is installed in the production
+operator's `$HOME/bin`; workflows prepend that directory to `PATH`.
+
 SMTP credential locations are deliberately split:
 
 - `infrastructure/supabase/.env` (ignored, mode `0600`) contains the SMTP host,
@@ -77,6 +82,10 @@ SMTP credential locations are deliberately split:
 - The repository-root `.env` (ignored, mode `0600`) contains
   `SMTP2GO_API_KEY` for operator API access only. It is not an Auth runtime
   input and must not be deployed with the stack.
+- `~/.config/wildeditor/auth-backup-age-identity.txt` (mode `0600`) is the
+  off-production-host recovery identity. The same identity is retained as the
+  protected `AUTH_BACKUP_AGE_IDENTITY` GitHub secret; production receives only
+  its public `age1…` recipient.
 
 Record locations and variable names only. Never record either credential value
 in this runbook, examples, issues, commits, or workflow output.
