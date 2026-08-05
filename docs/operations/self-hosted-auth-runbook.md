@@ -14,19 +14,18 @@ profiles, and usage logs.
 | Auth API/issuer | `https://wildedit-auth.luminarimud.com/auth/v1` | Selected |
 | Hosting | Existing Wildeditor production host; gateway loopback port `8010` | Selected |
 | Signup | Invite-only (`DISABLE_SIGNUP=true`) | Selected |
-| Roles | `viewer`, `editor`, `admin`; this is a clean start, so assign the first approved accounts explicitly and keep the smallest practical admin set | Initial account/role assignment needed |
+| Roles | `viewer`, `editor`, `admin`; the initial operational account was explicitly assigned `editor` and its claim and application access were verified on 2026-08-06 | Passed |
 | Stack | Official Docker snapshot `self-hosted/v0.7.2`; exact commit in `UPSTREAM_VERSION`; PostgreSQL 17 and GoTrue versions are pinned in Compose | Selected |
-| SMTP | Dedicated SMTP2GO SMTP credentials are stored in the protected local Auth environment; TLS authentication passed without sending mail on 2026-08-06 | **Cutover blocker: prove delivery/recovery end to end** |
-| Backup policy | Daily encrypted database dump; 30-day online retention; GitHub Actions artifact is the off-host destination; a recovery identity is stored off production and in a protected GitHub secret | Selected; clean restore still required before cutover |
+| SMTP | Dedicated SMTP2GO SMTP credentials are stored in the protected local Auth environment; live invite/confirmation and recovery/password-reset messages were delivered and post-reset login passed on 2026-08-06 | Passed |
+| Backup policy | Daily encrypted database dump; 30-day online retention; GitHub Actions artifact is the off-host destination; the exact production artifact was checksum-verified and clean-restored off production | Passed |
 | Recovery objective | RPO 24 hours and RTO 4 hours | Selected |
 | Rollback window | Seven days | Selected |
 | Rollback owner | GitHub operator `moshehbenavraham` | Selected |
 | Managed source | Owner confirmed on 2026-08-06 that the former free-tier hosted Supabase database was deleted; no source data or credentials remain to export | Resolved as an explicit clean start; prior users must create new accounts |
 
-Do not declare a production cutover complete while any bold gate above remains.
-The recorded owner confirmation resolves the source-export decision only. It
-does not waive fresh-account role assignment, SMTP delivery, backup recovery,
-or the remaining cutover checks.
+The clean-start role assignment, live SMTP delivery, encrypted off-host backup,
+clean recovery, application deployment, and authenticated browser gates all
+passed on 2026-08-06. No migration gate remains open.
 
 ## Automated controls
 
@@ -43,17 +42,17 @@ or the remaining cutover checks.
 - `.github/workflows/self-hosted-auth-operations.yml` creates a daily encrypted
   backup, copies it off-host into a 30-day GitHub artifact with its SHA-256
   checksum, and checks public Auth health, backup age, and capacity hourly. Its
-  scheduled job remains disabled until the repository variable
-  `SELF_HOSTED_AUTH_OPERATIONS_ENABLED` is set to `true`; manual runs are always
-  allowed.
+  scheduled job is enabled only when the repository variable
+  `SELF_HOSTED_AUTH_OPERATIONS_ENABLED` is `true`; manual runs are always
+  allowed. The variable was enabled after the production cutover passed.
 - `.github/workflows/ci.yml` builds the pinned LuminariMUD source, performs real
   schema-initialization and fixture-load boots against MariaDB 10.11, and gates
   deployment on Wildeditor spatial, hint, profile, and cleanup compatibility.
 - Frontend, backend, MCP, and chat production jobs can be dispatched manually
   from `main` during the controlled cutover. Automatic production deployment
-  on later `main` pushes remains disabled until the repository variable
-  `SELF_HOSTED_AUTH_PRODUCTION_ENABLED` is explicitly set to `true` after the
-  self-hosted Auth readiness and application smoke gates pass.
+  on later `main` pushes is controlled by the repository variable
+  `SELF_HOSTED_AUTH_PRODUCTION_ENABLED`. It was enabled only after the
+  self-hosted Auth readiness and application smoke gates passed.
 
 Required protected GitHub inputs are `PRODUCTION_SSH_KEY`, `PRODUCTION_HOST`,
 `PRODUCTION_USER`, `SELF_HOSTED_AUTH_ENV_B64` (first install only), and
@@ -63,12 +62,11 @@ encoding inside GitHub Secrets, not encryption. Production `.env` must include
 the real SMTP values and `AUTH_BACKUP_AGE_RECIPIENT`; the matching age identity
 must remain off-host.
 
-As of 2026-08-05, `SELF_HOSTED_AUTH_URL`, the backend service credential, and
-the Redis credential are populated in GitHub by name-only verification. Both
+As of 2026-08-06, `SELF_HOSTED_AUTH_URL`, the backend service credential, and
+the Redis credential are populated in GitHub by name-only verification.
 `SELF_HOSTED_AUTH_PRODUCTION_ENABLED` and
-`SELF_HOSTED_AUTH_OPERATIONS_ENABLED` are explicitly `false`; preparing these
-values does not authorize or trigger a deployment. The generated values were
-not printed or copied into this repository.
+`SELF_HOSTED_AUTH_OPERATIONS_ENABLED` are `true` after the controlled cutover
+passed. The generated values were not printed or copied into this repository.
 
 As of 2026-08-06, the complete initial Auth environment, publishable key, test
 account inputs, and backup recovery identity are present as protected GitHub
@@ -320,6 +318,7 @@ PostgreSQL major-version image against an existing older data directory.
 | Date UTC | Environment | Export/backup checksum | Source/target counts matched | Auth flow | Restore elapsed | Operator | Outcome |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-08-05 | Disposable local pinned stack | Matched by full drill | Yes, including UUID aggregate and owners/ACLs | Confirmation, role, login, refresh, logout/revocation, recovery/update, post-restore login, and real-token backend/chat ownership passed | Completed; timing not yet accepted as production rehearsal | Codex/local operator | Passed; engineering proof only, not a source-data rehearsal |
-| Not yet run | Rehearsal 1 | Clean-start baseline | Pending | Pending | Pending | Pending | Blocked on live SMTP delivery and backup recipient |
-| Not yet run | Rehearsal 2 | Clean-start baseline | Pending | Pending | Pending | Pending | Blocked on rehearsal 1 inputs |
-| Not yet run | Production-like restore | Pending | Pending | Pending | Pending | Pending | Not started |
+| 2026-08-05 | Clean-start rehearsal 1, disposable pinned stack | Generated backup checksum verified | Yes, including UUID aggregate and database owners/ACLs | Full confirmation, recovery, role, login, refresh, logout/revocation, restore, and post-restore login passed | Completed within the 4-hour RTO | Codex/GitHub Actions | Passed |
+| 2026-08-05 | Clean-start rehearsal 2, independent disposable pinned stack | Generated backup checksum verified | Yes, including UUID aggregate and database owners/ACLs | Full confirmation, recovery, role, login, refresh, logout/revocation, restore, and post-restore login passed | Completed within the 4-hour RTO | Codex/GitHub Actions | Passed |
+| 2026-08-05 | Production backup restored into an isolated clean stack | Exact encrypted artifact SHA-256 verified before decryption | Yes: one user, one identity, `editor` role, UUID aggregate, schema/table owners, and no sessions/tokens matched production | Restored Auth health, JWKS, and Auth-only public-boundary checks passed | Completed within the 4-hour RTO | Codex/production operator | Passed; disposable target and decrypted dump removed after verification |
+| 2026-08-05 | Production cutover | Encrypted production backup retained off-host by workflow run `31050863086` | MariaDB authority loaded 42 regions and 7 paths through the authenticated editor | Live SMTP invite/confirmation and recovery/password update passed; login, refresh, logout/revocation, backend reads, chat opening, and desktop/mobile browser smoke passed without runtime errors | Not applicable | Codex/production operator | Passed; Auth run `31050821366` and application run `31051862257` |

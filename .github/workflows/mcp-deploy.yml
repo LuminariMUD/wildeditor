@@ -528,9 +528,15 @@ jobs:
     steps:
       - name: Log MCP deployment result
         run: |
-          if [ "${{ needs.deploy-mcp-production.result }}" == "success" ]; then
-            echo "🚀 Wildeditor MCP Server deployed successfully!"
-          else
-            echo "❌ Wildeditor MCP Server deployment failed!"
-            exit 1
-          fi
+          case "${{ needs.deploy-mcp-production.result }}" in
+            success)
+              echo "🚀 Wildeditor MCP Server deployed successfully!"
+              ;;
+            skipped)
+              echo "ℹ️ Wildeditor MCP Server deployment was intentionally skipped."
+              ;;
+            *)
+              echo "❌ Wildeditor MCP Server deployment failed!"
+              exit 1
+              ;;
+          esac

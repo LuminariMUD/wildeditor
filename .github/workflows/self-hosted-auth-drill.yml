@@ -40,6 +40,7 @@ jobs:
             -e 's#^COMPOSE_FILE=.*#COMPOSE_FILE=docker-compose.yml:docker-compose.wildeditor.yml:docker-compose.wildeditor-test.yml#' \
             -e 's#^SUPABASE_PUBLIC_URL=.*#SUPABASE_PUBLIC_URL=http://127.0.0.1:8010#' \
             -e 's#^API_EXTERNAL_URL=.*#API_EXTERNAL_URL=http://127.0.0.1:8010/auth/v1#' \
+            -e 's#^SMTP_ADMIN_EMAIL=.*#SMTP_ADMIN_EMAIL=auth@wildeditor.invalid#' \
             -e 's#^SMTP_HOST=.*#SMTP_HOST=inbucket#' \
             -e 's#^SMTP_USER=.*#SMTP_USER=drill-user#' \
             -e 's#^SMTP_PASS=.*#SMTP_PASS=drill-password#' \
