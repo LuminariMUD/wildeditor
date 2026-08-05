@@ -16,12 +16,12 @@ profiles, and usage logs.
 | Signup | Invite-only (`DISABLE_SIGNUP=true`) | Selected |
 | Roles | `viewer`, `editor`, `admin`; active approved users default to `editor`; smallest practical admin set | Needs reviewed UUID map |
 | Stack | Official Docker snapshot `self-hosted/v0.7.2`; exact commit in `UPSTREAM_VERSION`; PostgreSQL 17 and GoTrue versions are pinned in Compose | Selected |
-| SMTP | Sender `auth@luminarimud.com`; provider and working credentials not yet supplied | **Cutover blocker** |
-| Backup policy | Daily encrypted database dump; 30-day online retention; off-host destination required | Encryption recipient/destination needed |
+| SMTP | Sender `auth@luminarimud.com`; the production host relays through SMTP2GO with SASL and encrypted transport, but no dedicated Auth mailbox or Wildeditor-accessible relay credential exists | **Cutover blocker: supply and test a dedicated credential** |
+| Backup policy | Daily encrypted database dump; 30-day online retention; GitHub Actions artifact is the selected off-host destination | Encryption recipient, recoverable off-host identity, and owner needed |
 | Recovery objective | Proposed RPO 24 hours and RTO 4 hours | Owner approval needed |
 | Rollback window | Proposed seven days | Owner approval needed |
 | Rollback owner | Wildeditor production operator | Named person needed |
-| Managed source | Deployed client currently contains placeholder `your-project.supabase.co`; no working project reference, database connection, or safe inventory is available | **Migration evidence blocker** |
+| Managed source | Deployed client contains placeholder `your-project.supabase.co`; repository history contains only example project URLs; no working project reference, database connection, or safe inventory is available | **Migration evidence blocker: source access or explicit zero-user owner record required** |
 
 Do not declare a production cutover complete while any bold gate above remains.
 If there was never a real managed project or active user, the owner must record
@@ -62,6 +62,13 @@ Required protected GitHub inputs are `PRODUCTION_SSH_KEY`, `PRODUCTION_HOST`,
 encoding inside GitHub Secrets, not encryption. Production `.env` must include
 the real SMTP values and `AUTH_BACKUP_AGE_RECIPIENT`; the matching age identity
 must remain off-host.
+
+As of 2026-08-05, `SELF_HOSTED_AUTH_URL`, the backend service credential, and
+the Redis credential are populated in GitHub by name-only verification. Both
+`SELF_HOSTED_AUTH_PRODUCTION_ENABLED` and
+`SELF_HOSTED_AUTH_OPERATIONS_ENABLED` are explicitly `false`; preparing these
+values does not authorize or trigger a deployment. The generated values were
+not printed or copied into this repository.
 
 Backend and chat default to the self-hosted issuer only. If a real managed
 source exists, set the protected production variable `WILDEDITOR_AUTH_ISSUERS`
