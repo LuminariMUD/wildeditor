@@ -241,22 +241,22 @@ jobs:
           }
           trap cleanup_server EXIT
 
-          listening=0
+          ready=0
           for _ in {1..45}; do
             if ! kill -0 "$server_pid" 2>/dev/null; then
               break
             fi
-            if nc -z 127.0.0.1 4117 2>/dev/null; then
-              listening=1
+            if nc -z 127.0.0.1 4117 2>/dev/null &&
+              grep -q 'Entering game loop.' "$server_log"; then
+              ready=1
               break
             fi
             sleep 1
           done
-          if [[ "$listening" != 1 ]]; then
+          if [[ "$ready" != 1 ]]; then
             tail -n 160 "$server_log"
             exit 1
           fi
-          grep -q 'Entering game loop.' "$server_log"
 
           path_types=$(mariadb --batch --skip-column-names \
             --host=127.0.0.1 --user=wildeditor_test luminari_test \
@@ -299,24 +299,24 @@ jobs:
           }
           trap cleanup_server EXIT
 
-          listening=0
+          ready=0
           for _ in {1..45}; do
             if ! kill -0 "$server_pid" 2>/dev/null; then
               break
             fi
-            if nc -z 127.0.0.1 4118 2>/dev/null; then
-              listening=1
+            if nc -z 127.0.0.1 4118 2>/dev/null &&
+              grep -q 'Info: Loaded 1 regions, top_of_region_table set to 0' "$server_log" &&
+              grep -q 'Info: Loading wilderness roads and path definitions from MySQL database' "$server_log" &&
+              grep -q 'Entering game loop.' "$server_log"; then
+              ready=1
               break
             fi
             sleep 1
           done
-          if [[ "$listening" != 1 ]]; then
+          if [[ "$ready" != 1 ]]; then
             tail -n 160 "$server_log"
             exit 1
           fi
-          grep -q 'Info: Loaded 1 regions, top_of_region_table set to 0' "$server_log"
-          grep -q 'Info: Loading wilderness roads and path definitions from MySQL database' "$server_log"
-          grep -q 'Entering game loop.' "$server_log"
 
   deploy-preview:
     name: Deploy preview
