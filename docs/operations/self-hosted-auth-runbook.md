@@ -102,7 +102,10 @@ Remove the override after the observation window.
   `http://127.0.0.1:8010`.
 - The loopback nginx gateway permits `/auth/v1/*` and `/health`; it returns 404
   for Studio, REST, Storage, Realtime, Functions, and other paths.
-- PostgreSQL and Supavisor publish no host ports in the Wildeditor override.
+- The default Compose runtime contains only PostgreSQL, GoTrue Auth, Kong, and
+  the Auth gateway. Supavisor and every non-Auth product service require the
+  explicit `full-platform` profile and are not part of production.
+- PostgreSQL publishes no host port in the Wildeditor override.
 - Frontend code receives only the public Auth base URL and
   `sb_publishable_*` key. Signing keys, secret/service keys, database
   credentials, backend service keys, and SMTP credentials stay server-side.

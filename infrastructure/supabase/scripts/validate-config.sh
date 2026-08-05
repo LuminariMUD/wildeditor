@@ -49,4 +49,20 @@ case "$(sed -n 's/^DISABLE_SIGNUP=//p' .env | tail -n 1)" in
 esac
 
 docker compose --env-file .env config --quiet
+
+active_services=$(docker compose --env-file .env config --services)
+for service in db auth kong auth-gateway; do
+  if ! printf '%s\n' "$active_services" | grep -qx "$service"; then
+    echo "Required Auth runtime service is disabled: $service" >&2
+    exit 1
+  fi
+done
+
+for service in studio rest realtime storage imgproxy meta functions supavisor; do
+  if printf '%s\n' "$active_services" | grep -qx "$service"; then
+    echo "Non-Auth service is active in the default runtime: $service" >&2
+    exit 1
+  fi
+done
+
 echo "Self-hosted Auth configuration is structurally valid."

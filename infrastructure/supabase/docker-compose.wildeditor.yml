@@ -1,10 +1,29 @@
 services:
+  # Wildeditor needs Supabase Auth and its PostgreSQL datastore, not the full
+  # Supabase product surface. Keep upstream services available for explicit
+  # platform maintenance while excluding them from the default Auth runtime.
+  studio:
+    profiles: [full-platform]
+
+  rest:
+    profiles: [full-platform]
+
+  imgproxy:
+    profiles: [full-platform]
+
+  meta:
+    profiles: [full-platform]
+
   # The public tunnel terminates TLS and reaches only this Auth-only gateway.
   # Studio, REST, Storage, PostgreSQL, and pooler administration stay private.
   kong:
+    # Studio is outside the Auth runtime, so remove the upstream dashboard-only
+    # startup dependency. Kong's Auth route remains health-checked below.
+    depends_on: !reset {}
     ports: !reset []
 
   supavisor:
+    profiles: [full-platform]
     ports: !reset []
 
   # Enable the pinned stack's generated ES256 signing/JWKS configuration
@@ -14,14 +33,17 @@ services:
       GOTRUE_JWT_KEYS: ${JWT_KEYS:-[]}
 
   realtime:
+    profiles: [full-platform]
     environment:
       API_JWT_JWKS: ${JWT_JWKS:-{"keys":[]}}
 
   storage:
+    profiles: [full-platform]
     environment:
       JWT_JWKS: ${JWT_JWKS:-{"keys":[]}}
 
   functions:
+    profiles: [full-platform]
     environment:
       SUPABASE_JWKS: ${JWT_JWKS:-{"keys":[]}}
 

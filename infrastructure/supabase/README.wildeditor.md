@@ -8,7 +8,10 @@ Wildeditor production boundary on top:
 - only the Auth gateway binds a host port, and it binds to loopback;
 - PostgreSQL and Supavisor have no host ports;
 - the public gateway permits `/auth/v1/*` and health only;
-- Studio and all non-Auth APIs remain reachable only inside the Docker network;
+- the default runtime starts only PostgreSQL, GoTrue Auth, Kong, and the Auth
+  gateway;
+- Studio, REST, Realtime, Storage, Functions, Meta, Imgproxy, and Supavisor are
+  disabled behind the explicit `full-platform` Compose profile;
 - the LuminariMUD MariaDB is not referenced, mounted, migrated, or replicated.
 
 ## First staging install
@@ -21,7 +24,7 @@ Wildeditor production boundary on top:
 4. Install `age`, set `AUTH_BACKUP_AGE_RECIPIENT` to an off-host public
    recipient, and keep the matching identity outside this server.
 5. Run `sh scripts/validate-config.sh`.
-6. Start the supported stack with `sh run.sh start`.
+6. Start the supported Auth runtime with `sh run.sh start`.
 7. Point the TLS/Cloudflare tunnel hostname at `http://127.0.0.1:8010`.
 8. Run `sh scripts/smoke.sh https://auth.wildedit.luminarimud.com`.
 
