@@ -12,7 +12,7 @@ from pathlib import Path
 # Set environment variables from .env
 os.environ['AI_PROVIDER'] = 'openai'
 os.environ['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY', 'your-openai-api-key-here')
-os.environ['OPENAI_MODEL'] = 'gpt-4o-mini'
+os.environ['OPENAI_MODEL'] = 'gpt-5.6-luna'
 
 # Add the MCP src directory to path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -91,7 +91,7 @@ async def main():
     print("=" * 60)
     
     print("\nConfiguration:")
-    print(f"  Model: gpt-4o-mini")
+    print("  Model: gpt-5.6-luna")
     print(f"  Max tokens: 500")
     print(f"  Temperature: 0.7")
     print(f"  Cost: ~$0.15/1M input tokens, $0.60/1M output tokens")

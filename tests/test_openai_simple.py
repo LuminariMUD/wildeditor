@@ -23,7 +23,7 @@ async def test_openai():
     try:
         # Simple completion test
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.6-luna",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": "Say 'Hello, the API key works!' if you can hear me."}

@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
 
 env:
+  PYTHON_VERSION: '3.14.6'
   REGISTRY: ghcr.io
   IMAGE_NAME: wildeditor-chat-agent
 
@@ -24,6 +25,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: apps/agent/requirements.txt
+
+      - name: Test chat agent
+        run: |
+          python -m pip install --upgrade pip==26.2.1 setuptools==83.0.0 wheel==0.47.0
+          python -m pip install -r apps/agent/requirements.txt
+          python -m pip check
+          PYTHONPATH=apps/agent python -m pytest -q apps/agent/tests
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4.2.0
@@ -94,6 +109,15 @@ jobs:
           DEEPSEEK_MODEL: ${{ secrets.DEEPSEEK_MODEL }}
           MCP_API_KEY: ${{ secrets.WILDEDITOR_MCP_KEY }}
         run: |
+          OPENAI_MODEL="${OPENAI_MODEL:-gpt-5.6-sol}"
+          case "$OPENAI_MODEL" in
+            gpt-5.6-sol|gpt-5.6-terra|gpt-5.6-luna) ;;
+            *)
+              echo "❌ OPENAI_MODEL is not in the supported GPT-5.6 model allowlist"
+              exit 1
+              ;;
+          esac
+
           # Create deployment script (following MCP pattern)
           cat > deploy-agent.sh << 'EOF'
           #!/bin/bash
@@ -252,9 +276,12 @@ jobs:
           "
       
       - name: Verify deployment
+        env:
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
         run: |
           sleep 10
           echo "🔍 Verifying Chat Agent deployment..."
+          OPENAI_MODEL="${OPENAI_MODEL:-gpt-5.6-sol}"
           
           # Test from server
           ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
@@ -271,5 +298,46 @@ jobs:
               exit 1
             fi
           "
+
+          echo "🌐 Testing public Chat Agent model and inference..."
+          service_model=$(curl -fsS --connect-timeout 10 --max-time 30 \
+            https://wildedit-chat.luminarimud.com/ \
+            | jq -er '.model')
+          test "$service_model" = "openai/$OPENAI_MODEL"
+
+          inference_ok=false
+          for attempt in 1 2 3; do
+            echo "Inference probe attempt $attempt/3"
+            session_id=$(curl -fsS --connect-timeout 10 --max-time 30 \
+              -H 'Content-Type: application/json' \
+              -d '{}' \
+              https://wildedit-chat.luminarimud.com/api/session/ \
+              | jq -er '.session_id') || session_id=""
+
+            if [ -n "$session_id" ]; then
+              request_body=$(jq -nc \
+                --arg message 'Reply with the marker CHAT_DEPLOYMENT_OK. Do not call tools.' \
+                --arg session_id "$session_id" \
+                '{message:$message,session_id:$session_id}')
+              assistant_message=$(curl -fsS --connect-timeout 10 --max-time 120 \
+                -H 'Content-Type: application/json' \
+                -d "$request_body" \
+                https://wildedit-chat.luminarimud.com/api/chat/message \
+                | jq -er '.response.message') || assistant_message=""
+
+              if [[ "$assistant_message" == *CHAT_DEPLOYMENT_OK* \
+                && "$assistant_message" != "I encountered an error:"* ]]; then
+                inference_ok=true
+                break
+              fi
+            fi
+
+            sleep 3
+          done
+
+          if [ "$inference_ok" != true ]; then
+            echo "❌ Public Chat Agent inference probe failed"
+            exit 1
+          fi
           
           echo "✅ Chat Agent deployment verified successfully!"

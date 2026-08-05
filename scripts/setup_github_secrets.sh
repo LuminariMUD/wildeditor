@@ -27,7 +27,14 @@ echo ""
 # Get OpenAI configuration from environment or use placeholder
 # IMPORTANT: Replace with your actual OpenAI API key!
 OPENAI_KEY="${OPENAI_API_KEY:-your-openai-api-key-here}"
-OPENAI_MODEL="${OPENAI_MODEL:-gpt-4o-mini}"
+OPENAI_MODEL="${OPENAI_MODEL:-gpt-5.6-luna}"
+case "$OPENAI_MODEL" in
+    gpt-5.6-sol|gpt-5.6-terra|gpt-5.6-luna) ;;
+    *)
+        echo "❌ OPENAI_MODEL must be gpt-5.6-sol, gpt-5.6-terra, or gpt-5.6-luna"
+        exit 1
+        ;;
+esac
 
 # Production server details (update these as needed)
 PRODUCTION_HOST="luminarimud.com"
@@ -82,7 +89,7 @@ echo "2. Check GitHub Actions for deployment status"
 echo "3. Test the MCP server at http://$PRODUCTION_HOST:8001/health"
 echo ""
 echo "AI Features enabled:"
-echo "- Model: GPT-4o-mini (cost-effective)"
+echo "- Model: $OPENAI_MODEL"
 echo "- Max tokens: 500"
 echo "- Temperature: 0.7"
 echo "- Rate limits: 60/min, 1000/hour"

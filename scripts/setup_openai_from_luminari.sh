@@ -29,6 +29,7 @@ echo ""
 
 # Update MCP .env file
 MCP_ENV="/home/luminari/wildeditor/apps/mcp/.env"
+OPENAI_MODEL="gpt-5.6-sol"
 
 if [ -f "$MCP_ENV" ]; then
     # Backup existing .env
@@ -36,6 +37,11 @@ if [ -f "$MCP_ENV" ]; then
     
     # Update the OpenAI key
     sed -i "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=$OPENAI_KEY|" "$MCP_ENV"
+    if grep -q '^OPENAI_MODEL=' "$MCP_ENV"; then
+        sed -i "s|^OPENAI_MODEL=.*|OPENAI_MODEL=$OPENAI_MODEL|" "$MCP_ENV"
+    else
+        printf '\nOPENAI_MODEL=%s\n' "$OPENAI_MODEL" >> "$MCP_ENV"
+    fi
     
     echo "✅ Updated MCP .env with OpenAI key"
 else
@@ -45,11 +51,12 @@ fi
 
 # Export for current session
 export OPENAI_API_KEY="$OPENAI_KEY"
+export OPENAI_MODEL
 
 echo ""
 echo "Configuration complete!"
 echo "- OpenAI API key configured for MCP server"
-echo "- Model: gpt-4o-mini (cost-effective)"
+echo "- Model: $OPENAI_MODEL"
 echo ""
 echo "To test the configuration:"
 echo "  export OPENAI_API_KEY='$OPENAI_KEY'"

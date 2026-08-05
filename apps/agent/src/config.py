@@ -1,6 +1,6 @@
 """Configuration management for Chat Agent Service"""
 import os
-from typing import Optional
+from typing import Literal, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
@@ -24,7 +24,11 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     deepseek_api_key: Optional[str] = None
-    model_name: str = "gpt-5.6-sol"
+    model_name: Literal[
+        "gpt-5.6-sol",
+        "gpt-5.6-terra",
+        "gpt-5.6-luna",
+    ] = "gpt-5.6-sol"
     anthropic_model: str = "claude-fable-5"
     deepseek_model: str = "deepseek-chat"
     model_provider: str = "openai"  # openai, anthropic, or deepseek

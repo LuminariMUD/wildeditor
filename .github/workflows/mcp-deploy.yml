@@ -238,6 +238,15 @@ jobs:
           fi
           
           echo "✅ MCP keys are configured"
+
+          OPENAI_MODEL="${OPENAI_MODEL:-gpt-5.6-sol}"
+          case "$OPENAI_MODEL" in
+            gpt-5.6-sol|gpt-5.6-terra|gpt-5.6-luna) ;;
+            *)
+              echo "❌ OPENAI_MODEL is not in the supported GPT-5.6 model allowlist"
+              exit 1
+              ;;
+          esac
           
           # Create MCP deployment script
           cat > deploy-mcp.sh << 'EOF'

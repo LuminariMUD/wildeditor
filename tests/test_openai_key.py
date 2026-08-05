@@ -20,7 +20,7 @@ try:
     
     # Try a simple completion
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-5.6-luna",
         messages=[
             {"role": "user", "content": "Say 'test successful' if you can hear me"}
         ],

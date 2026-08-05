@@ -23,6 +23,20 @@ logger = logging.getLogger(__name__)
 OPENAI_MODEL_SETTINGS: OpenAIChatModelSettings = {
     "openai_reasoning_effort": "none",
 }
+SUPPORTED_OPENAI_MODELS = frozenset({
+    "gpt-5.6-sol",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna",
+})
+
+
+def get_openai_model_name() -> str:
+    """Return a supported GPT-5.6 model name from the environment."""
+    model_name = os.getenv("OPENAI_MODEL", "gpt-5.6-sol")
+    if model_name not in SUPPORTED_OPENAI_MODELS:
+        raise ValueError("OPENAI_MODEL must be a supported GPT-5.6 model")
+    return model_name
+
 
 class AIProvider(str, Enum):
     """Supported AI providers"""
@@ -138,7 +152,7 @@ class AIService:
                     logger.warning("OpenAI API key not found")
                     return None
                 
-                model_name = os.getenv("OPENAI_MODEL", "gpt-5.6-sol")
+                model_name = get_openai_model_name()
                 return OpenAIChatModel(
                     model_name=model_name,
                     provider=OpenAIProvider(api_key=api_key),
@@ -189,6 +203,7 @@ class AIService:
                 return None
                 
         except Exception as e:
+            self.initialization_error = str(e)
             logger.error(f"Failed to initialize AI model: {e}")
             return None
     
