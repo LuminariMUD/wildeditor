@@ -7,12 +7,21 @@ Provides REST endpoints for wilderness room data and navigation using the Lumina
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Dict, Any, Optional
 from ..middleware.auth import RequireAuth
-from ..services.terrain_bridge import get_terrain_client, TerrainBridgeError
+from ..services.terrain_bridge import (
+    get_terrain_client,
+    TerrainBridgeError,
+    TerrainBridgeNotFoundError,
+)
 import logging
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _raise_bridge_unavailable(exc: TerrainBridgeError) -> None:
+    logger.error("Terrain bridge request failed: %s", type(exc).__name__)
+    raise HTTPException(status_code=503, detail="Terrain bridge unavailable") from exc
 
 
 @router.get("/rooms")
@@ -39,8 +48,8 @@ async def list_wilderness_rooms(
             "source": "terrain_bridge"
         }
         
-    except TerrainBridgeError as e:
-        raise HTTPException(status_code=503, detail=f"Terrain bridge error: {str(e)}")
+    except TerrainBridgeError as exc:
+        _raise_bridge_unavailable(exc)
 
 
 @router.get("/rooms/at-coordinates")
@@ -84,8 +93,8 @@ async def get_room_at_coordinates(
                 "room_type": "none"
             }
         
-    except TerrainBridgeError as e:
-        raise HTTPException(status_code=503, detail=f"Terrain bridge error: {str(e)}")
+    except TerrainBridgeError as exc:
+        _raise_bridge_unavailable(exc)
 
 
 @router.get("/rooms/{vnum}")
@@ -110,10 +119,10 @@ async def get_room_details(
             "source": "terrain_bridge"
         }
         
-    except TerrainBridgeError as e:
-        if "not found" in str(e).lower():
-            raise HTTPException(status_code=404, detail=f"Room {vnum} not found")
-        raise HTTPException(status_code=503, detail=f"Terrain bridge error: {str(e)}")
+    except TerrainBridgeNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=f"Room {vnum} not found") from exc
+    except TerrainBridgeError as exc:
+        _raise_bridge_unavailable(exc)
 
 
 @router.get("/navigation/entrances")
@@ -170,8 +179,8 @@ async def get_zone_entrances(
             "source": "terrain_bridge_exits_endpoint"
         }
         
-    except TerrainBridgeError as e:
-        raise HTTPException(status_code=503, detail=f"Terrain bridge error: {str(e)}")
+    except TerrainBridgeError as exc:
+        _raise_bridge_unavailable(exc)
 
 
 @router.get("/navigation/routes")
@@ -257,8 +266,8 @@ async def find_route(
             "source": "terrain_bridge"
         }
         
-    except TerrainBridgeError as e:
-        raise HTTPException(status_code=503, detail=f"Terrain bridge error: {str(e)}")
+    except TerrainBridgeError as exc:
+        _raise_bridge_unavailable(exc)
 
 
 @router.get("/config")

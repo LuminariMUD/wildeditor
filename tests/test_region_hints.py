@@ -5,15 +5,16 @@ Creates a test region (Crystal Caverns) and generates hints from its description
 """
 
 import json
+import os
 import requests
 import asyncio
 from typing import Dict, Any
 
 # Configuration
-BACKEND_URL = "http://luminarimud.com:8000/api"
-MCP_URL = "http://luminarimud.com:8001/mcp"
-MCP_API_KEY = "xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0="
-BACKEND_API_KEY = "0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu"
+BACKEND_URL = os.getenv("WILDEDITOR_BACKEND_URL", "http://127.0.0.1:8000/api")
+MCP_URL = os.getenv("WILDEDITOR_MCP_URL", "http://127.0.0.1:8001/mcp")
+MCP_API_KEY = os.environ["WILDEDITOR_MCP_KEY"]
+BACKEND_API_KEY = os.environ["WILDEDITOR_BACKEND_SERVICE_KEY"]
 
 # Test region configuration
 TEST_REGION = {

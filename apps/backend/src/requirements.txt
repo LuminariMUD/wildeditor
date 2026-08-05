@@ -6,6 +6,7 @@ pydantic==2.13.4
 pydantic-settings==2.14.2
 python-dotenv==1.2.2
 cryptography==50.0.0  # Required for pymysql with some MySQL versions
+PyJWT[crypto]==2.13.0  # Asymmetric Supabase access-token verification
 geoalchemy2==0.20.0  # For spatial data types (POLYGON, LINESTRING)
 
 # Production dependencies

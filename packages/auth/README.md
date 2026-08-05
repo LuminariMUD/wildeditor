@@ -1,6 +1,8 @@
 # `wildeditor-auth`
 
-Shared FastAPI API-key helpers used by the MCP service. The package supports distinct key roles and both dependency- and middleware-based enforcement.
+Shared Wildeditor authentication primitives: typed principals and asymmetric
+JWT verification for human callers, plus the independent agent-to-MCP API-key
+boundary.
 
 ## Install
 
@@ -16,11 +18,12 @@ The package metadata requires Python `3.14+`.
 
 | Role | Environment variable | Intended use |
 | --- | --- | --- |
-| `BACKEND_API` | `WILDEDITOR_API_KEY` | Direct/backend service access |
-| `MCP_OPERATIONS` | `WILDEDITOR_MCP_KEY` | Calls to `/mcp` |
-| `MCP_BACKEND_ACCESS` | `WILDEDITOR_MCP_BACKEND_KEY` | Separate MCP-to-backend role when a consumer uses it |
+| `MCP_OPERATIONS` | `WILDEDITOR_MCP_KEY` | Agent/server calls to `/mcp` |
 
-`AuthMiddleware` reads `X-API-Key`, selects a key role from the request path, and returns `401` for missing or invalid keys. FastAPI dependencies `verify_api_key`, `verify_mcp_key`, and `verify_backend_access_key` expose the same checks.
+`AuthMiddleware` reads `X-API-Key` for `/mcp` and returns `401` for a missing
+or invalid key. Backend access does not use this middleware: browser callers
+present a verified Auth access token, while MCP presents the separate
+server-only Bearer credential through `BearerAuthenticator`.
 
 Example:
 
@@ -41,6 +44,7 @@ async def example(_: bool = Depends(verify_mcp_key)):
 PYTHONPATH=packages/auth/src python -m pytest -q packages/auth/tests
 ```
 
-## Limitations
-
-The current implementation loads keys from the environment when authentication objects are constructed and compares ordinary strings. It does not validate browser JWTs, return typed human principals, define authorization roles, or rotate keys. Those changes are proposed in the [authentication migration plan](../../docs/ongoing-projects/self-hosted-postgres-auth-migration-plan.md).
+Service keys are compared in constant time. JWT verification accepts only
+configured asymmetric algorithms and exact issuer/audience values, refreshes a
+bounded JWKS cache on key rotation, and extracts roles only from protected
+claims.

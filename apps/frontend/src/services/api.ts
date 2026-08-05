@@ -24,16 +24,6 @@ const getApiUrl = (): string => {
 };
 
 const API_BASE_URL = getApiUrl();
-const API_KEY = import.meta.env.VITE_WILDEDITOR_API_KEY || '';
-
-// Debug environment variable loading (remove in production)
-console.log('[API] Environment variables loaded:', {
-  VITE_API_URL: import.meta.env.VITE_API_URL, 
-  VITE_WILDEDITOR_API_KEY_LENGTH: import.meta.env.VITE_WILDEDITOR_API_KEY?.length || 0,
-  API_BASE_URL,
-  API_KEY_LENGTH: API_KEY?.length || 0,
-  API_KEY_CORRECT_LENGTH: API_KEY?.length === 32
-});
 
 // API response types (what we get from the backend)
 interface ApiRegionResponse {
@@ -192,27 +182,13 @@ const frontendPathToApi = (path: Omit<Path, 'id'>): Omit<ApiPathResponse, 'path_
 class ApiClient {
   private baseUrl: string;
   private token?: string;
-  private apiKey: string;
 
-  constructor(baseUrl: string, apiKey: string) {
+  constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    this.apiKey = apiKey;
-    
-    // Debug API key loading
-    console.log(`[API] Constructor - API Key loaded:`, {
-      hasApiKey: !!apiKey,
-      length: apiKey?.length || 0,
-      containsWhitespace: apiKey ? /\s/.test(apiKey) : false,
-      trimmedLength: apiKey ? apiKey.trim().length : 0
-    });
   }
 
-  setToken(token: string) {
+  setToken(token?: string) {
     this.token = token;
-  }
-
-  private isDestructiveOperation(method?: string): boolean {
-    return ['POST', 'PUT', 'DELETE'].includes(method?.toUpperCase() || '');
   }
 
   private async request<T>(
@@ -221,32 +197,12 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const method = options.method?.toUpperCase() || 'GET';
-    
-    // Check if API key is required and available
-    const requiresApiKey = this.isDestructiveOperation(method);
-    console.log(`[API] API Key check:`, { 
-      requiresApiKey, 
-      hasApiKey: !!this.apiKey, 
-      apiKeyLength: this.apiKey?.length || 0,
-      method,
-      endpoint 
-    });
-    
-    if (requiresApiKey && !this.apiKey) {
-      const error = new Error('API key is required for this operation but not configured. Please check VITE_WILDEDITOR_API_KEY environment variable.');
-      console.error('[API] Missing API key for destructive operation:', method, endpoint);
-      throw error;
-    }
-    
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
-    // For destructive operations, use the API key
-    // For non-destructive operations, use the session token if available
-    if (requiresApiKey && this.apiKey) {
-      headers.Authorization = `Bearer ${this.apiKey}`;
-    } else if (this.token && !requiresApiKey) {
+    if (this.token) {
       headers.Authorization = `Bearer ${this.token}`;
     }
 
@@ -254,9 +210,7 @@ class ApiClient {
     Object.assign(headers, options.headers);
 
     console.log(`[API] Making request to: ${url}`);
-    console.log(`[API] Method: ${method}, Requires API Key: ${requiresApiKey}`);
-    console.log(`[API] API Key Length:`, this.apiKey?.length, '(should be 32)');
-    console.log(`[API] Headers:`, { ...headers, Authorization: headers.Authorization ? '[REDACTED]' : undefined });
+    console.log(`[API] Method: ${method}`);
 
     try {
       const response = await fetch(url, { ...options, headers });
@@ -269,20 +223,12 @@ class ApiClient {
           const errorData = await response.json();
           errorMessage = errorData.error || errorData.detail || errorMessage;
           
-          // Enhance error message for authorization issues
           if (response.status === 401 || response.status === 403) {
-            if (requiresApiKey) {
-              errorMessage = `Unauthorized: Invalid or missing API key for ${method} operation. ${errorMessage}`;
-            } else {
-              errorMessage = `Authentication failed: ${errorMessage}`;
-            }
+            errorMessage = `Authorization failed: ${errorMessage}`;
           }
         } catch {
-          // If we can't parse the error as JSON, use the status
           if (response.status === 401 || response.status === 403) {
-            errorMessage = requiresApiKey 
-              ? `Unauthorized: Invalid or missing API key for ${method} operation`
-              : 'Authentication failed';
+            errorMessage = 'Authorization failed';
           }
         }
         console.error(`[API] Error response:`, errorMessage);
@@ -494,6 +440,19 @@ class ApiClient {
     }
   }
 
+  async callMcpTool<T>(
+    toolName: string,
+    arguments_: Record<string, unknown>,
+  ): Promise<{ success: boolean; result?: T; error?: string }> {
+    return this.request('/mcp/call-tool', {
+      method: 'POST',
+      body: JSON.stringify({
+        tool_name: toolName,
+        arguments: arguments_,
+      }),
+    });
+  }
+
   // Region Hints API Methods
   async getRegionHints(vnum: number): Promise<{
     hints: Array<{
@@ -567,4 +526,4 @@ class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient(API_BASE_URL, API_KEY);
+export const apiClient = new ApiClient(API_BASE_URL);

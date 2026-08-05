@@ -5,9 +5,10 @@ Test production MCP server Ollama integration diagnostics
 
 import requests
 import json
+import os
 
-MCP_URL = "http://luminarimud.com:8001"
-MCP_KEY = "xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0="
+MCP_URL = os.getenv("WILDEDITOR_MCP_ROOT_URL", "http://127.0.0.1:8001")
+MCP_KEY = os.environ["WILDEDITOR_MCP_KEY"]
 
 def test_mcp_description():
     """Test description generation and analyze the response"""

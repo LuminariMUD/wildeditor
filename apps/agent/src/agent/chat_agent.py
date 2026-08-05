@@ -98,7 +98,7 @@ class WildernessAssistantAgent:
                     settings=OPENAI_MODEL_SETTINGS,
                 )
             except Exception as e:
-                logger.warning(f"Failed to initialize OpenAI: {e}")
+                logger.warning("OpenAI initialization failed: %s", type(e).__name__)
         
         elif provider == "deepseek" and settings.deepseek_api_key:
             try:
@@ -108,7 +108,7 @@ class WildernessAssistantAgent:
                     provider=DeepSeekProvider(api_key=settings.deepseek_api_key),
                 )
             except Exception as e:
-                logger.warning(f"Failed to initialize DeepSeek: {e}")
+                logger.warning("DeepSeek initialization failed: %s", type(e).__name__)
         
         elif provider == "anthropic" and settings.anthropic_api_key:
             try:
@@ -118,7 +118,7 @@ class WildernessAssistantAgent:
                     provider=AnthropicProvider(api_key=settings.anthropic_api_key),
                 )
             except Exception as e:
-                logger.warning(f"Failed to initialize Anthropic: {e}")
+                logger.warning("Anthropic initialization failed: %s", type(e).__name__)
         
         # If no explicit provider or it failed, try fallback chain
         logger.info("Trying fallback model chain...")
@@ -133,7 +133,7 @@ class WildernessAssistantAgent:
                     settings=OPENAI_MODEL_SETTINGS,
                 )
             except Exception as e:
-                logger.warning(f"OpenAI fallback failed: {e}")
+                logger.warning("OpenAI fallback failed: %s", type(e).__name__)
         
         # Try DeepSeek as second fallback
         if settings.deepseek_api_key:
@@ -144,7 +144,7 @@ class WildernessAssistantAgent:
                     provider=DeepSeekProvider(api_key=settings.deepseek_api_key),
                 )
             except Exception as e:
-                logger.warning(f"DeepSeek fallback failed: {e}")
+                logger.warning("DeepSeek fallback failed: %s", type(e).__name__)
         
         # No models available
         logger.error("No AI models could be initialized")
@@ -191,14 +191,9 @@ class WildernessAssistantAgent:
                 )
                 return mcp_result
             except Exception as e:
-                logger.warning(f"MCP create_region failed: {e}")
-                # Return success anyway for frontend action conversion
+                logger.warning("MCP create_region failed: %s", type(e).__name__)
                 return {
-                    "success": True,
-                    "message": f"Region '{name}' will be created with {len(coordinates)} points",
-                    "vnum": 1000000 + hash(name) % 99999,
-                    "region_type": region_type,
-                    "coordinates": coordinates
+                    "error": "Region creation failed",
                 }
         
         @agent.tool
@@ -231,14 +226,9 @@ class WildernessAssistantAgent:
                 )
                 return mcp_result
             except Exception as e:
-                logger.warning(f"MCP create_path failed: {e}")
-                # Return success anyway for frontend action conversion
+                logger.warning("MCP create_path failed: %s", type(e).__name__)
                 return {
-                    "success": True,
-                    "message": f"Path '{name}' will be created with {len(coordinates)} points",
-                    "vnum": 2000000 + hash(name) % 99999,
-                    "path_type": path_type,
-                    "coordinates": coordinates
+                    "error": "Path creation failed",
                 }
         
         @agent.tool
@@ -738,10 +728,10 @@ to select appropriate coordinates and parameters for tool calls."""
                 )
             
         except Exception as e:
-            logger.error(f"Error in chat: {str(e)}")
+            logger.error("Chat failed: %s", type(e).__name__)
             return AssistantResponse(
-                message=f"I encountered an error: {str(e)}",
-                warnings=[f"Error processing request: {str(e)}"]
+                message="I encountered an internal error while processing that request.",
+                warnings=["The request could not be completed."]
             )
     
     async def chat_with_history(
@@ -827,8 +817,8 @@ to select appropriate coordinates and parameters for tool calls."""
                 )
             
         except Exception as e:
-            logger.error(f"Error in chat_with_history: {str(e)}")
+            logger.error("Chat with history failed: %s", type(e).__name__)
             return AssistantResponse(
-                message=f"I encountered an error: {str(e)}",
-                warnings=[f"Error processing request: {str(e)}"]
+                message="I encountered an internal error while processing that request.",
+                warnings=["The request could not be completed."]
             )

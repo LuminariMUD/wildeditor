@@ -4,8 +4,12 @@
 # Configuration
 $MCP_URL = "http://luminarimud.com:8001"
 $BACKEND_URL = "http://luminarimud.com:8000"
-$MCP_API_KEY = "xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0="
+$MCP_API_KEY = $env:WILDEDITOR_MCP_KEY
 $BACKEND_API_KEY = ""
+
+if (-not $MCP_API_KEY) {
+    throw "WILDEDITOR_MCP_KEY is required"
+}
 
 Write-Host "🔍 Testing MCP Docker Networking Fix" -ForegroundColor Cyan
 Write-Host "======================================" -ForegroundColor Cyan

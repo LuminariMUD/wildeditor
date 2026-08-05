@@ -188,8 +188,11 @@ class AIService:
                         provider=provider
                     )
                 except Exception as e:
-                    self.initialization_error = f"Failed to initialize DeepSeek: {str(e)}"
-                    logger.error(self.initialization_error)
+                    self.initialization_error = "Failed to initialize DeepSeek"
+                    logger.error(
+                        "DeepSeek initialization failed: %s",
+                        type(e).__name__,
+                    )
                     return None
             
             elif self.provider == AIProvider.OLLAMA:
@@ -203,8 +206,8 @@ class AIService:
                 return None
                 
         except Exception as e:
-            self.initialization_error = str(e)
-            logger.error(f"Failed to initialize AI model: {e}")
+            self.initialization_error = "Failed to initialize AI model"
+            logger.error("AI model initialization failed: %s", type(e).__name__)
             return None
     
     
@@ -358,13 +361,13 @@ Make the description vivid and engaging while maintaining the {style} style thro
                     
                 except ModelRetry as e:
                     if attempt < max_retries - 1:
-                        logger.warning(f"AI generation retry {attempt + 1}: {e}")
+                        logger.warning("AI generation retry %s", attempt + 1)
                         continue
                     raise
             
         except Exception as e:
-            error_details = f"Primary AI generation failed with {self.provider.value}: {str(e)}"
-            logger.error(error_details)
+            error_details = f"Primary AI generation failed with {self.provider.value}"
+            logger.error("%s: %s", error_details, type(e).__name__)
             # Try Ollama fallback if primary provider failed and we're not already using Ollama
             if self.provider != AIProvider.OLLAMA:
                 logger.info("Attempting Ollama fallback for description generation")
@@ -501,9 +504,7 @@ Create a comprehensive, immersive description that brings this region to life.""
                     }
             
         except Exception as e:
-            logger.error(f"Ollama generation failed: {e}", exc_info=True)
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.error("Ollama generation failed: %s", type(e).__name__)
             return None
 
     async def generate_hints_from_description(self, description: str, region_name: str = "") -> Dict[str, Any]:
@@ -616,20 +617,13 @@ Focus on creating vivid, sensory details that bring the environment to life for 
                     if hasattr(result, 'data'):
                         generated = result.data
                         logger.info(f"Using result.data: {type(generated)}")
-                        logger.info(f"Generated data: {generated}")
                     elif hasattr(result, 'output'):
                         generated = result.output
                         logger.info(f"Using result.output: {type(generated)}")
-                        logger.info(f"Generated output: {generated}")
                     else:
                         # For DeepSeek or other providers that might return different structure
                         generated = result
                         logger.info(f"Using raw result: {type(generated)}")
-                        logger.info(f"Generated raw: {generated}")
-                    
-                    # Log the actual content of generated
-                    if hasattr(generated, '__dict__'):
-                        logger.info(f"Generated object dict: {generated.__dict__}")
                     
                     logger.info(f"Generated object has {len(generated.hints) if hasattr(generated, 'hints') else 'NO'} hints")
                     
@@ -685,29 +679,30 @@ Focus on creating vivid, sensory details that bring the environment to life for 
                     }
                     logger.info(f"=== HINT GENERATION SUCCESS ===")
                     logger.info(f"Returning {len(cleaned_hints)} hints")
-                    logger.info(f"First hint (if any): {cleaned_hints[0] if cleaned_hints else 'None'}")
                     return result
                     
-                except ModelRetry as e:
-                    logger.error(f"ModelRetry exception on attempt {attempt + 1}: {e}")
+                except ModelRetry:
+                    logger.error("ModelRetry on hint attempt %s", attempt + 1)
                     if attempt == max_retries - 1:
-                        logger.error(f"Max retries exceeded for hint generation: {e}")
+                        logger.error("Maximum hint-generation retries exceeded")
                         raise
-                    logger.warning(f"Retrying hint generation (attempt {attempt + 1}): {e}")
+                    logger.warning("Retrying hint generation (attempt %s)", attempt + 1)
                     continue
                 except Exception as inner_e:
-                    logger.error(f"Exception during hint generation attempt {attempt + 1}: {inner_e}")
+                    logger.error(
+                        "Hint generation attempt %s failed: %s",
+                        attempt + 1,
+                        type(inner_e).__name__,
+                    )
                     if attempt == max_retries - 1:
                         raise
                     continue
                     
         except Exception as e:
-            import traceback
             logger.error(f"=== HINT GENERATION FAILED ===")
-            logger.error(f"AI hint generation failed: {e}")
-            logger.error(f"Full traceback: {traceback.format_exc()}")
+            logger.error("AI hint generation failed: %s", type(e).__name__)
             return {
-                "error": f"Failed to generate hints: {str(e)}",
+                "error": "Failed to generate hints",
                 "hints": [],
                 "ai_provider": self.provider.value
             }

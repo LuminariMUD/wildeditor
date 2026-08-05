@@ -72,7 +72,7 @@ class SessionManager:
             Session ID
         """
         # Generate session ID
-        session_id = f"{user_id or 'anon'}_{uuid.uuid4().hex[:8]}"
+        session_id = str(uuid.uuid4())
         
         # Create session metadata
         metadata = SessionMetadata(
@@ -111,6 +111,18 @@ class SessionManager:
         if data:
             return SessionData(**data)
         return None
+
+    async def get_owned_session(
+        self,
+        session_id: str,
+        user_id: str,
+    ) -> Optional[SessionData]:
+        """Return a session only when it belongs to the verified caller."""
+
+        session = await self.get_session(session_id)
+        if session is None or session.metadata.user_id != user_id:
+            return None
+        return session
     
     async def add_message(
         self,

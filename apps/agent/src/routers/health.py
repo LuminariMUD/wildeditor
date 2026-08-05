@@ -1,5 +1,6 @@
 """Health check endpoints"""
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 from datetime import UTC, datetime
 import logging
 
@@ -24,31 +25,38 @@ async def readiness_check(request: Request):
     """
     Readiness check
     
-    Verifies that all components are initialized and ready.
+    Verify initialized components and their external dependencies.
     """
     try:
-        # Check if components are initialized
+        storage = getattr(request.app.state, "storage", None)
+        mcp_client = getattr(request.app.state, "mcp_client", None)
         checks = {
-            "storage": hasattr(request.app.state, 'storage') and request.app.state.storage is not None,
-            "session_manager": hasattr(request.app.state, 'session_manager') and request.app.state.session_manager is not None,
-            "chat_agent": hasattr(request.app.state, 'chat_agent') and request.app.state.chat_agent is not None
+            "storage": storage is not None and await storage.ping(),
+            "mcp": mcp_client is not None and await mcp_client.health_check(),
+            "session_manager": getattr(request.app.state, "session_manager", None) is not None,
+            "chat_agent": getattr(request.app.state, "chat_agent", None) is not None,
         }
-        
         all_ready = all(checks.values())
-        
-        return {
-            "ready": all_ready,
-            "checks": checks,
-            "timestamp": datetime.now(UTC).isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Readiness check failed: {str(e)}")
-        return {
-            "ready": False,
-            "error": str(e),
-            "timestamp": datetime.now(UTC).isoformat()
-        }
+
+        return JSONResponse(
+            status_code=200 if all_ready else 503,
+            content={
+                "ready": all_ready,
+                "checks": checks,
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
+        )
+
+    except Exception as exc:
+        logger.error("Readiness check failed: %s", type(exc).__name__)
+        return JSONResponse(
+            status_code=503,
+            content={
+                "ready": False,
+                "error": "Readiness check failed",
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
+        )
 
 
 @router.get("/live")

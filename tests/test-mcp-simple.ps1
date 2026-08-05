@@ -1,9 +1,13 @@
 # Simple MCP Test Suite
 # Environment Variables
-$API_KEY = "0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu"
+$API_KEY = $env:WILDEDITOR_BACKEND_SERVICE_KEY
 $BASE_URL = "http://luminarimud.com:8000"
-$MCP_API_KEY = "xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0="
+$MCP_API_KEY = $env:WILDEDITOR_MCP_KEY
 $MCP_URL = "http://luminarimud.com:8001"
+
+if (-not $API_KEY -or -not $MCP_API_KEY) {
+    throw "WILDEDITOR_BACKEND_SERVICE_KEY and WILDEDITOR_MCP_KEY are required"
+}
 
 function Test-BasicAPI {
     Write-Host "=== Basic API Tests ===" -ForegroundColor Green

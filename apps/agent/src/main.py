@@ -37,15 +37,13 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Chat Agent Service...")
     
-    # Debug: Log environment variables
-    import os
-    logger.info("Environment variables check:")
-    logger.info(f"MODEL_PROVIDER: {os.getenv('MODEL_PROVIDER', 'not set')}")
-    logger.info(f"OPENAI_API_KEY: {'set' if os.getenv('OPENAI_API_KEY') else 'not set'} (len: {len(os.getenv('OPENAI_API_KEY', ''))})")
-    logger.info(f"DEEPSEEK_API_KEY: {'set' if os.getenv('DEEPSEEK_API_KEY') else 'not set'} (len: {len(os.getenv('DEEPSEEK_API_KEY', ''))})")
-    logger.info(f"Settings loaded - model_provider: {settings.model_provider}")
-    logger.info(f"Settings loaded - openai_api_key: {'set' if settings.openai_api_key else 'not set'}")
-    logger.info(f"Settings loaded - deepseek_api_key: {'set' if settings.deepseek_api_key else 'not set'}")
+    logger.info("Runtime configuration loaded")
+
+    if (
+        settings.wildeditor_environment == "remote-production"
+        and settings.storage_backend != "redis"
+    ):
+        raise RuntimeError("Production chat sessions require Redis storage")
     
     # Initialize storage
     storage = create_storage(
@@ -65,18 +63,13 @@ async def lifespan(app: FastAPI):
         chat_agent = WildernessAssistantAgent(mcp_client)
         logger.info("Chat agent initialized successfully with MCP tools")
     except Exception as e:
-        logger.error(f"Failed to initialize chat agent: {str(e)}")
-        # Try without tools as fallback
-        try:
-            chat_agent = WildernessAssistantAgent()
-            logger.warning("Chat agent initialized without MCP tools (fallback mode)")
-        except Exception as e2:
-            logger.error(f"Failed to initialize chat agent even without tools: {str(e2)}")
-            raise
+        logger.error("Chat agent initialization failed: %s", type(e).__name__)
+        raise
     
     # Store in app state
     app.state.storage = storage
     app.state.session_manager = session_manager
+    app.state.mcp_client = mcp_client
     app.state.chat_agent = chat_agent
     
     logger.info(f"Chat Agent Service started on port {settings.port}")

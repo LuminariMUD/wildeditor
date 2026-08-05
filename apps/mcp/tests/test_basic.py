@@ -3,6 +3,7 @@ Test basic MCP server functionality
 """
 
 import pytest
+from unittest.mock import AsyncMock
 
 
 class TestMCPServer:
@@ -18,15 +19,39 @@ class TestMCPServer:
         assert data["service"] == "wildeditor-mcp-server"
         assert "version" in data
     
-    def test_health_check_detailed_with_auth(self, client, mcp_headers):
+    def test_health_check_detailed_with_auth(
+        self,
+        client,
+        mcp_headers,
+        monkeypatch,
+    ):
         """Test detailed health check with authentication"""
+        monkeypatch.setattr(
+            "src.routers.health.backend_is_ready",
+            AsyncMock(return_value=True),
+        )
         response = client.get("/health/detailed", headers=mcp_headers)
         assert response.status_code == 200
         
         data = response.json()
         assert data["status"] == "healthy"
+        assert data["ready"] is True
         assert data["authenticated"] is True
-        assert "features" in data
+        assert data["checks"] == {"backend_service_auth": True}
+
+    def test_health_check_detailed_is_unready_when_backend_auth_fails(
+        self,
+        client,
+        mcp_headers,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "src.routers.health.backend_is_ready",
+            AsyncMock(return_value=False),
+        )
+        response = client.get("/health/detailed", headers=mcp_headers)
+        assert response.status_code == 503
+        assert response.json()["ready"] is False
     
     def test_health_check_detailed_without_auth(self, client):
         """Test detailed health check fails without authentication"""

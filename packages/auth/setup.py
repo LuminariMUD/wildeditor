@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="wildeditor-auth",
-    version="1.0.0",
+    version="2.0.0",
     description="Shared authentication package for Wildeditor",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
@@ -12,6 +12,7 @@ setup(
         "pydantic>=2.13.4",
         "pydantic-settings>=2.14.2",
         "httpx>=0.28.1",
+        "PyJWT[crypto]>=2.13.0,<3",
     ],
     extras_require={
         "dev": [

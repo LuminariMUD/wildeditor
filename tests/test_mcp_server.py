@@ -5,12 +5,13 @@ Tests the enhanced description capabilities of the MCP server
 """
 
 import json
+import os
 import requests
 from typing import Dict, Any
 
 # MCP Server configuration
-MCP_URL = "http://luminarimud.com:8001/mcp"
-API_KEY = "xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0="
+MCP_URL = os.getenv("WILDEDITOR_MCP_URL", "http://127.0.0.1:8001/mcp")
+API_KEY = os.environ["WILDEDITOR_MCP_KEY"]
 HEADERS = {
     "X-API-Key": API_KEY,
     "Content-Type": "application/json"

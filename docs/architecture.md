@@ -66,15 +66,20 @@ An API-shape change therefore normally requires coordinated schema, router, fron
 
 ## Authentication boundaries
 
-Current behavior is transitional:
+- The frontend uses one self-hosted Supabase Auth provider and sends the current
+  human access token to backend and chat APIs.
+- Backend routes validate exact-issuer asymmetric JWTs and enforce
+  viewer/editor/admin roles. MCP-to-backend uses a distinct server-only Bearer
+  service principal.
+- MCP operations use `X-API-Key` with `WILDEDITOR_MCP_KEY`; agent calls remain
+  agent-to-MCP-to-backend and carry trusted audit context.
+- Chat requires editor/admin JWTs and binds every session to the authenticated
+  token subject.
+- No backend, MCP, database, signing, or Auth administrative secret is compiled
+  into browser assets.
 
-- Backend region/path mutations use `Authorization: Bearer <WILDEDITOR_API_KEY>` when `REQUIRE_AUTH` is enabled. Most reads are public.
-- MCP operations use `X-API-Key` with `WILDEDITOR_MCP_KEY`. MCP-to-backend calls use the backend Bearer key.
-- The frontend uses Supabase Auth for UI access, but backend routes do not validate Supabase JWTs as human principals.
-- The frontend currently compiles `VITE_WILDEDITOR_API_KEY` into browser assets for mutations. A `VITE_` value is public and must not be treated as a production secret.
-- Chat routes currently have no user-authentication dependency or session-ownership enforcement.
-
-These limitations are why the repository is marked pre-release. The proposed target and its acceptance gates are documented in the [self-hosted authentication migration plan](ongoing-projects/self-hosted-postgres-auth-migration-plan.md).
+Infrastructure cutover and its acceptance gates remain tracked in the
+[self-hosted authentication migration plan](ongoing-projects/self-hosted-postgres-auth-migration-plan.md).
 
 ## Persistence and migrations
 

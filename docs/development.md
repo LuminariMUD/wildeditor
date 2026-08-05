@@ -23,7 +23,10 @@ npm ci
 cp apps/frontend/.env.development.example apps/frontend/.env.local
 ```
 
-For a local-only UI session, set `VITE_DISABLE_AUTH=true` in `.env.local`. This bypass is honored only by development builds. Set `VITE_API_URL=http://localhost:8000/api` and configure a non-empty development-only `VITE_WILDEDITOR_API_KEY` if you need to exercise mutation calls.
+For a local-only UI session, set `VITE_DISABLE_AUTH=true` in `.env.local`. This
+bypass is honored only by development builds. The backend and chat must also be
+explicitly configured for local auth bypass; otherwise use a self-hosted Auth
+access token exactly as production does.
 
 Start Vite:
 
@@ -72,7 +75,10 @@ cp .env.example .env
 python -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-At minimum, set matching development values for `WILDEDITOR_MCP_KEY`, `WILDEDITOR_API_KEY`, and `WILDEDITOR_BACKEND_URL`. The public health endpoint is `http://localhost:8001/health`; MCP operations under `/mcp` require `X-API-Key`.
+At minimum, set matching development values for `WILDEDITOR_MCP_KEY`,
+`WILDEDITOR_BACKEND_SERVICE_KEY`, and `WILDEDITOR_BACKEND_URL`. The public
+health endpoint is `http://localhost:8001/health`; MCP operations under `/mcp`
+require `X-API-Key`.
 
 ## Chat agent
 
@@ -83,6 +89,7 @@ cd apps/agent
 python3.14 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
+python -m pip install -e ../../packages/auth
 python -m pip install -r requirements.txt
 cp .env.example .env
 python -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8002
@@ -95,10 +102,11 @@ The default `memory` session backend is process-local and disappears on restart.
 ## Suggested startup order
 
 1. MySQL/MariaDB
-2. Backend (`:8000`)
-3. MCP (`:8001`), when AI/MCP features are needed
-4. Chat agent (`:8002`), when chat is needed
-5. Frontend (`:5173`)
+2. Self-hosted Auth/PostgreSQL (Auth gateway `:8010` in the production-style stack)
+3. Backend (`:8000`)
+4. MCP (`:8001`), when AI/MCP features are needed
+5. Chat agent (`:8002`), when chat is needed
+6. Frontend (`:5173`)
 
 ## Development rules
 

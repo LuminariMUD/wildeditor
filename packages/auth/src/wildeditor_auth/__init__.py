@@ -9,17 +9,29 @@ across all services.
 from .api_key import MultiKeyAuth, KeyType
 from .exceptions import AuthenticationError
 from .middleware import AuthMiddleware
-from .dependencies import (
-    verify_api_key, verify_mcp_key, verify_backend_access_key
+from .dependencies import verify_mcp_key
+from .bearer import BearerAuthenticator
+from .jwt_verifier import JWTIssuer, JWTVerifier, TokenValidationError
+from .principal import (
+    DEVELOPMENT_PRINCIPAL,
+    Principal,
+    PrincipalKind,
+    PrincipalRole,
 )
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 __all__ = [
     "MultiKeyAuth",
     "KeyType",
     "AuthenticationError",
     "AuthMiddleware",
-    "verify_api_key",
     "verify_mcp_key",
-    "verify_backend_access_key"
+    "BearerAuthenticator",
+    "JWTIssuer",
+    "JWTVerifier",
+    "TokenValidationError",
+    "DEVELOPMENT_PRINCIPAL",
+    "Principal",
+    "PrincipalKind",
+    "PrincipalRole",
 ]

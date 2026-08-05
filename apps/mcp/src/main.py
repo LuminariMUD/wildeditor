@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from wildeditor_auth import AuthMiddleware
 
+from .audit import AuditContextMiddleware
 from .config import settings
 from .routers import health, mcp_operations
 
@@ -25,8 +26,11 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting Wildeditor MCP Server v1.0.10 on port {settings.mcp_port}")
     logger.info(f"Environment: {settings.node_env}")
-    logger.info(f"Backend URL: {settings.backend_base_url}")
-    logger.info(f"API Key configured: {'Yes' if settings.api_key else 'No'}")
+    logger.info("Backend connection configured")
+    logger.info(
+        "Backend service key configured: %s",
+        "Yes" if settings.backend_service_key else "No",
+    )
     
     yield
     
@@ -59,8 +63,8 @@ app.add_middleware(
     AuthMiddleware,
     exclude_paths={"/health", "/docs", "/redoc", "/openapi.json", "/favicon.ico"},
     mcp_path_prefix="/mcp",
-    backend_path_prefix="/api"  # Not used in MCP server but required for middleware
 )
+app.add_middleware(AuditContextMiddleware)
 
 # Include routers
 app.include_router(health.router, tags=["Health"])

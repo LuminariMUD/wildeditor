@@ -20,6 +20,22 @@ interface RegionTabbedPanelProps {
 
 type TabType = 'properties' | 'description' | 'hints' | 'review';
 
+interface GeneratedHint {
+  category?: string;
+  hint_category?: string;
+  text?: string;
+  hint_text?: string;
+  priority?: number;
+  weather_conditions?: string[];
+  seasonal_weight?: Record<string, number>;
+  time_of_day_weight?: Record<string, number>;
+}
+
+interface GeneratedHintsResult {
+  text?: string;
+  hints?: GeneratedHint[];
+}
+
 // Helper to get region icon based on type
 const getRegionIcon = (regionType: number) => {
   switch (regionType) {
@@ -114,28 +130,17 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
     setHintsError(null);
     
     try {
-      // Call the backend proxy endpoint that will forward to MCP
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/mcp/call-tool`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_WILDEDITOR_API_KEY || ''}`
+      const data = await apiClient.callMcpTool<GeneratedHintsResult>(
+        'generate_hints_from_description',
+        {
+          region_vnum: region.vnum,
+          region_name: region.name,
+          description: descToUse,
+          target_hint_count: 20,
+          include_profile: true,
         },
-        body: JSON.stringify({
-          tool_name: 'generate_hints_from_description',
-          arguments: {
-            region_vnum: region.vnum,
-            region_name: region.name,
-            description: descToUse,
-            target_hint_count: 20,
-            include_profile: true
-          }
-        })
-      });
+      );
 
-      if (response.ok) {
-        const data = await response.json();
-        
         if (data.success && data.result) {
           // The backend should have already parsed the result properly
           const hintsData = data.result;
@@ -152,7 +157,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
           // Store the generated hints
           if (hintsData.hints && hintsData.hints.length > 0) {
             // Format hints for backend API (map 'category' to 'hint_category')
-            const formattedHints = hintsData.hints.map((hint: { category?: string; hint_category?: string; text?: string; hint_text?: string; priority?: number; weather_conditions?: string[]; seasonal_weight?: Record<string, number>; time_of_day_weight?: Record<string, number> }) => {
+            const formattedHints = hintsData.hints.map((hint: GeneratedHint) => {
               // Normalize category to lowercase and replace spaces with underscores
               const rawCategory = (hint.category || hint.hint_category || 'atmosphere');
               let normalizedCategory = rawCategory.toLowerCase().replace(/\s+/g, '_');
@@ -256,9 +261,6 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
         } else {
           throw new Error(data.error || 'Failed to generate hints');
         }
-      } else {
-        throw new Error(`Failed to generate hints: ${response.status}`);
-      }
     } catch (error) {
       setHintsError(error instanceof Error ? error.message : 'Failed to generate hints');
     } finally {

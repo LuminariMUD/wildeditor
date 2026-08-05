@@ -11,6 +11,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+def _tool_error(message: str, exc: Exception) -> Dict[str, str]:
+    """Return a stable public error while logging only the exception class."""
+
+    logger.error("%s: %s", message, type(exc).__name__)
+    return {"error": message}
+
 REGION_TYPE_VALUES = [1, 2, 3, 4, 5, 6, 7]
 REGION_TYPE_DESCRIPTION = (
     "1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override, "
@@ -20,9 +27,11 @@ REGION_TYPE_DESCRIPTION = (
 try:
     # Try relative import (when run as module)
     from ..config import settings
+    from ..audit import backend_request_headers
 except ImportError:
     # Fall back to absolute import (when run directly)
     from config import settings
+    from audit import backend_request_headers
 
 
 class ToolRegistry:
@@ -726,7 +735,7 @@ class ToolRegistry:
         """Search for regions and paths at or near specific coordinates"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 
                 # Use the /points endpoint which does spatial queries
                 response = await client.get(
@@ -766,7 +775,7 @@ class ToolRegistry:
                 return result
                 
             except httpx.HTTPError as e:
-                return {"error": f"Failed to search by coordinates: {str(e)}"}
+                return _tool_error("Failed to search by coordinates", e)
     
     def _contains_point(self, region: Dict[str, Any], x: float, y: float) -> bool:
         """Check if a region contains a point (simplified check)"""
@@ -779,7 +788,7 @@ class ToolRegistry:
         async with httpx.AsyncClient() as client:
             try:
                 # Get region data with full description
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 response = await client.get(
                     f"{settings.backend_base_url}/regions/{region_id}",
                     headers=headers,
@@ -818,7 +827,7 @@ class ToolRegistry:
                 return result
                 
             except httpx.HTTPError as e:
-                return {"error": f"Failed to analyze region: {str(e)}"}
+                return _tool_error("Failed to analyze region", e)
     
     # _find_path function removed - use spatial search instead
     
@@ -826,7 +835,7 @@ class ToolRegistry:
         """Search for regions with optional filters including spatial search"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 
                 # Check if this is a spatial search
                 if "x" in kwargs and "y" in kwargs:
@@ -914,14 +923,14 @@ class ToolRegistry:
                 return result
                 
             except httpx.HTTPError as e:
-                return {"error": f"Failed to search regions: {str(e)}"}
+                return _tool_error("Failed to search regions", e)
     
     async def _create_region(self, vnum: int, zone_vnum: int, name: str, region_type: int,
                            coordinates: List[Dict[str, float]], **kwargs) -> Dict[str, Any]:
         """Create a new region with comprehensive description"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 
                 # Build the region data with all fields
                 data: Dict[str, Any] = {
@@ -961,17 +970,7 @@ class ToolRegistry:
                 return response.json()
                 
             except httpx.HTTPError as e:
-                error_detail = str(e)
-                try:
-                    # Try to extract more detailed error information
-                    if hasattr(e, 'response') and e.response:
-                        if hasattr(e.response, 'text'):
-                            error_detail = f"{str(e)} - Response: {e.response.text()}"
-                        elif hasattr(e.response, 'json'):
-                            error_detail = f"{str(e)} - Detail: {e.response.json().get('detail', 'No details')}"
-                except:
-                    pass  # Use original error if parsing fails
-                return {"error": f"Failed to create region: {error_detail}"}
+                return _tool_error("Failed to create region", e)
     
     async def _create_path(self, vnum: int, zone_vnum: int, name: str, 
                           path_type: int, coordinates: List[Dict[str, float]],
@@ -979,7 +978,7 @@ class ToolRegistry:
         """Create a new path"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 data: Dict[str, Any] = {
                     "vnum": vnum,
                     "zone_vnum": zone_vnum,
@@ -1000,13 +999,13 @@ class ToolRegistry:
                 return response.json()
                 
             except httpx.HTTPError as e:
-                return {"error": f"Failed to create path: {str(e)}"}
+                return _tool_error("Failed to create path", e)
     
     async def _validate_connections(self, region_id: int, check_bidirectional: bool = True) -> Dict[str, Any]:
         """Validate region connections"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 response = await client.get(
                     f"{settings.backend_base_url}/regions/{region_id}/validate",
                     params={"check_bidirectional": check_bidirectional},
@@ -1018,7 +1017,7 @@ class ToolRegistry:
                 return response.json()
                 
             except httpx.HTTPError as e:
-                return {"error": f"Failed to validate connections: {str(e)}"}
+                return _tool_error("Failed to validate connections", e)
     
     def _analyze_region_description(self, region_data: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze region description and metadata"""
@@ -1118,7 +1117,7 @@ class ToolRegistry:
         """Analyze real-time terrain at specific coordinates"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 response = await client.get(
                     f"{settings.backend_base_url}/terrain/at-coordinates",
                     params={"x": x, "y": y},
@@ -1130,14 +1129,14 @@ class ToolRegistry:
                 return response.json()
                 
             except httpx.HTTPError as e:
-                return {"error": f"Failed to analyze terrain: {str(e)}"}
+                return _tool_error("Failed to analyze terrain", e)
     
     async def _find_static_wilderness_room(self, x: Optional[int] = None, y: Optional[int] = None, 
                                   vnum: Optional[int] = None) -> Dict[str, Any]:
         """Find static wilderness room by coordinates or VNUM"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 
                 if vnum is not None:
                     # Get room by VNUM
@@ -1161,13 +1160,13 @@ class ToolRegistry:
                 return response.json()
                 
             except httpx.HTTPError as e:
-                return {"error": f"Failed to find wilderness room: {str(e)}"}
+                return _tool_error("Failed to find wilderness room", e)
     
     async def _find_zone_entrances(self, zone_vnum: Optional[int] = None) -> Dict[str, Any]:
         """Find all zone entrances in the wilderness, optionally filtered by zone"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 params = {}
                 if zone_vnum is not None:
                     params["zone_vnum"] = zone_vnum
@@ -1192,7 +1191,7 @@ class ToolRegistry:
                 return data
                 
             except httpx.HTTPError as e:
-                return {"error": f"Failed to find zone entrances: {str(e)}"}
+                return _tool_error("Failed to find zone entrances", e)
     
     async def _generate_wilderness_map(self, center_x: int, center_y: int, radius: Optional[int] = None, 
                                       width: Optional[int] = None, height: Optional[int] = None,
@@ -1200,7 +1199,7 @@ class ToolRegistry:
         """Generate wilderness map for an area"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 
                 # Convert width/height to radius if provided
                 if width is not None and height is not None:
@@ -1234,14 +1233,14 @@ class ToolRegistry:
                 return response.json()
                 
             except httpx.HTTPError as e:
-                return {"error": f"Failed to generate wilderness map: {str(e)}"}
+                return _tool_error("Failed to generate wilderness map", e)
 
     async def _analyze_complete_terrain_map(self, center_x: int, center_y: int, radius: int = 5, 
                                           include_regions: bool = True, include_paths: bool = True) -> Dict[str, Any]:
         """Generate complete wilderness map including terrain + region/path overlays"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 
                 # 1. Get base terrain data
                 terrain_response = await client.get(
@@ -1296,7 +1295,7 @@ class ToolRegistry:
                 }
                 
             except httpx.HTTPError as e:
-                return {"error": f"Failed to analyze complete terrain: {str(e)}"}
+                return _tool_error("Failed to analyze complete terrain", e)
 
     async def _apply_terrain_overlays(self, base_terrain: Dict[str, Any]) -> Dict[str, Any]:
         """Apply region and path overlays to base terrain point using spatial queries"""
@@ -1315,7 +1314,7 @@ class ToolRegistry:
         # Use the spatial points endpoint to find affecting regions and paths
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 spatial_response = await client.get(
                     f"{settings.backend_base_url}/points",
                     params={"x": x, "y": y, "radius": 0.1},  # Small radius for exact point
@@ -1424,7 +1423,8 @@ class ToolRegistry:
                         
             except httpx.HTTPError as e:
                 # Continue without overlays if spatial query fails
-                result['overlays']['error'] = f"Spatial query failed: {str(e)}"
+                logger.error("Spatial overlay query failed: %s", type(e).__name__)
+                result['overlays']['error'] = "Spatial query failed"
         
         return result
     
@@ -1445,7 +1445,7 @@ class ToolRegistry:
             region_data = None
             if "region_vnum" in kwargs:
                 async with httpx.AsyncClient() as client:
-                    headers = {"Authorization": f"Bearer {settings.api_key}"}
+                    headers = backend_request_headers()
                     response = await client.get(
                         f"{settings.backend_base_url}/regions/{kwargs['region_vnum']}",
                         headers=headers,
@@ -1507,13 +1507,13 @@ class ToolRegistry:
             }
             
         except Exception as e:
-            return {"error": f"Failed to generate description: {str(e)}"}
+            return _tool_error("Failed to generate description", e)
     
     async def _update_region_description(self, vnum: int, **kwargs) -> Dict[str, Any]:
         """Update region description and metadata"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 
                 # Build update data
                 update_data = {}
@@ -1539,23 +1539,13 @@ class ToolRegistry:
                 return response.json()
                 
             except httpx.HTTPError as e:
-                error_detail = str(e)
-                try:
-                    # Try to extract more detailed error information
-                    if hasattr(e, 'response') and e.response:
-                        if hasattr(e.response, 'text'):
-                            error_detail = f"{str(e)} - Response: {e.response.text()}"
-                        elif hasattr(e.response, 'json'):
-                            error_detail = f"{str(e)} - Detail: {e.response.json().get('detail', 'No details')}"
-                except:
-                    pass  # Use original error if parsing fails
-                return {"error": f"Failed to update region description: {error_detail}"}
+                return _tool_error("Failed to update region description", e)
     
     async def _analyze_description_quality(self, vnum: int, suggest_improvements: bool = True) -> Dict[str, Any]:
         """Analyze description quality and suggest improvements"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 response = await client.get(
                     f"{settings.backend_base_url}/regions/{vnum}",
                     headers=headers,
@@ -1587,7 +1577,7 @@ class ToolRegistry:
                 return result
                 
             except httpx.HTTPError as e:
-                return {"error": f"Failed to analyze description quality: {str(e)}"}
+                return _tool_error("Failed to analyze description quality", e)
     
     def _compose_region_description(self, name: str, region_type: int, terrain_theme: str,
                                    style: str, length: str, sections: List[str], user_prompt: str = "") -> str:
@@ -1710,7 +1700,7 @@ class ToolRegistry:
             if region_vnum and not description:
                 debug_log.append(f"Fetching description for vnum {region_vnum}")
                 async with httpx.AsyncClient() as client:
-                    headers = {"Authorization": f"Bearer {settings.api_key}"}
+                    headers = backend_request_headers()
                     response = await client.get(
                         f"{settings.backend_base_url}/regions/{region_vnum}",
                         headers=headers
@@ -1727,7 +1717,7 @@ class ToolRegistry:
             
             # Analyze description and extract hints
             debug_log.append(f"Calling _extract_hints_from_description...")
-            logger.info(f"Calling AI service with description: {description[:100]}...")
+            logger.info("Calling AI service with description length %s", len(description))
             hints = await self._extract_hints_from_description(description, region_name, debug_log)
             debug_log.append(f"AI service returned {len(hints)} hints")
             logger.info(f"AI service returned {len(hints)} hints")
@@ -1749,10 +1739,9 @@ class ToolRegistry:
             }
             
         except Exception as e:
-            import traceback
-            debug_log.append(f"EXCEPTION: {str(e)}")
-            debug_log.append(f"Traceback: {traceback.format_exc()}")
-            return {"error": f"Failed to generate hints: {str(e)}", "debug_log": debug_log}
+            logger.error("Hint generation failed: %s", type(e).__name__)
+            debug_log.append("Hint generation failed")
+            return {"error": "Failed to generate hints", "debug_log": debug_log}
     
     async def _extract_hints_from_description(self, description: str, region_name: str = "", debug_log: List[str] = None) -> List[Dict[str, Any]]:
         """Extract categorized hints from description text using AI"""
@@ -1785,7 +1774,7 @@ class ToolRegistry:
             if hasattr(ai_service, 'is_hint_agent_available') and ai_service.is_hint_agent_available():
                 debug_log.append("Hint agent IS AVAILABLE - calling generate_hints_from_description")
                 logger.info("Hint agent is available, generating hints")
-                logger.info(f"Description preview: {description[:200]}...")
+                logger.info("Generating hints from %s description characters", len(description))
                 ai_result = await ai_service.generate_hints_from_description(
                     description=description,
                     region_name=region_name
@@ -1802,7 +1791,7 @@ class ToolRegistry:
                 # Fallback to checking general availability
                 debug_log.append("Using GENERAL availability check - calling generate_hints_from_description")
                 logger.warning("Using general AI availability check (hint agent might not be available)")
-                logger.info(f"Description preview: {description[:200]}...")
+                logger.info("Generating hints from %s description characters", len(description))
                 ai_result = await ai_service.generate_hints_from_description(
                     description=description,
                     region_name=region_name
@@ -1831,16 +1820,12 @@ class ToolRegistry:
             else:
                 debug_log.append(f"FAILURE: AI error: {ai_result.get('error')}")
                 logger.error(f"AI result has error: {ai_result.get('error')}")
-                logger.error(f"Full AI result: {ai_result}")
+                logger.error("AI hint generation returned an error")
             return []
             
         except Exception as e:
-            debug_log.append(f"EXCEPTION in _extract_hints: {str(e)}")
-            logger.error(f"AI hint extraction failed: {e}")
-            # Return error instead of fallback to templates
-            import traceback
-            debug_log.append(f"Traceback: {traceback.format_exc()}")
-            logger.error(f"Full traceback: {traceback.format_exc()}")
+            debug_log.append("AI hint extraction failed")
+            logger.error("AI hint extraction failed: %s", type(e).__name__)
             return []
 
     # REMOVED: _extract_hints_fallback - We only use AI agents for hint generation
@@ -1959,7 +1944,7 @@ class ToolRegistry:
                 return {"error": "No hints provided to store"}
             
             async with httpx.AsyncClient() as client:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 
                 # Store hints
                 hints_payload = {
@@ -1999,7 +1984,7 @@ class ToolRegistry:
                 }
                 
         except Exception as e:
-            return {"error": f"Failed to store hints: {str(e)}"}
+            return _tool_error("Failed to store hints", e)
     
     async def _get_region_hints(self, **kwargs) -> Dict[str, Any]:
         """Retrieve existing hints for a region"""
@@ -2012,7 +1997,7 @@ class ToolRegistry:
                 return {"error": "region_vnum is required"}
             
             async with httpx.AsyncClient() as client:
-                headers = {"Authorization": f"Bearer {settings.api_key}"}
+                headers = backend_request_headers()
                 
                 # Build query parameters
                 params = {}
@@ -2045,4 +2030,4 @@ class ToolRegistry:
                 }
                 
         except Exception as e:
-            return {"error": f"Failed to retrieve hints: {str(e)}"}
+            return _tool_error("Failed to retrieve hints", e)

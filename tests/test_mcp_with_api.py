@@ -4,12 +4,13 @@ Test MCP server with the backend API key
 """
 
 import json
+import os
 import requests
 
 # Configuration
-MCP_URL = "http://luminarimud.com:8001/mcp"
-MCP_KEY = "xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0="  # MCP key
-API_KEY = "0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu"  # Backend API key
+MCP_URL = os.getenv("WILDEDITOR_MCP_URL", "http://127.0.0.1:8001/mcp")
+MCP_KEY = os.environ["WILDEDITOR_MCP_KEY"]
+API_KEY = os.environ["WILDEDITOR_BACKEND_SERVICE_KEY"]
 
 def test_mcp_tool(tool_name, arguments):
     """Test an MCP tool that uses the backend API"""

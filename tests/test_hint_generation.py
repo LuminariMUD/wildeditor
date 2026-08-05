@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 import requests
 import json
+import os
+
+BACKEND_URL = os.getenv("WILDEDITOR_BACKEND_URL", "http://127.0.0.1:8000/api")
+SERVICE_KEY = os.environ["WILDEDITOR_BACKEND_SERVICE_KEY"]
 
 # Get the region first
 region_response = requests.get(
-    "http://luminarimud.com:8000/api/regions/9999001",
-    headers={"Authorization": "Bearer 0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu"}
+    f"{BACKEND_URL}/regions/9999001",
+    headers={"Authorization": f"Bearer {SERVICE_KEY}"}
 )
 
 if region_response.status_code != 200:
@@ -24,9 +28,9 @@ print(f"First 100 chars: {description[:100]}...")
 
 # Call the MCP tool via backend proxy
 response = requests.post(
-    "http://luminarimud.com:8000/api/mcp/call-tool",
+    f"{BACKEND_URL}/mcp/call-tool",
     headers={
-        "Authorization": "Bearer 0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu",
+        "Authorization": f"Bearer {SERVICE_KEY}",
         "Content-Type": "application/json"
     },
     json={

@@ -8,6 +8,11 @@ import json
 logger = logging.getLogger(__name__)
 
 
+def _tool_failure(message: str, exc: Exception) -> Dict[str, str]:
+    logger.error("%s: %s", message, type(exc).__name__)
+    return {"error": message}
+
+
 class WildernessTools:
     """Collection of tools for wilderness operations using MCP server exclusively"""
     
@@ -85,16 +90,15 @@ class WildernessTools:
                         )
                         result["description"] = desc_result["generated_description"]
                 except Exception as e:
-                    logger.warning(f"Failed to generate description: {str(e)}")
+                    logger.warning(
+                        "Automatic description generation failed: %s",
+                        type(e).__name__,
+                    )
             
             return result
             
         except Exception as e:
-            logger.error(f"Failed to create region: {str(e)}")
-            return {
-                "error": str(e),
-                "message": f"Failed to create region: {str(e)}"
-            }
+            return _tool_failure("Failed to create region", e)
     
     async def create_path(
         self,
@@ -132,11 +136,7 @@ class WildernessTools:
             return result
             
         except Exception as e:
-            logger.error(f"Failed to create path: {str(e)}")
-            return {
-                "error": str(e),
-                "message": f"Failed to create path: {str(e)}"
-            }
+            return _tool_failure("Failed to create path", e)
     
     async def generate_region_description(
         self,
@@ -169,8 +169,7 @@ class WildernessTools:
             return result
             
         except Exception as e:
-            logger.error(f"Failed to generate description: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to generate description", e)
     
     async def generate_region_hints(
         self,
@@ -198,8 +197,7 @@ class WildernessTools:
             return result
             
         except Exception as e:
-            logger.error(f"Failed to generate hints: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to generate hints", e)
     
     async def analyze_terrain(
         self,
@@ -219,8 +217,7 @@ class WildernessTools:
             return result
             
         except Exception as e:
-            logger.error(f"Failed to analyze terrain: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to analyze terrain", e)
     
     async def analyze_complete_terrain(
         self,
@@ -248,8 +245,7 @@ class WildernessTools:
             return result
             
         except Exception as e:
-            logger.error(f"Failed to analyze complete terrain: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to analyze complete terrain", e)
     
     async def search_regions(
         self,
@@ -282,8 +278,7 @@ class WildernessTools:
             return result
             
         except Exception as e:
-            logger.error(f"Failed to search regions: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to search regions", e)
     
     async def search_by_coordinates(
         self,
@@ -307,8 +302,7 @@ class WildernessTools:
             return result
             
         except Exception as e:
-            logger.error(f"Failed to search by coordinates: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to search by coordinates", e)
     
     async def find_zone_entrances(
         self,
@@ -326,8 +320,7 @@ class WildernessTools:
             return result
             
         except Exception as e:
-            logger.error(f"Failed to find zone entrances: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to find zone entrances", e)
     
     async def find_zone_entrances_near(
         self,
@@ -373,8 +366,7 @@ class WildernessTools:
             }
             
         except Exception as e:
-            logger.error(f"Failed to find nearby zone entrances: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to find nearby zone entrances", e)
     
     async def generate_wilderness_map(
         self,
@@ -398,8 +390,7 @@ class WildernessTools:
             return result
             
         except Exception as e:
-            logger.error(f"Failed to generate map: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to generate map", e)
     
     async def find_static_wilderness_room(
         self,
@@ -423,8 +414,7 @@ class WildernessTools:
             return result
             
         except Exception as e:
-            logger.error(f"Failed to find static room: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to find static room", e)
     
     async def analyze_region(
         self,
@@ -446,8 +436,7 @@ class WildernessTools:
             return result
             
         except Exception as e:
-            logger.error(f"Failed to analyze region: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to analyze region", e)
     
     async def update_region_description(
         self,
@@ -469,8 +458,7 @@ class WildernessTools:
             return result
             
         except Exception as e:
-            logger.error(f"Failed to update region description: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to update region description", e)
     
     async def store_region_hints(
         self,
@@ -496,8 +484,7 @@ class WildernessTools:
             return result
             
         except Exception as e:
-            logger.error(f"Failed to store hints: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to store hints", e)
     
     async def get_region_hints(
         self,
@@ -519,8 +506,7 @@ class WildernessTools:
             return result
             
         except Exception as e:
-            logger.error(f"Failed to get hints: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to get hints", e)
 
     # ========================================
     # SPATIAL INTELLIGENCE HELPER METHODS  
@@ -676,8 +662,7 @@ class WildernessTools:
             }
             
         except Exception as e:
-            logger.error(f"Failed to find space between regions: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to find space between regions", e)
 
     async def create_path_connecting_regions(
         self,
@@ -760,8 +745,7 @@ class WildernessTools:
             }
             
         except Exception as e:
-            logger.error(f"Failed to create connecting path: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to create connecting path", e)
 
     def _generate_curved_path(
         self, 
@@ -920,5 +904,4 @@ class WildernessTools:
             }
             
         except Exception as e:
-            logger.error(f"Failed to check region overlap: {str(e)}")
-            return {"error": str(e)}
+            return _tool_failure("Failed to check region overlap", e)

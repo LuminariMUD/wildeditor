@@ -5,22 +5,23 @@ Tests both direct API access and MCP tool calls
 """
 
 import json
+import os
 import requests
 import sys
 from typing import Dict, Any, Optional
 
 # Configuration
-BACKEND_URL = "http://luminarimud.com:8000/api"
-MCP_URL = "http://luminarimud.com:8001/mcp"
-BACKEND_API_KEY = "0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu"  # Your provided key
-MCP_KEY = "xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0="  # MCP access key
+BACKEND_URL = os.getenv("WILDEDITOR_BACKEND_URL", "http://127.0.0.1:8000/api")
+MCP_URL = os.getenv("WILDEDITOR_MCP_URL", "http://127.0.0.1:8001/mcp")
+BACKEND_SERVICE_KEY = os.getenv("WILDEDITOR_BACKEND_SERVICE_KEY", "")
+MCP_KEY = os.getenv("WILDEDITOR_MCP_KEY", "")
 
 def test_backend_direct(name: str, endpoint: str) -> bool:
     """Test direct backend API access"""
     print(f"\n🔍 Testing Backend Direct: {name}")
     
     headers = {
-        "Authorization": f"Bearer {BACKEND_API_KEY}",
+        "Authorization": f"Bearer {BACKEND_SERVICE_KEY}",
         "Content-Type": "application/json"
     }
     
@@ -109,13 +110,24 @@ def test_mcp_tool(name: str, tool_name: str, arguments: Dict[str, Any]) -> Optio
         return None
 
 def main():
+    missing = [
+        name
+        for name, value in (
+            ("WILDEDITOR_BACKEND_SERVICE_KEY", BACKEND_SERVICE_KEY),
+            ("WILDEDITOR_MCP_KEY", MCP_KEY),
+        )
+        if not value
+    ]
+    if missing:
+        print(f"Missing required operator credentials: {', '.join(missing)}")
+        return False
+
     print("=" * 70)
     print("COMPLETE INTEGRATION TEST")
     print("=" * 70)
     print(f"Backend URL: {BACKEND_URL}")
     print(f"MCP URL: {MCP_URL}")
-    print(f"Backend API Key: {BACKEND_API_KEY[:10]}...{BACKEND_API_KEY[-5:]}")
-    print(f"MCP Key: {MCP_KEY[:10]}...{MCP_KEY[-5:]}")
+    print("Server credentials are present; values and previews are suppressed.")
     
     # Track results
     backend_results = []
@@ -213,10 +225,9 @@ def main():
     print("=" * 70)
     
     if backend_passed == backend_total:
-        print("✅ Backend API Key: WORKING PERFECTLY")
-        print(f"   Key: {BACKEND_API_KEY}")
+        print("✅ Backend service credential: working")
     else:
-        print("❌ Backend API Key: ISSUES DETECTED")
+        print("❌ Backend service credential: issues detected")
     
     if mcp_passed > 0:
         print("✅ MCP Server: OPERATIONAL")
@@ -224,7 +235,7 @@ def main():
             print("   All MCP tools working with backend integration")
         else:
             print(f"   {mcp_passed}/{mcp_total} MCP tools working")
-            print("   ⚠️  Backend API key may not be configured in MCP server")
+            print("   ⚠️  Backend service key may not be configured in MCP server")
     else:
         print("❌ MCP Server: NOT WORKING PROPERLY")
         print("   The MCP server cannot access the backend API")
@@ -234,11 +245,8 @@ def main():
     print("=" * 70)
     
     if mcp_passed < mcp_total:
-        print("\n⚠️  MCP Server needs backend API key configuration:")
-        print("1. Add to GitHub Secrets:")
-        print(f"   WILDEDITOR_API_KEY = {BACKEND_API_KEY}")
-        print("2. Redeploy MCP server to apply the configuration")
-        print("3. The deployment will pass this key to the Docker container")
+        print("\n⚠️  Verify the server-only backend key is aligned between MCP and backend.")
+        print("Redeploy both services after correcting the protected secret.")
     else:
         print("\n✅ No actions required - everything is working!")
     

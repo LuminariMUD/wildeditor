@@ -1,16 +1,19 @@
 name: Backend CI/CD Pipeline
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main, develop ]
     paths:
       - 'apps/backend/**'
+      - 'packages/auth/**'
       - 'scripts/deploy-wildeditor-tunnel.sh'
       - '.github/workflows/backend-deploy.yml'
   pull_request:
     branches: [ main, develop ]
     paths:
       - 'apps/backend/**'
+      - 'packages/auth/**'
 
 env:
   PYTHON_VERSION: '3.14.6'
@@ -47,7 +50,7 @@ jobs:
           python -m pip install --no-deps -e packages/auth
           python -m pip install flake8==7.3.0 mypy==2.3.0 bandit==1.9.4
           python -m pip check
-          
+
       - name: Lint with flake8
         run: |
           # Stop build if there are Python syntax errors or undefined names
@@ -103,6 +106,8 @@ jobs:
     name: Build Docker Image
     runs-on: ubuntu-latest
     needs: test-backend
+    outputs:
+      image_digest: ${{ steps.build.outputs.digest }}
     permissions:
       contents: read
       packages: write
@@ -129,7 +134,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=sha,prefix={{branch}}-
+            type=sha,prefix=sha-
             type=raw,value=latest,enable={{is_default_branch}}
             
       - name: Build and push Docker image
@@ -152,7 +157,10 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: [test-backend, build-image]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && vars.SELF_HOSTED_AUTH_PRODUCTION_ENABLED == 'true'))
     
     environment:
       name: production
@@ -176,12 +184,12 @@ jobs:
       - name: Test SSH connection
         run: |
           echo "Testing SSH connection to ${{ secrets.PRODUCTION_HOST }}..."
-          ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "echo 'SSH connection successful'"
+          ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=yes ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "echo 'SSH connection successful'"
           
       - name: Setup server environment
         run: |
           echo "Verifying server environment..."
-          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'SETUP_EOF'
+          ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'SETUP_EOF'
           
           # Check if Docker is installed
           if ! command -v docker &> /dev/null; then
@@ -227,8 +235,19 @@ jobs:
       - name: Deploy to production server
         env:
           MYSQL_DATABASE_URL: ${{ secrets.MYSQL_DATABASE_URL }}
-          WILDEDITOR_API_KEY: ${{ secrets.WILDEDITOR_API_KEY }}
+          WILDEDITOR_BACKEND_SERVICE_KEY: ${{ secrets.WILDEDITOR_BACKEND_SERVICE_KEY }}
+          WILDEDITOR_MCP_KEY: ${{ secrets.WILDEDITOR_MCP_KEY }}
+          WILDEDITOR_AUTH_ISSUERS: ${{ vars.WILDEDITOR_AUTH_ISSUERS }}
+          DEPLOY_IMAGE: ${{ env.REGISTRY }}/luminarimud/wildeditor-backend@${{ needs.build-image.outputs.image_digest }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_ACTOR: ${{ github.actor }}
         run: |
+          WILDEDITOR_AUTH_ISSUERS="${WILDEDITOR_AUTH_ISSUERS:-https://auth.wildedit.luminarimud.com/auth/v1}"
+          case ",$WILDEDITOR_AUTH_ISSUERS," in
+            *,https://auth.wildedit.luminarimud.com/auth/v1,*) ;;
+            *) echo "❌ Trusted issuers must include self-hosted production Auth"; exit 1 ;;
+          esac
+
           # Check if database URL is provided
           if [ -z "$MYSQL_DATABASE_URL" ]; then
             echo "❌ MYSQL_DATABASE_URL secret is not set in GitHub repository"
@@ -237,16 +256,14 @@ jobs:
             exit 1
           fi
           
-          # Check if API key is provided
-          if [ -z "$WILDEDITOR_API_KEY" ]; then
-            echo "❌ WILDEDITOR_API_KEY secret is not set in GitHub repository"
-            echo "Please add it in Settings → Secrets and variables → Actions"
-            echo "Generate a secure API key using: [System.Convert]::ToBase64String((1..32 | ForEach-Object {Get-Random -Maximum 256}))"
+          # Check if the server-only MCP-to-backend key is provided.
+          if [ -z "$WILDEDITOR_BACKEND_SERVICE_KEY" ] || [ -z "$WILDEDITOR_MCP_KEY" ]; then
+            echo "❌ Backend service and MCP operation keys must both be set"
             exit 1
           fi
           
           echo "✅ Database URL is configured"
-          echo "✅ API key is configured"
+          echo "✅ Server-only backend service key is configured"
           
           # Create deployment script
           cat > deploy.sh << EOF
@@ -257,24 +274,31 @@ jobs:
           
           # Configuration
           APP_DIR="/opt/wildeditor-backend"
-          DOCKER_IMAGE="${{ env.REGISTRY }}/luminarimud/wildeditor-backend:latest"
+          DOCKER_IMAGE="\${DEPLOY_IMAGE:-}"
           CONTAINER_NAME="wildeditor-backend"
-          DATABASE_URL="$MYSQL_DATABASE_URL"
-          API_KEY="$WILDEDITOR_API_KEY"
+          DATABASE_URL="\${MYSQL_DATABASE_URL:-}"
+          BACKEND_SERVICE_KEY="\${WILDEDITOR_BACKEND_SERVICE_KEY:-}"
+          MCP_KEY="\${WILDEDITOR_MCP_KEY:-}"
+          AUTH_ISSUERS="\${WILDEDITOR_AUTH_ISSUERS:-}"
           
           # Validate database URL is not empty
           if [ -z "\$DATABASE_URL" ]; then
             echo "❌ Database URL not provided to deployment script"
             exit 1
           fi
-          
-          # Validate API key is not empty
-          if [ -z "\$API_KEY" ]; then
-            echo "❌ API key not provided to deployment script"
+
+          case "\$DOCKER_IMAGE" in
+            ghcr.io/luminarimud/wildeditor-backend@sha256:*) ;;
+            *) echo "❌ Refusing a non-immutable backend image"; exit 1 ;;
+          esac
+
+          # Validate the service boundary and exact issuer.
+          if [ -z "\$BACKEND_SERVICE_KEY" ] || [ -z "\$MCP_KEY" ] || [ -z "\$AUTH_ISSUERS" ]; then
+            echo "❌ Auth service-boundary configuration was not provided"
             exit 1
           fi
           
-          echo "✅ Database URL and API key received"
+          echo "✅ Database URL and auth boundary configuration received"
           
           # Test MySQL connectivity from host before starting container
           echo "🔍 Testing MySQL connectivity from host..."
@@ -321,10 +345,10 @@ jobs:
           cd \$APP_DIR
           
           # Login to GitHub Container Registry
-          echo "${{ secrets.GITHUB_TOKEN }}" | \$DOCKER_CMD login ghcr.io -u ${{ github.actor }} --password-stdin
+          printf '%s' "\$GHCR_TOKEN" | \$DOCKER_CMD login ghcr.io -u "\$GHCR_ACTOR" --password-stdin
           
-          # Pull latest image
-          echo "📦 Pulling latest Docker image..."
+          # Pull the exact digest produced by this workflow run.
+          echo "📦 Pulling immutable Docker image..."
           \$DOCKER_CMD pull \$DOCKER_IMAGE
           
           # Stop existing container
@@ -332,26 +356,21 @@ jobs:
           \$DOCKER_CMD stop \$CONTAINER_NAME || true
           \$DOCKER_CMD rm \$CONTAINER_NAME || true
           
-          # Get host IP for database connection
-          HOST_IP=\$(ip route show default | awk '/default/ {print \$3}')
-          if [ -z "\$HOST_IP" ]; then
-            # Fallback method to get host IP
-            HOST_IP=\$(hostname -I | awk '{print \$1}')
-          fi
-          echo "🌐 Detected host IP: \$HOST_IP"
-          
-          # Replace host.docker.internal or localhost in DATABASE_URL with actual host IP
-          UPDATED_DATABASE_URL=\$(echo "\$DATABASE_URL" | sed "s/host\\.docker\\.internal/\$HOST_IP/g" | sed "s/localhost/\$HOST_IP/g")
-          echo "🔗 Database host mapping updated"
-          
-          # Try host networking first, fallback to bridge networking
-          echo "🏃 Starting new container with host networking..."
-          if \$DOCKER_CMD run -d \\
+          # MariaDB listens on host loopback, so keep host networking while
+          # overriding the image command to bind the API to loopback too.
+          echo "🏃 Starting new container on the private loopback interface..."
+          \$DOCKER_CMD run -d \\
             --name \$CONTAINER_NAME \\
             --restart unless-stopped \\
             --network host \\
             -e MYSQL_DATABASE_URL="\$DATABASE_URL" \\
-            -e WILDEDITOR_API_KEY="\$API_KEY" \\
+            -e WILDEDITOR_BACKEND_SERVICE_KEY="\$BACKEND_SERVICE_KEY" \\
+            -e WILDEDITOR_AUTH_ISSUERS="\$AUTH_ISSUERS" \\
+            -e WILDEDITOR_AUTH_AUDIENCE="authenticated" \\
+            -e WILDEDITOR_AUTH_ALLOWED_ALGORITHMS="ES256" \\
+            -e WILDEDITOR_AUTH_JWKS_CACHE_TTL="300" \\
+            -e MCP_URL="http://localhost:8001/mcp" \\
+            -e MCP_API_KEY="\$MCP_KEY" \\
             -e REQUIRE_AUTH="true" \\
             -e WILDEDITOR_ENVIRONMENT="remote-production" \\
             -e ENVIRONMENT="production" \\
@@ -359,31 +378,13 @@ jobs:
             -e CORS_ORIGINS="https://wildedit.luminarimud.com" \\
             -e LOG_LEVEL="INFO" \\
             -v /var/log/wildeditor:/var/log/wildeditor \\
-            \$DOCKER_IMAGE; then
-            echo "✅ Container started with host networking (can use localhost for database)"
-          else
-            echo "⚠️  Host networking failed, trying bridge networking with IP substitution..."
-            \$DOCKER_CMD run -d \\
-              --name \$CONTAINER_NAME \\
-              --restart unless-stopped \\
-              -p 8000:8000 \\
-              -e MYSQL_DATABASE_URL="\$UPDATED_DATABASE_URL" \\
-              -e WILDEDITOR_API_KEY="\$API_KEY" \\
-              -e REQUIRE_AUTH="true" \\
-              -e WILDEDITOR_ENVIRONMENT="remote-production" \\
-              -e ENVIRONMENT="production" \\
-              -e PORT="8000" \\
-              -e CORS_ORIGINS="https://wildedit.luminarimud.com" \\
-              -e LOG_LEVEL="INFO" \\
-              -v /var/log/wildeditor:/var/log/wildeditor \\
-              \$DOCKER_IMAGE
-            echo "✅ Container started with bridge networking"
-          fi
+            \$DOCKER_IMAGE \\
+            python -m uvicorn src.main:app --host 127.0.0.1 --port 8000
           
           # Wait for container to be healthy
           echo "🏥 Waiting for health check..."
           for i in {1..30}; do
-            if \$DOCKER_CMD exec \$CONTAINER_NAME python -c "import requests; requests.get('http://localhost:8000/api/health')" 2>/dev/null; then
+            if \$DOCKER_CMD exec \$CONTAINER_NAME python -c "import requests; requests.get('http://localhost:8000/api/health', timeout=5).raise_for_status()" 2>/dev/null; then
               echo "✅ Container is healthy!"
               break
             fi
@@ -408,8 +409,8 @@ jobs:
                       conn = pymysql.connect(host=host, port=port, user=user, password=parsed.password, database=parsed.path[1:])
                       print('✅ Database connection successful!')
                       conn.close()
-                  except Exception as e:
-                      print(f'❌ Database connection failed: {e}')
+                  except Exception as exc:
+                      print(f'❌ Database connection failed: {type(exc).__name__}')
               else:
                   print('❌ No MYSQL_DATABASE_URL environment variable found')
               " || echo "Failed to test database connection"
@@ -426,14 +427,31 @@ jobs:
           echo "🎉 Deployment completed successfully!"
           EOF
           
-          # Copy and execute deployment script
+          deployment_env=$(mktemp)
+          trap 'rm -f "$deployment_env"' EXIT
+          chmod 600 "$deployment_env"
+          {
+            printf 'export MYSQL_DATABASE_URL=%q\n' "$MYSQL_DATABASE_URL"
+            printf 'export WILDEDITOR_BACKEND_SERVICE_KEY=%q\n' "$WILDEDITOR_BACKEND_SERVICE_KEY"
+            printf 'export WILDEDITOR_MCP_KEY=%q\n' "$WILDEDITOR_MCP_KEY"
+            printf 'export WILDEDITOR_AUTH_ISSUERS=%q\n' "$WILDEDITOR_AUTH_ISSUERS"
+            printf 'export DEPLOY_IMAGE=%q\n' "$DEPLOY_IMAGE"
+            printf 'export GHCR_TOKEN=%q\n' "$GHCR_TOKEN"
+            printf 'export GHCR_ACTOR=%q\n' "$GHCR_ACTOR"
+          } > "$deployment_env"
+
+          # Copy and execute deployment inputs without placing credentials in
+          # the SSH command or generated deployment script.
           echo "Copying deployment script to server..."
-          scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 deploy.sh ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:/tmp/
+          scp -o StrictHostKeyChecking=yes -o ConnectTimeout=30 deploy.sh ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:/tmp/
+          scp -o StrictHostKeyChecking=yes -o ConnectTimeout=30 "$deployment_env" ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:/tmp/deploy-backend.env
           
           echo "Executing deployment script on server..."
-          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
+          ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
+            chmod 600 /tmp/deploy-backend.env
             chmod +x /tmp/deploy.sh
-            trap 'rm -f /tmp/deploy.sh' EXIT
+            trap 'rm -f /tmp/deploy.sh /tmp/deploy-backend.env' EXIT
+            source /tmp/deploy-backend.env
             /tmp/deploy.sh
           "
 
@@ -446,7 +464,7 @@ jobs:
           test -n "$TUNNEL_ID"
 
           printf '%s' "$TUNNEL_CREDENTIALS_B64" | ssh \
-            -o StrictHostKeyChecking=no \
+            -o StrictHostKeyChecking=yes \
             -o ConnectTimeout=30 \
             ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} '
               set -e
@@ -466,9 +484,11 @@ jobs:
             '    service: http://127.0.0.1:8000' \
             '  - hostname: wildedit-chat.luminarimud.com' \
             '    service: http://127.0.0.1:8002' \
+            '  - hostname: auth.wildedit.luminarimud.com' \
+            '    service: http://127.0.0.1:8010' \
             '  - service: http_status:404' \
             | ssh \
-                -o StrictHostKeyChecking=no \
+                -o StrictHostKeyChecking=yes \
                 -o ConnectTimeout=30 \
                 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} '
                   set -e
@@ -479,13 +499,13 @@ jobs:
                 '
 
           scp \
-            -o StrictHostKeyChecking=no \
+            -o StrictHostKeyChecking=yes \
             -o ConnectTimeout=30 \
             scripts/deploy-wildeditor-tunnel.sh \
             ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:/tmp/
 
           ssh \
-            -o StrictHostKeyChecking=no \
+            -o StrictHostKeyChecking=yes \
             -o ConnectTimeout=30 \
             ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
               set -e
@@ -497,7 +517,7 @@ jobs:
 
       - name: Verify deployment
         env:
-          WILDEDITOR_API_KEY: ${{ secrets.WILDEDITOR_API_KEY }}
+          WILDEDITOR_BACKEND_SERVICE_KEY: ${{ secrets.WILDEDITOR_BACKEND_SERVICE_KEY }}
         run: |
           # Wait a moment for the service to be fully ready
           sleep 10
@@ -506,29 +526,33 @@ jobs:
           
           # Primary verification: Test from within the server (this should always work)
           echo "Testing API health endpoint from server..."
-          if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
-            echo '🏥 Testing health endpoint from server:'
-            if curl -s --connect-timeout 5 --max-time 10 http://localhost:8000/api/health; then
-              echo ''
-              echo '✅ Server-side health check PASSED'
+          if printf '%s\n' "$WILDEDITOR_BACKEND_SERVICE_KEY" | ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} '
+            set -e
+            IFS= read -r service_key
+            test -n "$service_key"
+            echo "🏥 Testing health endpoint from server:"
+            if curl -fsS --connect-timeout 5 --max-time 10 http://localhost:8000/api/health; then
+              echo
+              echo "✅ Server-side health check PASSED"
               
-              echo ''
-              echo '🔐 Testing authentication endpoint:'
-              if curl -s --connect-timeout 5 --max-time 10 -H 'Authorization: Bearer $WILDEDITOR_API_KEY' http://localhost:8000/api/auth/status | grep -q 'authenticated.*true'; then
-                echo '✅ Authentication endpoint PASSED'
+              echo
+              echo "🔐 Testing service authentication endpoint:"
+              if curl -fsS --connect-timeout 5 --max-time 10 -H "Authorization: Bearer $service_key" http://localhost:8000/api/auth/status | grep -q "\"kind\":\"service\""; then
+                echo "✅ Service authentication endpoint PASSED"
               else
-                echo '⚠️  Authentication endpoint test failed (but health check passed)'
+                echo "❌ Service authentication endpoint failed"
+                exit 1
               fi
               
               exit 0
             else
-              echo ''
-              echo '❌ Server-side health check FAILED'
-              echo 'Container logs:'
+              echo
+              echo "❌ Server-side health check FAILED"
+              echo "Container logs:"
               docker logs --tail 10 wildeditor-backend || true
               exit 1
             fi
-          "; then
+          '; then
             echo "✅ Server-side health check passed!"
           else
             echo "❌ Server-side health check failed!"
@@ -548,11 +572,11 @@ jobs:
           fi
 
           if curl -fsS --connect-timeout 10 --max-time 30 \
-            "https://wildedit-chat.luminarimud.com/health/" \
-            | grep -q '"service":"Chat Agent"'; then
-            echo "✅ Public HTTPS chat health check passed"
+            "https://wildedit-chat.luminarimud.com/health/ready" \
+            | grep -q '"ready":true'; then
+            echo "✅ Public HTTPS chat dependency readiness passed"
           else
-            echo "❌ Public HTTPS chat health check failed"
+            echo "❌ Public HTTPS chat dependency readiness failed"
             exit 1
           fi
           
@@ -569,15 +593,15 @@ jobs:
             - **Version**: \`${{ github.sha }}\`
             - **API URL**: https://wildedit-api.luminarimud.com/api
             - **Health Check**: ✅ Passing
-            - **Authentication**: 🔐 API Key Required
+            - **Authentication**: 🔐 Human JWT required; private service principal for MCP
             - **Deployed by**: @${{ github.actor }}
             
-            The backend is now live with API key authentication enabled!
+            The backend is now live with role-authorized JWT authentication enabled.
             
             **For Administrators:**
-            - Use the configured API key to access write operations
-            - Read operations are publicly accessible
-            - Test authentication: \`curl -H "Authorization: Bearer YOUR_API_KEY" https://wildedit-api.luminarimud.com/api/auth/status\``;
+            - Browsers send self-hosted Auth access tokens
+            - Read and write operations require an authorized principal
+            - Server credentials remain private to MCP/backend automation`;
             
             github.rest.repos.createCommitComment({
               owner: context.repo.owner,

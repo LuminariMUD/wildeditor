@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from './useAuth';
 import { apiClient } from '../services/api';
+import { developmentAuthDisabled } from '../lib/supabase';
 import { EditorState, DrawingTool, Coordinate, Region, Path } from '../types';
 
 const initialState: EditorState = {
@@ -35,14 +36,7 @@ export const useEditor = () => {
   const [savingItems, setSavingItems] = useState<Set<string>>(new Set());
 
   // Check if auth is disabled (for development mode)
-  const authDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true';
-
-  // Set API token when session changes (only if auth is enabled)
-  useEffect(() => {
-    if (!authDisabled && session?.access_token) {
-      apiClient.setToken(session.access_token);
-    }
-  }, [session, authDisabled]);
+  const authDisabled = developmentAuthDisabled;
 
   // Load data from API
   const loadData = useCallback(async () => {

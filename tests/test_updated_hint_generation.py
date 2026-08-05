@@ -4,10 +4,11 @@
 import requests
 import json
 import time
+import os
 
 # API configuration
-API_URL = "http://luminarimud.com:8000/api"
-API_KEY = "0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu"
+API_URL = os.getenv("WILDEDITOR_BACKEND_URL", "http://127.0.0.1:8000/api")
+API_KEY = os.environ["WILDEDITOR_BACKEND_SERVICE_KEY"]
 TEST_VNUM = 9999001  # Thornwall Thickets
 
 def test_hint_generation():

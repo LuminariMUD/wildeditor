@@ -27,6 +27,7 @@ sse-starlette==3.4.8
 
 # HTTP Client
 httpx==0.28.1
+PyJWT[crypto]==2.13.0
 
 # Async Support
 asyncio-throttle==1.0.2

@@ -2,12 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
+import logging
 from ..models.region import Region
 from ..models.path import Path
 from ..schemas.region import get_region_type_name, get_sector_type_name, REGION_SECTOR
 from ..config.config_database import get_db
+from ..middleware.auth import require_reader
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_reader)])
+logger = logging.getLogger(__name__)
 
 @router.get("", response_model=dict)
 @router.get("/", response_model=dict)
@@ -93,9 +96,10 @@ def get_point_info(
         }
         
     except Exception as e:
+        logger.error("Point query failed: %s", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving point information: {str(e)}"
+            detail="Error retrieving point information"
         )
 
 def _get_path_type_name(path_type: int) -> str:

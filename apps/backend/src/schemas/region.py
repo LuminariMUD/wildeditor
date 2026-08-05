@@ -111,21 +111,26 @@ class RegionBase(BaseModel):
                     return ""  # Allow empty for no encounters
                 
                 # Check if it's a comma-separated list of integers (mob vnums)
+                raw_vnums = [x.strip() for x in v.split(',') if x.strip()]
                 try:
-                    mob_vnums = [int(x.strip()) for x in v.split(',') if x.strip()]
-                    if not mob_vnums:
-                        return ""  # Empty list defaults to empty string
-                    
-                    # Validate vnum ranges (LuminariMUD vnum range)
-                    for vnum in mob_vnums:
-                        if vnum < 1 or vnum > 99999999:
-                            raise ValueError(f'Invalid mob vnum: {vnum}. Must be between 1 and 99999999.')
-                    
-                    return ','.join(str(vnum) for vnum in mob_vnums)
-                except ValueError as e:
-                    if "invalid literal" in str(e):
-                        raise ValueError('REGION_ENCOUNTER region_reset_data must be comma-separated mob vnums (e.g., "1001,1002,1003") or empty for no encounters')
-                    raise e
+                    mob_vnums = [int(raw_vnum) for raw_vnum in raw_vnums]
+                except ValueError as exc:
+                    raise ValueError(
+                        'REGION_ENCOUNTER region_reset_data must be comma-separated '
+                        'mob vnums (e.g., "1001,1002,1003") or empty for no encounters'
+                    ) from exc
+
+                if not mob_vnums:
+                    return ""  # Empty list defaults to empty string
+
+                # Validate vnum ranges (LuminariMUD vnum range)
+                for vnum in mob_vnums:
+                    if vnum < 1 or vnum > 99999999:
+                        raise ValueError(
+                            f'Invalid mob vnum: {vnum}. Must be between 1 and 99999999.'
+                        )
+
+                return ','.join(str(vnum) for vnum in mob_vnums)
         
         # For non-encounter regions, allow any string
         return v if v is not None else ""

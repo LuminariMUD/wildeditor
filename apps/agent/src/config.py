@@ -2,7 +2,7 @@
 import os
 from typing import Literal, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, model_validator
 
 
 class Settings(BaseSettings):
@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     )
     
     # Server Configuration
+    wildeditor_environment: Literal[
+        "local-development",
+        "remote-production",
+    ] = Field(
+        default="local-development",
+        validation_alias="WILDEDITOR_ENVIRONMENT",
+    )
     host: str = "0.0.0.0"
     port: int = 8002
     debug: bool = False
@@ -44,7 +51,7 @@ class Settings(BaseSettings):
     # This provides a single contact surface for the agent
     
     # Session Storage Configuration
-    storage_backend: str = "memory"  # memory or redis
+    storage_backend: Literal["memory", "redis"] = "memory"
     redis_url: Optional[str] = "redis://localhost:6379"
     session_ttl: int = 86400  # 24 hours
     
@@ -56,6 +63,18 @@ class Settings(BaseSettings):
     
     # Logging Configuration
     log_level: str = "INFO"
+
+    @model_validator(mode="after")
+    def validate_session_storage(self) -> "Settings":
+        """Reject ephemeral or incomplete production session storage."""
+        if (
+            self.wildeditor_environment == "remote-production"
+            and self.storage_backend != "redis"
+        ):
+            raise ValueError("remote-production requires STORAGE_BACKEND=redis")
+        if self.storage_backend == "redis" and not self.redis_url:
+            raise ValueError("REDIS_URL is required when STORAGE_BACKEND=redis")
+        return self
 
 
 settings = Settings()

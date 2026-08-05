@@ -50,18 +50,32 @@ interface StreamChunk {
 
 class ChatAPIClient {
   private baseUrl: string;
+  private token?: string;
 
   constructor() {
     // Use the dedicated TLS endpoint backed by the production Cloudflare tunnel.
     this.baseUrl = import.meta.env.VITE_CHAT_API_URL || 'https://wildedit-chat.luminarimud.com';
   }
 
+  setToken(token?: string) {
+    this.token = token;
+  }
+
+  private authenticatedHeaders(extra: Record<string, string> = {}): Record<string, string> {
+    if (!this.token) {
+      throw new Error('A signed-in session is required for chat.');
+    }
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${this.token}`,
+      ...extra,
+    };
+  }
+
   async createSession(): Promise<ChatSession> {
     const response = await fetch(`${this.baseUrl}/api/session/`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.authenticatedHeaders(),
       body: JSON.stringify({})
     });
 
@@ -75,9 +89,7 @@ class ChatAPIClient {
   async sendMessage(message: string, sessionId: string): Promise<ChatResponse> {
     const response = await fetch(`${this.baseUrl}/api/chat/message`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.authenticatedHeaders(),
       body: JSON.stringify({
         message,
         session_id: sessionId
@@ -98,10 +110,7 @@ class ChatAPIClient {
   ): AsyncGenerator<StreamChunk, void, unknown> {
     const response = await fetch(`${this.baseUrl}/api/chat/stream`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream',
-      },
+      headers: this.authenticatedHeaders({ Accept: 'text/event-stream' }),
       body: JSON.stringify({
         message,
         session_id: sessionId
@@ -161,7 +170,9 @@ class ChatAPIClient {
   }
 
   async getHistory(sessionId: string): Promise<Record<string, unknown>> {
-    const response = await fetch(`${this.baseUrl}/api/chat/history?session_id=${sessionId}`);
+    const response = await fetch(`${this.baseUrl}/api/chat/history?session_id=${sessionId}`, {
+      headers: this.authenticatedHeaders(),
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to get chat history: ${response.status}`);

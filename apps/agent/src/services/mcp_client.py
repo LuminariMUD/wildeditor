@@ -3,26 +3,89 @@ import httpx
 from typing import Optional, Dict, Any, List
 import logging
 from config import settings
+from services.request_context import current_request_context
 
 logger = logging.getLogger(__name__)
+
+ALLOWED_AGENT_TOOLS = frozenset({
+    "analyze_complete_terrain_map",
+    "analyze_description_quality",
+    "analyze_region",
+    "analyze_terrain_at_coordinates",
+    "create_path",
+    "create_region",
+    "find_static_wilderness_room",
+    "find_zone_entrances",
+    "generate_hints_from_description",
+    "generate_region_description",
+    "generate_wilderness_map",
+    "get_region_hints",
+    "search_by_coordinates",
+    "search_regions",
+    "store_region_hints",
+    "update_region_description",
+})
 
 
 class MCPClient:
     """Client for interacting with the MCP server"""
     
     def __init__(self):
-        self.base_url = settings.wilderness_mcp_url
+        self.base_url = settings.wilderness_mcp_url.rstrip("/")
         self.api_key = settings.mcp_api_key
-        self.headers = {
-            "X-API-Key": self.api_key,
-            "Content-Type": "application/json"
-        }
-        logger.info(f"Initialized MCPClient with base URL: {self.base_url}")
+        logger.info("Initialized MCP client")
+
+    async def health_check(self) -> bool:
+        """Verify the authenticated MCP readiness boundary."""
+        if not self.api_key:
+            logger.error("MCP readiness check failed: service key is not configured")
+            return False
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/health/detailed",
+                    headers={"X-API-Key": self.api_key},
+                    timeout=3.0,
+                )
+        except httpx.HTTPError as exc:
+            logger.error("MCP readiness check failed (%s)", type(exc).__name__)
+            return False
+
+        if response.status_code != 200:
+            logger.error(
+                "MCP readiness check failed with status %s",
+                response.status_code,
+            )
+            return False
+
+        try:
+            payload = response.json()
+        except ValueError:
+            logger.error("MCP readiness check returned invalid JSON")
+            return False
+        return payload.get("ready") is True
     
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call an MCP tool with given arguments"""
+        context = current_request_context.get()
+        if context is None:
+            raise PermissionError("MCP tools require authenticated request context")
+        if context.role not in {"editor", "admin"}:
+            raise PermissionError("caller role cannot invoke chat tools")
+        if tool_name not in ALLOWED_AGENT_TOOLS:
+            raise PermissionError(f"agent tool is not authorized: {tool_name}")
+        if not self.api_key:
+            raise RuntimeError("MCP_API_KEY is not configured")
+
+        headers = {
+            "X-API-Key": self.api_key,
+            "Content-Type": "application/json",
+            "X-Wildeditor-Actor": context.actor,
+            "X-Wildeditor-Request-ID": context.request_id,
+        }
         request_data = {
-            "id": f"chat-agent-{tool_name}",
+            "id": f"chat-agent-{context.request_id}",
             "method": "tools/call",
             "params": {
                 "name": tool_name,
@@ -34,23 +97,21 @@ class MCPClient:
             response = await client.post(
                 f"{self.base_url}/mcp/request",
                 json=request_data,
-                headers=self.headers,
+                headers=headers,
                 timeout=60.0
             )
             
             # Check HTTP status first
             if response.status_code != 200:
-                logger.error(f"MCP request failed with status {response.status_code}: {response.text}")
+                logger.error("MCP request failed with status %s", response.status_code)
                 raise Exception(f"MCP request failed: {response.status_code}")
             
             result = response.json()
-            logger.debug(f"MCP response: {result}")
             
             # Check for error in response
             if "error" in result and result["error"] is not None:
-                error_msg = result.get('error', 'Unknown error')
-                logger.error(f"MCP returned error: {error_msg}")
-                raise Exception(f"MCP error: {error_msg}")
+                logger.error("MCP returned a JSON-RPC error")
+                raise RuntimeError("MCP request failed")
             
             # Parse MCP response format
             if "result" in result:
@@ -130,8 +191,8 @@ class MCPClient:
                 "find_static_wilderness_room",
                 {"x": x, "y": y}
             )
-        except Exception as e:
-            logger.warning(f"No room found at ({x}, {y}): {str(e)}")
+        except Exception:
+            logger.warning("No static room found at requested coordinates")
             return None
     
     async def find_zone_entrances(self) -> List[Dict[str, Any]]:

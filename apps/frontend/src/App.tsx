@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo } from 'react';
-import { AuthCallback } from './components/AuthCallback';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { SimpleMapCanvas } from './components/SimpleMapCanvas';
 import { ToolPalette } from './components/ToolPalette';
@@ -149,11 +148,6 @@ function App() {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [setTool, selectItem, cancelDrawing, state.isDrawing, finishDrawing]);
-
-  // Handle auth callback route
-  if (window.location.pathname === '/auth/callback') {
-    return <AuthCallback />;
-  }
 
   const handleSignOut = async () => {
     await signOut();

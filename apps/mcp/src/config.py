@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     
     # Authentication - Two-key system
-    api_key: str = ""  # Backend API access (shared with backend)
+    backend_service_key: str = ""  # Server-only MCP-to-backend Bearer key
     mcp_key: str = ""  # MCP operations (for AI agents)
     
     # External services

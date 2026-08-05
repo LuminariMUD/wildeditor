@@ -12,9 +12,11 @@ import json
 try:
     # Try relative import (when run as module)
     from ..config import settings
+    from ..audit import backend_request_headers
 except ImportError:
     # Fall back to absolute import (when run directly)
     from config import settings
+    from audit import backend_request_headers
 
 
 class ResourceRegistry:
@@ -208,7 +210,7 @@ class ResourceRegistry:
         """Get region statistics from backend"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"X-API-Key": settings.api_key}
+                headers = backend_request_headers()
                 response = await client.get(
                     f"{settings.backend_base_url}/stats/regions",
                     headers=headers,
@@ -312,7 +314,7 @@ class ResourceRegistry:
         """Get recently modified regions"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"X-API-Key": settings.api_key}
+                headers = backend_request_headers()
                 response = await client.get(
                     f"{settings.backend_base_url}/regions/recent",
                     params={"limit": 10},
@@ -376,7 +378,7 @@ class ResourceRegistry:
         """Get wilderness map overview"""
         async with httpx.AsyncClient() as client:
             try:
-                headers = {"X-API-Key": settings.api_key}
+                headers = backend_request_headers()
                 response = await client.get(
                     f"{settings.backend_base_url}/map/overview",
                     headers=headers,

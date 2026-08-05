@@ -11,21 +11,9 @@ from .api_key import MultiKeyAuth, KeyType
 auth_instance = MultiKeyAuth()
 
 
-async def verify_api_key(x_api_key: Optional[str] = Header(None)) -> bool:
-    """Verify backend API key"""
-    return auth_instance.verify_key(x_api_key, KeyType.BACKEND_API)
-
-
 async def verify_mcp_key(x_api_key: Optional[str] = Header(None)) -> bool:
     """Verify MCP operations key"""
     return auth_instance.verify_key(x_api_key, KeyType.MCP_OPERATIONS)
-
-
-async def verify_backend_access_key(
-        x_api_key: Optional[str] = Header(None)) -> bool:
-    """Verify MCP backend access key"""
-    return auth_instance.verify_key(x_api_key, KeyType.MCP_BACKEND_ACCESS)
-
 
 def get_auth_dependency(key_type: KeyType):
     """
@@ -45,6 +33,4 @@ def get_auth_dependency(key_type: KeyType):
 
 
 # Convenience dependencies for common use cases
-RequireBackendKey = Depends(verify_api_key)
 RequireMCPKey = Depends(verify_mcp_key)
-RequireBackendAccessKey = Depends(verify_backend_access_key)

@@ -1,8 +1,13 @@
+import logging
+import os
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import os
-from dotenv import load_dotenv
+
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file (if it exists)
 load_dotenv()
@@ -19,7 +24,7 @@ def get_database_url():
     # If explicit DATABASE_URL is provided, use it
     explicit_url = os.getenv("MYSQL_DATABASE_URL")
     if explicit_url and explicit_url != "mysql+pymysql://wildeditor_user:YOUR_PASSWORD@localhost:3306/luminari_muddev":
-        print(f"Using explicit database URL: {explicit_url.split('@')[0]}@***")
+        logger.info("Database connection configured from MYSQL_DATABASE_URL")
         return explicit_url
     
     # Get individual components with environment-based defaults
@@ -29,11 +34,11 @@ def get_database_url():
     if environment == "production":
         # Production: assume database is on same server
         db_host = os.getenv("DB_HOST", "localhost")
-        print(f"Production environment detected - using database host: {db_host}")
+        logger.info("Production database connection configured")
     else:
         # Development: use remote database
         db_host = os.getenv("DB_HOST", "your-remote-db-server.com")
-        print(f"Development environment detected - using database host: {db_host}")
+        logger.info("Development database connection configured")
     
     # Other database parameters
     db_user = os.getenv("DB_USER", "wildeditor_user")
@@ -42,12 +47,10 @@ def get_database_url():
     db_name = os.getenv("DB_NAME", "luminari_muddev")
     
     if not db_password:
-        print("WARNING: DB_PASSWORD not set - this will likely cause connection issues")
+        logger.warning("DB_PASSWORD is not configured")
     
     # Construct URL
     database_url = f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-    print(f"Constructed database URL: mysql+pymysql://{db_user}:***@{db_host}:{db_port}/{db_name}")
-    
     return database_url
 
 DATABASE_URL = get_database_url()
@@ -56,7 +59,7 @@ if not DATABASE_URL:
     # For testing and CI environments, provide a default test database URL
     if os.getenv("TESTING") or "pytest" in os.environ.get("_", ""):
         DATABASE_URL = "mysql+pymysql://test:test@localhost:3306/test_db"
-        print("Using test database URL")
+        logger.info("Using the test database configuration")
     else:
         raise RuntimeError("Unable to determine database URL. Please configure DB_HOST, DB_USER, DB_PASSWORD, and DB_NAME environment variables.")
 

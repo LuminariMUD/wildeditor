@@ -35,7 +35,11 @@ No functional frontend test runner is configured. The workspace `test` script is
 
 ## Security status
 
-`VITE_` variables are public. The current mutation flow still reads `VITE_WILDEDITOR_API_KEY`, which is unsuitable as a production secret. See [Configuration](../../docs/configuration.md) and the [active authentication migration plan](../../docs/ongoing-projects/self-hosted-postgres-auth-migration-plan.md).
+`VITE_` variables are public. The browser sends a user's short-lived access
+token to protected APIs and contains no backend or MCP service credential. The
+self-hosted Auth publishable key is intentionally public. See
+[Configuration](../../docs/configuration.md) and the
+[authentication migration plan](../../docs/ongoing-projects/self-hosted-postgres-auth-migration-plan.md).
 
 ## Further reading
 
