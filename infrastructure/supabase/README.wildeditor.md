@@ -28,6 +28,17 @@ Wildeditor production boundary on top:
 Do not run the legacy SQL under the repository root `supabase/migrations/`.
 Wildeditor game/wilderness data remains exclusively in MariaDB.
 
+## Credential locations
+
+- `infrastructure/supabase/.env` is the ignored, mode-`0600` Auth runtime
+  environment. SMTP delivery uses `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, and
+  `SMTP_PASS` from this file.
+- The repository-root `.env` is the ignored, mode-`0600` operator environment.
+  `SMTP2GO_API_KEY` lives there for SMTP2GO API administration only; GoTrue
+  does not use it and it must not be copied into this stack.
+- Values never belong in `.env.example`, documentation, Git history, Vite
+  variables, or command output.
+
 For an isolated local Auth/email rehearsal, append
 `docker-compose.wildeditor-test.yml` to `COMPOSE_FILE`. That explicit test
 override enables signup and adds a loopback-only Inbucket mailbox on port 9010;

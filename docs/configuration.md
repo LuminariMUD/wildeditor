@@ -2,6 +2,22 @@
 
 Each application loads its own environment. Copy the example beside the service you are running; do not place real credentials in version control. Root environment examples are reference indexes, not a shared runtime configuration file.
 
+## Self-hosted Auth operator credentials
+
+The two SMTP2GO credential classes intentionally live in different ignored,
+owner-readable files:
+
+| Location | Variables | Consumer |
+| --- | --- | --- |
+| `infrastructure/supabase/.env` | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | Supabase Auth/GoTrue SMTP delivery |
+| Root `.env` | `SMTP2GO_API_KEY` | Operator-only SMTP2GO API access; not mounted into or required by Auth |
+
+Both files must remain Git-ignored with mode `0600`. Never copy their values
+into examples or documentation. On first production installation, the complete
+reviewed `infrastructure/supabase/.env` is transported through the protected
+`SELF_HOSTED_AUTH_ENV_B64` GitHub secret; the root operator `.env` is never
+deployed.
+
 ## Frontend
 
 Vite embeds every `VITE_` value into public browser assets at build time.

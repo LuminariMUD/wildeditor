@@ -14,19 +14,19 @@ profiles, and usage logs.
 | Auth API/issuer | `https://auth.wildedit.luminarimud.com/auth/v1` | Selected |
 | Hosting | Existing Wildeditor production host; gateway loopback port `8010` | Selected |
 | Signup | Invite-only (`DISABLE_SIGNUP=true`) | Selected |
-| Roles | `viewer`, `editor`, `admin`; active approved users default to `editor`; smallest practical admin set | Needs reviewed UUID map |
+| Roles | `viewer`, `editor`, `admin`; this is a clean start, so assign the first approved accounts explicitly and keep the smallest practical admin set | Initial account/role assignment needed |
 | Stack | Official Docker snapshot `self-hosted/v0.7.2`; exact commit in `UPSTREAM_VERSION`; PostgreSQL 17 and GoTrue versions are pinned in Compose | Selected |
-| SMTP | Sender `auth@luminarimud.com`; the production host relays through SMTP2GO with SASL and encrypted transport, but no dedicated Auth mailbox or Wildeditor-accessible relay credential exists | **Cutover blocker: supply and test a dedicated credential** |
+| SMTP | Dedicated SMTP2GO SMTP credentials are stored in the protected local Auth environment; TLS authentication passed without sending mail on 2026-08-06 | **Cutover blocker: prove delivery/recovery end to end** |
 | Backup policy | Daily encrypted database dump; 30-day online retention; GitHub Actions artifact is the selected off-host destination | Encryption recipient, recoverable off-host identity, and owner needed |
-| Recovery objective | Proposed RPO 24 hours and RTO 4 hours | Owner approval needed |
-| Rollback window | Proposed seven days | Owner approval needed |
-| Rollback owner | Wildeditor production operator | Named person needed |
-| Managed source | Deployed client contains placeholder `your-project.supabase.co`; repository history contains only example project URLs; no working project reference, database connection, or safe inventory is available | **Migration evidence blocker: source access or explicit zero-user owner record required** |
+| Recovery objective | RPO 24 hours and RTO 4 hours | Selected |
+| Rollback window | Seven days | Selected |
+| Rollback owner | GitHub operator `moshehbenavraham` | Selected |
+| Managed source | Owner confirmed on 2026-08-06 that the former free-tier hosted Supabase database was deleted; no source data or credentials remain to export | Resolved as an explicit clean start; prior users must create new accounts |
 
 Do not declare a production cutover complete while any bold gate above remains.
-If there was never a real managed project or active user, the owner must record
-that explicitly; it is not valid to infer an empty source from a broken client
-configuration.
+The recorded owner confirmation resolves the source-export decision only. It
+does not waive fresh-account role assignment, SMTP delivery, backup recovery,
+or the remaining cutover checks.
 
 ## Automated controls
 
@@ -69,6 +69,17 @@ the Redis credential are populated in GitHub by name-only verification. Both
 `SELF_HOSTED_AUTH_OPERATIONS_ENABLED` are explicitly `false`; preparing these
 values does not authorize or trigger a deployment. The generated values were
 not printed or copied into this repository.
+
+SMTP credential locations are deliberately split:
+
+- `infrastructure/supabase/.env` (ignored, mode `0600`) contains the SMTP host,
+  port, username, and password consumed by GoTrue.
+- The repository-root `.env` (ignored, mode `0600`) contains
+  `SMTP2GO_API_KEY` for operator API access only. It is not an Auth runtime
+  input and must not be deployed with the stack.
+
+Record locations and variable names only. Never record either credential value
+in this runbook, examples, issues, commits, or workflow output.
 
 Backend and chat default to the self-hosted issuer only. If a real managed
 source exists, set the protected production variable `WILDEDITOR_AUTH_ISSUERS`
@@ -296,6 +307,6 @@ PostgreSQL major-version image against an existing older data directory.
 | Date UTC | Environment | Export/backup checksum | Source/target counts matched | Auth flow | Restore elapsed | Operator | Outcome |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-08-05 | Disposable local pinned stack | Matched by full drill | Yes, including UUID aggregate and owners/ACLs | Confirmation, role, login, refresh, logout/revocation, recovery/update, post-restore login, and real-token backend/chat ownership passed | Completed; timing not yet accepted as production rehearsal | Codex/local operator | Passed; engineering proof only, not a source-data rehearsal |
-| Not yet run | Rehearsal 1 | Pending | Pending | Pending | Pending | Pending | Blocked on source/SMTP |
-| Not yet run | Rehearsal 2 | Pending | Pending | Pending | Pending | Pending | Blocked on source/SMTP |
+| Not yet run | Rehearsal 1 | Clean-start baseline | Pending | Pending | Pending | Pending | Blocked on live SMTP delivery and backup recipient |
+| Not yet run | Rehearsal 2 | Clean-start baseline | Pending | Pending | Pending | Pending | Blocked on rehearsal 1 inputs |
 | Not yet run | Production-like restore | Pending | Pending | Pending | Pending | Pending | Not started |
