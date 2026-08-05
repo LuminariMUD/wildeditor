@@ -73,24 +73,24 @@ Integrated PydanticAI with multiple provider support:
 
 ### Test Scripts Available
 
-1. **test_mcp_endpoints.py** - Test all standard endpoints
-2. **test_mcp_local.py** - Test MCP server locally
-3. **test_mcp_server.py** - Test MCP tools functionality
-4. **test_openai_integration.py** - Test AI integration
+1. **tests/test_mcp_endpoints.py** - Test all standard endpoints
+2. **tests/test_mcp_local.py** - Test MCP server locally
+3. **tests/test_mcp_server.py** - Test MCP tools functionality
+4. **tests/test_openai_integration.py** - Test AI integration
 
 ### Running Tests
 
 ```bash
 # Test endpoints
-python3 test_mcp_endpoints.py
+python3 tests/test_mcp_endpoints.py
 
 # Test locally with virtual environment
 source apps/mcp/venv/bin/activate
-python3 test_mcp_local.py
+python3 tests/test_mcp_local.py
 
 # Test AI integration
 export OPENAI_API_KEY="your-key"
-python3 test_openai_simple.py
+python3 tests/test_openai_simple.py
 ```
 
 ## Deployment

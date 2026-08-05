@@ -51,7 +51,7 @@ You now only need to add **ONE** new secret:
 ### **Key Generation**
 Run this to generate the single new key:
 ```powershell
-.\generate-mcp-keys.ps1
+.\scripts\generate-mcp-keys.ps1
 ```
 
 ## ✅ **Testing Results**

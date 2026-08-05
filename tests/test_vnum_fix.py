@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import sys
-import os
-backend_src = os.path.join(os.path.dirname(__file__), 'apps', 'backend', 'src')
-sys.path.insert(0, backend_src)
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT / "apps" / "backend" / "src"))
 
 from schemas.region import RegionResponse
 

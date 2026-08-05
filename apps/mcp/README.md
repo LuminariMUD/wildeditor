@@ -226,7 +226,7 @@ DeepSeek provides a cost-effective alternative with strong performance:
 
 ```bash
 # Test the complete fallback chain
-python test_ollama_integration.py
+python ../../tests/test_ollama_integration.py
 
 # Expected results:
 # ✅ Ollama Connectivity
@@ -237,9 +237,9 @@ python test_ollama_integration.py
 ## 🧪 Testing
 
 ### Manual Testing
-```bash
+```powershell
 # Load test script
-. ./test-terrain-bridge-api.ps1
+. ..\..\tests\test-terrain-bridge-api.ps1
 
 # Run quick test suite  
 Test-WildernessAPI

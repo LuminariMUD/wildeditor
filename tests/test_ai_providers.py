@@ -7,6 +7,9 @@ import os
 import asyncio
 import sys
 import json
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 # Test different scenarios locally
 async def test_scenario(scenario_name, env_setup):
@@ -23,7 +26,7 @@ async def test_scenario(scenario_name, env_setup):
             os.environ[key] = value
     
     # Import after setting environment
-    sys.path.insert(0, 'apps/mcp/src')
+    sys.path.insert(0, str(PROJECT_ROOT / "apps" / "mcp" / "src"))
     from services.ai_service import AIService
     
     # Create service and test

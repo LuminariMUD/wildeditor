@@ -143,7 +143,7 @@ def main():
         print("3. Try asking: 'What wilderness management tools are available?'")
     else:
         print("\n⚠️  Some tests failed. Please check the configuration.")
-        print("Run the setup script: .\\setup-copilot-mcp.ps1")
+        print("Run the setup script: .\\scripts\\setup-copilot-mcp.ps1")
 
 
 if __name__ == "__main__":

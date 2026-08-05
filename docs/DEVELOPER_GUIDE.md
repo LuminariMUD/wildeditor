@@ -75,9 +75,11 @@ wildeditor/
 │       │       └── index.ts    # Shared interfaces
 │       └── package.json        # Shared package config
 ├── docs/                       # Documentation
+├── scripts/                    # Operational and database scripts
+│   └── database-setup.sql      # Supabase schema (development)
+├── tests/                      # Repository-level integration tests
 ├── package.json               # Root workspace configuration
-├── turbo.json                 # Turborepo configuration
-└── database-setup.sql         # Supabase schema (development)
+└── turbo.json                 # Turborepo configuration
 ```
 
 ## 🔧 Development Setup

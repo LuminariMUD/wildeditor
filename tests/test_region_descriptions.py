@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Test script for region description API endpoints
-Usage: python3 test_region_descriptions.py YOUR_API_KEY
+Usage: python3 tests/test_region_descriptions.py YOUR_API_KEY
 """
 
 import sys
@@ -11,7 +11,7 @@ from datetime import datetime
 
 # Get API key from command line
 if len(sys.argv) < 2:
-    print("Usage: python3 test_region_descriptions.py YOUR_API_KEY")
+    print("Usage: python3 tests/test_region_descriptions.py YOUR_API_KEY")
     print("Please provide your API key as an argument")
     sys.exit(1)
 

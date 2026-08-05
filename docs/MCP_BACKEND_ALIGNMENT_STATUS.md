@@ -78,7 +78,7 @@ To achieve 100% MCP functionality, add these backend endpoints:
 ## Test Results
 ```bash
 # Run the accurate test
-python3 test_mcp_correct.py
+python3 tests/test_mcp_correct.py
 
 # Results: 8/14 tools working (57.1%)
 # Backend API: Working
@@ -87,7 +87,7 @@ python3 test_mcp_correct.py
 
 ## Files Modified
 1. `/apps/mcp/src/mcp/tools.py` - Disabled validate_connections tool
-2. Created `/test_mcp_correct.py` - Accurate test suite
+2. Created `tests/test_mcp_correct.py` - Accurate test suite
 3. Created this documentation file
 
 ## Next Steps

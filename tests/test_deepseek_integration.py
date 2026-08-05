@@ -15,7 +15,8 @@ import sys
 from pathlib import Path
 
 # Add MCP source to path
-sys.path.insert(0, str(Path(__file__).parent / "apps" / "mcp" / "src"))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT / "apps" / "mcp" / "src"))
 
 from services.ai_service import AIService, AIProvider, GeneratedDescription
 from pydantic_ai.models.openai import OpenAIModel
@@ -238,7 +239,7 @@ async def main():
         print("✅ All DeepSeek integration tests passed!")
         print("\nTo test actual generation, set DEEPSEEK_API_KEY environment variable:")
         print("  export DEEPSEEK_API_KEY='your-api-key'")
-        print("  python test_deepseek_integration.py")
+        print("  python tests/test_deepseek_integration.py")
     else:
         print("❌ Some tests failed - check output above")
     

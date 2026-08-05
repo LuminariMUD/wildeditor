@@ -155,7 +155,7 @@ The project also includes **MCP (Model Context Protocol) server** integration fo
 ### Quick Setup
 ```powershell
 # Configure GitHub Copilot with MCP server
-.\setup-copilot-mcp.ps1 -McpKey "your-mcp-key" -ApiKey "your-api-key"
+.\scripts\setup-copilot-mcp.ps1 -McpKey "your-mcp-key" -ApiKey "your-api-key"
 ```
 
 ### Example Usage
@@ -285,6 +285,10 @@ See the [Monorepo Structure](#-monorepo-structure) section above for the high-le
 
 - **`packages/shared/src/`** - Shared code
   - `types/` - TypeScript interfaces used by both frontend and backend
+
+- **`tests/`** - Repository-level integration, deployment, and API tests
+
+- **`scripts/`** - Operational, setup, diagnostic, and database scripts
 
 - **`docs/`** - Comprehensive documentation (see Documentation section above)
 

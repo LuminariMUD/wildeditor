@@ -2,7 +2,33 @@
 
 This directory contains utility scripts for the Wildeditor project.
 
-## Available Scripts
+## Running Scripts
+
+Run repository scripts from the project root so relative paths and generated
+output stay in the expected location:
+
+```bash
+./scripts/diagnose_production_ai.sh
+```
+
+```powershell
+.\scripts\validate-secrets.ps1
+```
+
+## Script Groups
+
+- `setup-server.sh`, `debug-path.sh`, `diagnose_production_ai.sh`, and
+  `fix_ollama_network.sh` support server setup and diagnostics.
+- `setup_github_secrets.sh`, `generate-mcp-keys.ps1`, `validate-secrets.ps1`,
+  and `setup-copilot-mcp.ps1` support credentials and MCP tooling.
+- `setup_openai_from_luminari.sh` configures the production MCP environment.
+- `database-setup*.sql`, `setup-supabase-schema.sql`,
+  `fix_region_hints_table.sql`, and `path_data_queries.sql` contain database
+  setup, repair, and diagnostic queries.
+- `github-secrets-setup.txt` and `ssh-port-forward-mcp.txt` contain operational
+  command references.
+
+## Server Setup
 
 ### `setup-server.sh`
 

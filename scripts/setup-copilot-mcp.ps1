@@ -12,7 +12,7 @@ if ($Help) {
 GitHub Copilot MCP Setup for Wildeditor
 
 USAGE:
-    .\setup-copilot-mcp.ps1 -McpKey "your-mcp-key" -ApiKey "your-api-key"
+    .\scripts\setup-copilot-mcp.ps1 -McpKey "your-mcp-key" -ApiKey "your-api-key"
 
 DESCRIPTION:
     This script configures GitHub Copilot in VS Code to use the Wildeditor MCP server
@@ -25,7 +25,7 @@ PARAMETERS:
     -Help       Show this help message
 
 EXAMPLE:
-    .\setup-copilot-mcp.ps1 -McpKey "mcp_12345..." -ApiKey "api_67890..."
+    .\scripts\setup-copilot-mcp.ps1 -McpKey "mcp_12345..." -ApiKey "api_67890..."
 
 "@
     return
@@ -46,7 +46,7 @@ if (-not $McpKey -or -not $ApiKey) {
     Write-Host "⚠️  MCP Key and API Key are required." -ForegroundColor Yellow
     Write-Host "Get your keys from the project documentation or ask the project maintainer."
     Write-Host ""
-    Write-Host "Usage: .\setup-copilot-mcp.ps1 -McpKey 'your-mcp-key' -ApiKey 'your-api-key'"
+    Write-Host "Usage: .\scripts\setup-copilot-mcp.ps1 -McpKey 'your-mcp-key' -ApiKey 'your-api-key'"
     return
 }
 

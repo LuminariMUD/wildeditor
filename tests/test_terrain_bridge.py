@@ -3,8 +3,10 @@
 
 import asyncio
 import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'apps', 'backend', 'src'))
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.append(str(PROJECT_ROOT / "apps" / "backend" / "src"))
 
 from services.terrain_bridge import TerrainBridgeClient
 

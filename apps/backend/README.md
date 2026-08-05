@@ -300,7 +300,7 @@ TERRAIN_BRIDGE_CONFIG = {
 ### API Testing with PowerShell
 ```powershell
 # Load test environment
-. ./test-terrain-bridge-api.ps1
+. ..\..\tests\test-terrain-bridge-api.ps1
 
 # Test core functionality
 Test-WildernessAPI

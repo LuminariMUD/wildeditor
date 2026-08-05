@@ -7,6 +7,7 @@ Verifies that the AI service works with the configured OpenAI API key
 import asyncio
 import sys
 import os
+from pathlib import Path
 
 # Set environment variables from .env
 os.environ['AI_PROVIDER'] = 'openai'
@@ -14,7 +15,8 @@ os.environ['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY', 'your-openai-api-key-
 os.environ['OPENAI_MODEL'] = 'gpt-4o-mini'
 
 # Add the MCP src directory to path
-sys.path.insert(0, '/home/luminari/wildeditor/apps/mcp/src')
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT / "apps" / "mcp" / "src"))
 
 from services.ai_service import get_ai_service
 
@@ -100,7 +102,7 @@ async def main():
     if success:
         print("✅ TEST PASSED - OpenAI integration is working!")
         print("\nNext steps:")
-        print("1. Run ./setup_github_secrets.sh to get secret values")
+        print("1. Run ./scripts/setup_github_secrets.sh to get secret values")
         print("2. Add secrets to GitHub repository settings")
         print("3. Push to main branch to deploy with AI support")
     else:

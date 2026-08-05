@@ -55,16 +55,16 @@ curl -H "X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=" \
 ### **Comprehensive Tests**
 ```bash
 # Run the full test suite
-./test-mcp-networking-fix.sh
+./tests/test-mcp-networking-fix.sh
 
 # Or on Windows
-.\test-mcp-networking-fix.ps1
+.\tests\test-mcp-networking-fix.ps1
 ```
 
 ### **Original PowerShell Tests**
 ```powershell
 # Should now work end-to-end
-.\test-terrain-bridge-api.ps1
+.\tests\test-terrain-bridge-api.ps1
 ```
 
 ## 🔍 **Expected Results**

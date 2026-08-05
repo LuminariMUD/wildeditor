@@ -5,7 +5,10 @@ Test MCP endpoints locally
 
 import sys
 import asyncio
-sys.path.insert(0, '/home/luminari/wildeditor/apps/mcp/src')
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT / "apps" / "mcp" / "src"))
 
 from mcp.protocol import MCPRequest, MCPServer
 from mcp.tools import ToolRegistry

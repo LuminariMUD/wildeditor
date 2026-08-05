@@ -5,8 +5,10 @@ Based on actual query results from the region_data table.
 """
 
 import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'apps', 'backend', 'src'))
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.append(str(PROJECT_ROOT / "apps" / "backend" / "src"))
 
 from routers.regions import polygon_wkt_to_coordinates, coordinates_to_polygon_wkt
 from schemas.region import RegionResponse, get_region_type_name, get_sector_type_name

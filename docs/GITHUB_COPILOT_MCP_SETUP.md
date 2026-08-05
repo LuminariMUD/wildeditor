@@ -21,7 +21,7 @@ MySQL Database
 ### 1. Run the Setup Script
 
 ```powershell
-.\setup-copilot-mcp.ps1 -McpKey "your-mcp-key" -ApiKey "your-api-key"
+.\scripts\setup-copilot-mcp.ps1 -McpKey "your-mcp-key" -ApiKey "your-api-key"
 ```
 
 ### 2. Restart VS Code

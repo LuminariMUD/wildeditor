@@ -359,9 +359,11 @@ The frontend communicates with the Express backend via these RESTful endpoints:
   │       └── src/
   │           └── types/          # TypeScript interfaces
   ├── docs/                       # All documentation
+  ├── scripts/                    # Operational and database scripts
+  │   └── database-setup.sql      # Database schema
+  ├── tests/                      # Repository-level integration tests
   ├── package.json                # Root workspace config
   ├── turbo.json                  # Turborepo config
-  ├── database-setup.sql          # Database schema
   ├── CLAUDE.md                   # AI assistant guidance
   └── [other config files]
   ```
@@ -404,7 +406,7 @@ The frontend communicates with the Express backend via these RESTful endpoints:
 4. **Create database tables**
    - Open Supabase dashboard
    - Go to SQL Editor
-   - Run the SQL from `database-setup.sql`
+   - Run the SQL from `scripts/database-setup.sql`
 
 5. **Start development servers**
    ```bash

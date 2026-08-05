@@ -2,11 +2,11 @@
 """Test script to validate the new region_props functionality"""
 
 import sys
-import os
+from pathlib import Path
 
 # Add the backend src directory to the Python path
-backend_src = os.path.join(os.path.dirname(__file__), 'apps', 'backend', 'src')
-sys.path.insert(0, backend_src)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT / "apps" / "backend" / "src"))
 
 from schemas.region import RegionCreate
 from pydantic import ValidationError
