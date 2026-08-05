@@ -1,9 +1,10 @@
 """Ensure MCP advertises every region type accepted by the backend."""
 
-from src.mcp.tools import REGION_TYPE_VALUES, ToolRegistry
-
 
 def test_region_tool_schemas_include_vessel_region_types():
+    # Import after the autouse environment fixture configures authentication.
+    from src.mcp.tools import REGION_TYPE_VALUES, ToolRegistry
+
     registry = ToolRegistry()
 
     for tool_name in ["search_regions", "create_region", "generate_region_description"]:
@@ -14,6 +15,8 @@ def test_region_tool_schemas_include_vessel_region_types():
 
 
 def test_create_region_schema_explains_vessel_thresholds():
+    from src.mcp.tools import ToolRegistry
+
     registry = ToolRegistry()
     region_props = registry.get_tool("create_region")["parameters"]["properties"]["region_props"]
 
