@@ -7,6 +7,20 @@ REGION_GEOGRAPHIC = 1      # Named areas
 REGION_ENCOUNTER = 2       # Encounter zones  
 REGION_SECTOR_TRANSFORM = 3 # Terrain modification (elevation adjustment)
 REGION_SECTOR = 4          # Complete terrain override
+REGION_BATHYMETRIC = 5     # Minimum natural water-column depth
+REGION_ALTITUDE_LANE = 6   # Minimum vessel altitude for a high-current lane
+REGION_SKY_ISLAND = 7      # Minimum vessel altitude for a sky island
+
+REGION_TYPE_NAMES = {
+    REGION_GEOGRAPHIC: "Geographic",
+    REGION_ENCOUNTER: "Encounter",
+    REGION_SECTOR_TRANSFORM: "Sector Transform",
+    REGION_SECTOR: "Sector Override",
+    REGION_BATHYMETRIC: "Bathymetric",
+    REGION_ALTITUDE_LANE: "Altitude Lane",
+    REGION_SKY_ISLAND: "Sky Island",
+}
+VALID_REGION_TYPES = frozenset(REGION_TYPE_NAMES)
 
 # Sector type constants for REGION_SECTOR (complete LuminariMUD sector types)
 SECTOR_TYPES = {
@@ -41,8 +55,11 @@ class RegionBase(BaseModel):
     @field_validator('region_type')
     @classmethod
     def validate_region_type(cls, v):
-        if v not in [REGION_GEOGRAPHIC, REGION_ENCOUNTER, REGION_SECTOR_TRANSFORM, REGION_SECTOR]:
-            raise ValueError(f'Region type must be one of: {REGION_GEOGRAPHIC} (Geographic), {REGION_ENCOUNTER} (Encounter), {REGION_SECTOR_TRANSFORM} (Sector Transform), {REGION_SECTOR} (Sector Override)')
+        if v not in VALID_REGION_TYPES:
+            valid_types = ', '.join(
+                f'{value} ({name})' for value, name in REGION_TYPE_NAMES.items()
+            )
+            raise ValueError(f'Region type must be one of: {valid_types}')
         return v
     
     @field_validator('region_props')
@@ -74,6 +91,10 @@ class RegionBase(BaseModel):
                     valid_sectors = ', '.join(f'{k}: {v}' for k, v in list(SECTOR_TYPES.items())[:10])
                     raise ValueError(f'Invalid sector type for REGION_SECTOR. Valid values (0-36): {valid_sectors}...')
                 return v
+
+            # Vessel feature types use region_props as an environmental threshold.
+            if region_type in [REGION_BATHYMETRIC, REGION_ALTITUDE_LANE, REGION_SKY_ISLAND]:
+                return int(v) if v is not None else 0
         
         # Default to 0 if no validation applies
         return v if v is not None else 0
@@ -188,6 +209,16 @@ class RegionUpdate(BaseModel):
                 raise ValueError('Name cannot be longer than 50 characters')
             return v.strip()
         return v
+
+    @field_validator('region_type')
+    @classmethod
+    def validate_region_type_if_provided(cls, v):
+        if v is not None and v not in VALID_REGION_TYPES:
+            valid_types = ', '.join(
+                f'{value} ({name})' for value, name in REGION_TYPE_NAMES.items()
+            )
+            raise ValueError(f'Region type must be one of: {valid_types}')
+        return v
     
     @field_validator('description_style')
     @classmethod
@@ -295,13 +326,7 @@ def create_landmark_region(x: float, y: float, name: str, vnum: int, zone_vnum: 
 
 def get_region_type_name(region_type: int) -> str:
     """Get human-readable name for region type"""
-    type_names = {
-        REGION_GEOGRAPHIC: "Geographic",
-        REGION_ENCOUNTER: "Encounter", 
-        REGION_SECTOR_TRANSFORM: "Sector Transform",
-        REGION_SECTOR: "Sector Override"
-    }
-    return type_names.get(region_type, f"Unknown ({region_type})")
+    return REGION_TYPE_NAMES.get(region_type, f"Unknown ({region_type})")
 
 def get_sector_type_name(sector_id: int) -> str:
     """Get human-readable name for sector type"""

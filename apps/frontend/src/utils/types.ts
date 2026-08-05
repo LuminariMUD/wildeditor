@@ -1,12 +1,15 @@
 import { Region, Path } from '@wildeditor/shared/types';
 
 // Type conversion utilities for display purposes
-export const getRegionTypeLabel = (type: Region['type']): string => {
+export const getRegionTypeLabel = (type: Region['region_type']): string => {
   switch (type) {
     case 1: return 'Geographic';
     case 2: return 'Encounter';
     case 3: return 'Sector Transform';
     case 4: return 'Sector';
+    case 5: return 'Bathymetric';
+    case 6: return 'Altitude Lane';
+    case 7: return 'Sky Island';
     default: return 'Unknown';
   }
 };
@@ -24,12 +27,15 @@ export const getPathTypeLabel = (type: Path['type']): string => {
 };
 
 // Color utilities for rendering
-export const getRegionColor = (type: Region['type']): string => {
+export const getRegionColor = (type: Region['region_type']): string => {
   switch (type) {
     case 1: return '#F59E0B'; // Geographic - Amber
     case 2: return '#EF4444'; // Encounter - Red
     case 3: return '#8B5CF6'; // Sector Transform - Purple
     case 4: return '#10B981'; // Sector - Green
+    case 5: return '#0E7490'; // Bathymetric - Deep Cyan
+    case 6: return '#38BDF8'; // Altitude Lane - Sky Blue
+    case 7: return '#A78BFA'; // Sky Island - Violet
     default: return '#6B7280'; // Unknown - Gray
   }
 };

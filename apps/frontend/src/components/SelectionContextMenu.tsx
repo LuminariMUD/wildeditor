@@ -35,7 +35,10 @@ export const SelectionContextMenu: React.FC<SelectionContextMenuProps> = ({
 
   const getItemTypeName = (item: Region | Path) => {
     if ('region_type' in item) {
-      const typeNames = ['Geographic', 'Encounter', 'Transform', 'Sector Override'];
+      const typeNames = [
+        'Geographic', 'Encounter', 'Transform', 'Sector Override',
+        'Bathymetric', 'Altitude Lane', 'Sky Island'
+      ];
       return typeNames[item.region_type - 1] || 'Unknown';
     } else {
       const typeNames = ['Paved Road', 'Dirt Road', 'Geographic', '', 'River', 'Stream'];

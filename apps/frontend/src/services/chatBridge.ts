@@ -380,7 +380,10 @@ export class ChatBridge {
       1: '#3B82F6', // Geographic - blue
       2: '#EF4444', // Encounter - red  
       3: '#8B5CF6', // Transform - purple
-      4: '#F59E0B'  // Sector - amber
+      4: '#F59E0B', // Sector - amber
+      5: '#0E7490', // Bathymetric - deep cyan
+      6: '#38BDF8', // Altitude Lane - sky blue
+      7: '#A78BFA'  // Sky Island - violet
     };
     return colors[regionType as keyof typeof colors] || '#6B7280';
   }

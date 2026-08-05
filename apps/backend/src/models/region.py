@@ -9,7 +9,9 @@ class Region(Base):
     vnum = Column(Integer, primary_key=True)  # Primary key, not auto-increment
     zone_vnum = Column(Integer, nullable=False)
     name = Column(String(50), nullable=True)  # Nullable as per database schema
-    region_type = Column(Integer, nullable=False)  # 1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override
+    # 1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override,
+    # 5=Bathymetric, 6=Altitude Lane, 7=Sky Island
+    region_type = Column(Integer, nullable=False)
     region_polygon = Column(Geometry('POLYGON'), nullable=True)  # MySQL spatial polygon type - nullable
     region_props = Column(Integer, nullable=True)  # Integer as per actual database schema
     region_reset_data = Column(String(255), nullable=False, default="")  # Not null but allows empty strings

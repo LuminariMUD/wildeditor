@@ -423,6 +423,12 @@ export const SimpleMapCanvas: FC<SimpleMapCanvasProps> = ({
             
             return '#6B7280'; // Default gray
           }
+        case 5: // Bathymetric
+          return '#0E7490'; // Deep cyan
+        case 6: // Altitude Lane
+          return '#38BDF8'; // Sky blue
+        case 7: // Sky Island
+          return '#A78BFA'; // Violet
         default:
           return '#6B7280'; // Unknown - gray
       }

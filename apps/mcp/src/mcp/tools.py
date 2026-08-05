@@ -11,6 +11,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+REGION_TYPE_VALUES = [1, 2, 3, 4, 5, 6, 7]
+REGION_TYPE_DESCRIPTION = (
+    "1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override, "
+    "5=Bathymetric, 6=Altitude Lane, 7=Sky Island"
+)
+
 try:
     # Try relative import (when run as module)
     from ..config import settings
@@ -103,7 +109,8 @@ class ToolRegistry:
                     },
                     "region_type": {
                         "type": "integer",
-                        "description": "Filter by region type: 1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override"
+                        "enum": REGION_TYPE_VALUES,
+                        "description": f"Filter by region type: {REGION_TYPE_DESCRIPTION}"
                     },
                     "zone_vnum": {
                         "type": "integer",
@@ -159,7 +166,8 @@ class ToolRegistry:
                     },
                     "region_type": {
                         "type": "integer",
-                        "description": "Region type: 1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override"
+                        "enum": REGION_TYPE_VALUES,
+                        "description": f"Region type: {REGION_TYPE_DESCRIPTION}"
                     },
                     "coordinates": {
                         "type": "array",
@@ -175,7 +183,7 @@ class ToolRegistry:
                     },
                     "region_props": {
                         "type": "integer",
-                        "description": "Properties value: sector type (0-36) for type 4, elevation adjustment for type 3",
+                        "description": "Properties value: elevation adjustment for type 3, sector type (0-36) for type 4, minimum natural depth for type 5, or minimum vessel Z for types 6-7",
                         "default": 0
                     },
                     "region_description": {
@@ -479,7 +487,8 @@ class ToolRegistry:
                     },
                     "region_type": {
                         "type": "integer",
-                        "description": "Region type (1-4) to inform description generation"
+                        "enum": REGION_TYPE_VALUES,
+                        "description": f"Region type to inform description generation: {REGION_TYPE_DESCRIPTION}"
                     },
                     "terrain_theme": {
                         "type": "string",
@@ -1322,7 +1331,7 @@ class ToolRegistry:
                 if affecting_regions or affecting_paths:
                     result['overlays']['has_overlays'] = True
                 
-                # Apply regions in priority order (1-4)
+                # Apply regions in region-type order (1-7)
                 affecting_regions.sort(key=lambda r: r.get('region_type', 1))
                 
                 for region in affecting_regions:
@@ -1356,6 +1365,21 @@ class ToolRegistry:
                             result['overlays']['modifications'].append(f"Sector overridden to {region['sector_type_name']} by {region['name']}")
                         else:
                             result['overlays']['modifications'].append(f"Sector overridden by {region['name']}")
+
+                    elif region_type == 5:  # Bathymetric feature
+                        result['overlays']['modifications'].append(
+                            f"Bathymetric feature: {region['name']} (minimum natural depth {region.get('region_props', 0)})"
+                        )
+
+                    elif region_type == 6:  # Altitude lane
+                        result['overlays']['modifications'].append(
+                            f"Altitude lane: {region['name']} (active at Z >= {region.get('region_props', 0)})"
+                        )
+
+                    elif region_type == 7:  # Sky island
+                        result['overlays']['modifications'].append(
+                            f"Sky island: {region['name']} (reachable at Z >= {region.get('region_props', 0)})"
+                        )
                 
                 # Apply paths (processed after regions, highest priority)
                 for path in affecting_paths:

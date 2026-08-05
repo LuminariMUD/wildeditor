@@ -3,6 +3,8 @@ export interface Coordinate {
   y: number;
 }
 
+export type RegionType = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
 export interface RegionHint {
   id: number;
   region_vnum: number;
@@ -19,7 +21,7 @@ export interface Region {
   vnum: number;           // Region virtual number (1-99999) - This is the primary key
   zone_vnum: number;      // Zone virtual number (default: 1)
   name: string;           // Region display name (max 50 chars)
-  region_type: 1 | 2 | 3 | 4; // Region type: 1=Geographic, 2=Encounter, 3=Transform, 4=Sector
+  region_type: RegionType; // 1=Geographic, 2=Encounter, 3=Transform, 4=Sector, 5=Bathymetric, 6=Altitude Lane, 7=Sky Island
   coordinates: Coordinate[];  // Polygon boundary coordinates (min 3 points)
   region_props: number;     // Integer properties: sector types, elevation adjustments
   region_reset_data?: string;       // Reset data string (mob vnums for encounters)

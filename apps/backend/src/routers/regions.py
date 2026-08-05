@@ -4,18 +4,21 @@ from sqlalchemy import text
 from sqlalchemy.engine import Result
 from typing import List, Optional, Any, Union
 from datetime import datetime
+import logging
 from geoalchemy2 import WKBElement
 from geoalchemy2.functions import ST_AsText
 from ..models.region import Region
 from ..schemas.region import (
     RegionCreate, RegionResponse, RegionDetailResponse, RegionListResponse, RegionUpdate, create_landmark_region,
     get_region_type_name, get_sector_type_name, REGION_GEOGRAPHIC, REGION_ENCOUNTER,
-    REGION_SECTOR_TRANSFORM, REGION_SECTOR, SECTOR_TYPES
+    REGION_SECTOR_TRANSFORM, REGION_SECTOR, REGION_BATHYMETRIC,
+    REGION_ALTITUDE_LANE, REGION_SKY_ISLAND, SECTOR_TYPES
 )
 from ..config.config_database import get_db
 from ..middleware.auth import RequireAuth
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 def coordinates_to_polygon_wkt(coordinates: List[dict]) -> str:
     """Convert coordinate list to MySQL POLYGON WKT format"""
@@ -46,18 +49,18 @@ def coordinates_to_polygon_wkt(coordinates: List[dict]) -> str:
 
 def polygon_wkt_to_coordinates(wkt: str) -> List[dict]:
     """Convert MySQL POLYGON WKT format to coordinate list"""
-    print(f"DEBUG: polygon_wkt_to_coordinates called with: {wkt}")
+    logger.debug("Converting polygon WKT: %s", wkt)
     if not wkt:
-        print("DEBUG: Empty WKT string")
+        logger.debug("Empty WKT string")
         return []
     
     # Parse WKT format: POLYGON((x1 y1, x2 y2, ...))
     try:
         # Remove POLYGON(( and ))
         coords_str = wkt.replace("POLYGON((", "").replace("))", "")
-        print(f"DEBUG: Cleaned coords string: {coords_str}")
+        logger.debug("Cleaned coordinates string: %s", coords_str)
         point_pairs = coords_str.split(",")  # Split by comma, not comma+space
-        print(f"DEBUG: Point pairs: {point_pairs}")
+        logger.debug("Polygon point pairs: %s", point_pairs)
         
         coordinates = []
         for pair in point_pairs:
@@ -67,12 +70,12 @@ def polygon_wkt_to_coordinates(wkt: str) -> List[dict]:
                     x, y = float(parts[0]), float(parts[1])
                     coordinates.append({"x": x, "y": y})
         
-        print(f"DEBUG: Initial coordinates: {coordinates}")
+        logger.debug("Initial polygon coordinates: %s", coordinates)
         
         # Remove duplicate closing point if present
         if len(coordinates) > 1 and coordinates[0] == coordinates[-1]:
             coordinates = coordinates[:-1]
-            print(f"DEBUG: Removed closing duplicate, coordinates: {coordinates}")
+            logger.debug("Removed closing duplicate: %s", coordinates)
         
         # Handle point regions (landmarks) - check if all points are the same
         if len(coordinates) >= 3:
@@ -100,16 +103,16 @@ def polygon_wkt_to_coordinates(wkt: str) -> List[dict]:
                 
             coordinates = unique_points
             
-        print(f"DEBUG: Final coordinates returned: {coordinates}")
+        logger.debug("Final polygon coordinates: %s", coordinates)
         return coordinates
     except Exception as e:
-        print(f"Error parsing WKT: {e}, WKT: {wkt}")
+        logger.warning("Error parsing polygon WKT %r: %s", wkt, e)
         return []
 
 @router.get("")
 @router.get("/")
 def get_regions(
-    region_type: Optional[int] = Query(None, description="Filter by region type (1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override)"),
+    region_type: Optional[int] = Query(None, description="Filter by region type (1=Geographic, 2=Encounter, 3=Sector Transform, 4=Sector Override, 5=Bathymetric, 6=Altitude Lane, 7=Sky Island)"),
     zone_vnum: Optional[int] = Query(None, description="Filter by zone vnum"),
     include_descriptions: Optional[str] = Query("false", description="Include descriptions: 'false' (default), 'true' (full), 'summary' (first 200 chars)"),
     db: Session = Depends(get_db)
@@ -123,6 +126,9 @@ def get_regions(
     - **REGION_ENCOUNTER (2)**: Special encounter zones - Enables encounter spawning with reset timers  
     - **REGION_SECTOR_TRANSFORM (3)**: Terrain modification - Adds region_props to elevation then recalculates sector
     - **REGION_SECTOR (4)**: Complete terrain override - Replaces terrain with region_props sector type (0-36)
+    - **REGION_BATHYMETRIC (5)**: Vessel feature active when natural water-column depth meets a minimum threshold
+    - **REGION_ALTITUDE_LANE (6)**: High-current vessel lane active at or above a minimum Z coordinate
+    - **REGION_SKY_ISLAND (7)**: Sky-island feature reachable at or above a minimum Z coordinate
     
     Each region is stored as POLYGON geometry in MySQL and converted to coordinate arrays for the API.
     Regions are processed in database order during terrain generation, with later regions overriding earlier ones.
@@ -142,23 +148,23 @@ def get_regions(
             # Convert MySQL POLYGON to coordinates
             coordinates = []
             if region.region_polygon:
-                print(f"DEBUG: Processing region {region.vnum} with polygon data")
+                logger.debug("Processing polygon for region %s", region.vnum)
                 try:
                     # Method 1: Use geoalchemy2's ST_AsText function properly
                     result = db.execute(
                         text("SELECT ST_AsText(region_polygon) FROM region_data WHERE vnum = :vnum"),
                         {"vnum": region.vnum}
                     ).fetchone()
-                    print(f"DEBUG: Raw result from ST_AsText query: {result}")
+                    logger.debug("ST_AsText result for region %s: %s", region.vnum, result)
                     if result and result[0]:
                         wkt_text = result[0]
-                        print(f"DEBUG: WKT text for region {region.vnum}: {wkt_text}")
+                        logger.debug("WKT for region %s: %s", region.vnum, wkt_text)
                         coordinates = polygon_wkt_to_coordinates(wkt_text)
-                        print(f"DEBUG: Converted coordinates for region {region.vnum}: {coordinates}")
+                        logger.debug("Coordinates for region %s: %s", region.vnum, coordinates)
                     else:
-                        print(f"DEBUG: No result from ST_AsText query for region {region.vnum}")
+                        logger.debug("No polygon text returned for region %s", region.vnum)
                 except Exception as e:
-                    print(f"Error converting polygon for region {region.vnum}: {e}")
+                    logger.warning("Error converting polygon for region %s: %s", region.vnum, e)
                     try:
                         # Method 2: Try to handle WKBElement directly
                         if hasattr(region.region_polygon, 'data'):
@@ -171,11 +177,11 @@ def get_regions(
                             if result and result[0]:
                                 coordinates = polygon_wkt_to_coordinates(result[0])
                     except Exception as e2:
-                        print(f"All polygon conversion methods failed for region {region.vnum}: {e2}")
+                        logger.warning("All polygon conversion methods failed for region %s: %s", region.vnum, e2)
                         # Set empty coordinates as fallback
                         coordinates = []
             else:
-                print(f"DEBUG: Region {region.vnum} has no polygon data")
+                logger.debug("Region %s has no polygon data", region.vnum)
             
             # Handle MySQL zero datetime and string dates
             reset_time = region.region_reset_time
@@ -202,7 +208,7 @@ def get_regions(
                         reset_time = datetime(2000, 1, 1)
                         
                 except Exception as e:
-                    print(f"Error parsing reset_time for region {region.vnum}: {e}")
+                    logger.warning("Error parsing reset_time for region %s: %s", region.vnum, e)
                     reset_time = datetime(2000, 1, 1)
             
             # Base data for all response types
@@ -314,6 +320,27 @@ def get_region_types():
                 "region_props_usage": "Sector type ID (0-36) from sector_types array", 
                 "behavior": "Completely replaces calculated terrain type with specified sector",
                 "examples": ["Road through forest (sector 11)", "Lake in desert (sector 6)", "City district (sector 1)"]
+            },
+            REGION_BATHYMETRIC: {
+                "name": "Bathymetric (Deep-water feature)",
+                "description": "Vessel feature polygon gated by the natural water-column depth",
+                "region_props_usage": "Minimum natural depth (waterline minus elevation)",
+                "behavior": "Active when the natural water-column depth is at least region_props",
+                "examples": ["Ocean trench (depth 96)", "Deep-water channel (depth 64)"]
+            },
+            REGION_ALTITUDE_LANE: {
+                "name": "Altitude Lane (High-current skyway)",
+                "description": "High-altitude vessel lane for eligible airships and magical vessels",
+                "region_props_usage": "Minimum vessel Z coordinate",
+                "behavior": "Active when vessel Z is at least region_props",
+                "examples": ["Aetherwind Skyway (Z 100)", "High current lane (Z 150)"]
+            },
+            REGION_SKY_ISLAND: {
+                "name": "Sky Island (High-altitude feature)",
+                "description": "Sky-island feature polygon gated by vessel altitude",
+                "region_props_usage": "Minimum vessel Z coordinate",
+                "behavior": "Reachable when vessel Z is at least region_props",
+                "examples": ["Shardspire Sky Island (Z 200)", "Floating citadel (Z 250)"]
             }
         },
         "sector_types": SECTOR_TYPES,
@@ -322,7 +349,7 @@ def get_region_types():
             "origin": "(0,0) at map center",
             "directions": {"north": "+Y", "south": "-Y", "east": "+X", "west": "-X"}
         },
-        "processing_order": "Regions processed in database order - later regions override earlier ones"
+        "processing_order": "Terrain regions are processed in database order; equal vessel-feature types choose the lowest VNUM when they overlap"
     }
 
 @router.get("/{vnum}", response_model=RegionDetailResponse)
@@ -346,7 +373,7 @@ def get_region(vnum: int, db: Session = Depends(get_db)):
             if result and result[0]:
                 coordinates = polygon_wkt_to_coordinates(result[0])
         except Exception as e:
-            print(f"Error converting polygon for region {region.vnum}: {e}")
+            logger.warning("Error converting polygon for region %s: %s", region.vnum, e)
             coordinates = []
     
     # Handle MySQL zero datetime and string dates
@@ -374,7 +401,7 @@ def get_region(vnum: int, db: Session = Depends(get_db)):
                 reset_time = datetime(2000, 1, 1)
                 
         except Exception as e:
-            print(f"Error parsing reset_time for region {region.vnum}: {e}")
+            logger.warning("Error parsing reset_time for region %s: %s", region.vnum, e)
             reset_time = datetime(2000, 1, 1)
     
     region_dict = {
@@ -437,6 +464,15 @@ def create_region(region: RegionCreate, db: Session = Depends(get_db), authentic
     - Completely replaces calculated terrain type with specified sector
     - region_props: Sector type ID (0-36) from the complete sector types list
     - Examples: Road through forest (sector 11), Lake in desert (sector 6), City district (sector 1)
+
+    **REGION_BATHYMETRIC (5)**: Deep-water vessel feature
+    - region_props: Minimum natural water-column depth
+
+    **REGION_ALTITUDE_LANE (6)**: High-current skyway
+    - region_props: Minimum vessel Z coordinate
+
+    **REGION_SKY_ISLAND (7)**: High-altitude sky-island feature
+    - region_props: Minimum vessel Z coordinate
     
     The coordinate array is automatically converted to MySQL POLYGON geometry for efficient spatial queries.
     """

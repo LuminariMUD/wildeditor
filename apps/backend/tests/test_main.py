@@ -158,13 +158,20 @@ class TestDataValidation:
     
     def test_region_data_structure(self):
         """Test region data structure validation"""
-        from src.schemas.region import RegionResponse, REGION_GEOGRAPHIC, REGION_ENCOUNTER, REGION_SECTOR_TRANSFORM, REGION_SECTOR
+        from src.schemas.region import (
+            RegionResponse, REGION_GEOGRAPHIC, REGION_ENCOUNTER,
+            REGION_SECTOR_TRANSFORM, REGION_SECTOR, REGION_BATHYMETRIC,
+            REGION_ALTITUDE_LANE, REGION_SKY_ISLAND,
+        )
         
         # Test that region types are properly defined
         assert REGION_GEOGRAPHIC == 1
         assert REGION_ENCOUNTER == 2
         assert REGION_SECTOR_TRANSFORM == 3
         assert REGION_SECTOR == 4
+        assert REGION_BATHYMETRIC == 5
+        assert REGION_ALTITUDE_LANE == 6
+        assert REGION_SKY_ISLAND == 7
     
     def test_path_data_structure(self):
         """Test path data structure validation"""

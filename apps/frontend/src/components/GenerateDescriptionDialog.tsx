@@ -52,7 +52,10 @@ export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps>
     1: 'Geographic',
     2: 'Encounter',
     3: 'Sector Transform',
-    4: 'Sector Override'
+    4: 'Sector Override',
+    5: 'Bathymetric',
+    6: 'Altitude Lane',
+    7: 'Sky Island'
   };
 
   const handleSectionToggle = (sectionId: string) => {

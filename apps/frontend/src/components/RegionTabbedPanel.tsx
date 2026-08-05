@@ -27,6 +27,9 @@ const getRegionIcon = (regionType: number) => {
     case 2: return <AlertCircle className="w-4 h-4 text-red-400" />; // Encounter
     case 3: return <Mountain className="w-4 h-4 text-purple-400" />; // Transform
     case 4: return <Layers className="w-4 h-4 text-amber-400" />; // Sector
+    case 5: return <Layers className="w-4 h-4 text-cyan-500" />; // Bathymetric
+    case 6: return <Mountain className="w-4 h-4 text-sky-400" />; // Altitude Lane
+    case 7: return <Mountain className="w-4 h-4 text-violet-400" />; // Sky Island
     default: return null;
   }
 };
@@ -389,6 +392,9 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
           <option value={2}>Encounter</option>
           <option value={3}>Sector Transform</option>
           <option value={4}>Sector Override</option>
+          <option value={5}>Bathymetric</option>
+          <option value={6}>Altitude Lane</option>
+          <option value={7}>Sky Island</option>
         </select>
       </div>
 
@@ -554,6 +560,46 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
             </select>
           </div>
         </>
+      )}
+
+      {region.region_type === 5 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Minimum Natural Water Depth
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={region.region_props || 0}
+            onChange={(e) => onUpdate({ region_props: Math.max(0, parseInt(e.target.value) || 0) })}
+            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="96"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Active where the natural water column (waterline minus elevation) meets this depth.
+          </p>
+        </div>
+      )}
+
+      {(region.region_type === 6 || region.region_type === 7) && (
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Minimum Vessel Altitude (Z)
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={region.region_props || 0}
+            onChange={(e) => onUpdate({ region_props: Math.max(0, parseInt(e.target.value) || 0) })}
+            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder={region.region_type === 6 ? '100' : '200'}
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            {region.region_type === 6
+              ? 'The altitude lane is active at or above this Z coordinate.'
+              : 'The sky island is reachable at or above this Z coordinate.'}
+          </p>
+        </div>
       )}
 
       {/* Coordinate Editor - made collapsible */}
@@ -1073,6 +1119,9 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
       else if (region.region_type === 2) terrain_theme = 'encounter';
       else if (region.region_type === 3) terrain_theme = 'transform';
       else if (region.region_type === 4) terrain_theme = 'sector';
+      else if (region.region_type === 5) terrain_theme = 'bathymetric';
+      else if (region.region_type === 6) terrain_theme = 'altitude_lane';
+      else if (region.region_type === 7) terrain_theme = 'sky_island';
       
       const result = await apiClient.generateRegionDescription({
         region_vnum: region.vnum,

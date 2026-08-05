@@ -68,7 +68,10 @@ export const TreeView: FC<TreeViewProps> = ({
       1: { name: 'Geographic', regions: [] },
       2: { name: 'Encounter', regions: [] },
       3: { name: 'Sector Transform', regions: [] },
-      4: { name: 'Sector', regions: [] }
+      4: { name: 'Sector', regions: [] },
+      5: { name: 'Bathymetric', regions: [] },
+      6: { name: 'Altitude Lane', regions: [] },
+      7: { name: 'Sky Island', regions: [] }
     };
 
     regions.forEach(region => {

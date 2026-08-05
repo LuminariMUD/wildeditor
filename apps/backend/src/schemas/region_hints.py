@@ -288,8 +288,8 @@ class GenerateHintsRequest(BaseModel):
     region_type: int = Field(
         default=1,
         ge=1,
-        le=4,
-        description="Region type (1-4)"
+        le=7,
+        description="Region type (1-7)"
     )
     target_hint_count: int = Field(
         default=15,

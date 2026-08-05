@@ -40,7 +40,7 @@ interface ApiRegionResponse {
   vnum: number;
   zone_vnum: number;
   name: string;
-  region_type: 1 | 2 | 3 | 4;
+  region_type: Region['region_type'];
   coordinates: { x: number; y: number }[];
   region_props: number;
   region_reset_data?: string;
@@ -113,6 +113,9 @@ const getRegionColor = (regionType: number): string => {
     case 2: return '#EF4444'; // Encounter - Red
     case 3: return '#8B5CF6'; // Transform - Purple
     case 4: return '#F59E0B'; // Sector Override - Amber
+    case 5: return '#0E7490'; // Bathymetric - Deep Cyan
+    case 6: return '#38BDF8'; // Altitude Lane - Sky Blue
+    case 7: return '#A78BFA'; // Sky Island - Violet
     default: return '#6B7280'; // Unknown - Gray
   }
 };
