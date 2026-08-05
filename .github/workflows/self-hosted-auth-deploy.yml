@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production-auth
-      url: https://wildedit-auth.luminarimud.com/auth/v1/health
+      url: https://wildedit-auth.luminarimud.com/health
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: webfactory/ssh-agent@v0.10.0
@@ -209,7 +209,7 @@ jobs:
       - name: Verify public Auth-only surface
         run: |
           curl -fsS --connect-timeout 10 --max-time 30 \
-            "https://$AUTH_HOSTNAME/auth/v1/health" \
+            "https://$AUTH_HOSTNAME/health" \
             | jq -e '.version != null' >/dev/null
           curl -fsS --connect-timeout 10 --max-time 30 \
             "https://$AUTH_HOSTNAME/auth/v1/.well-known/jwks.json" \
