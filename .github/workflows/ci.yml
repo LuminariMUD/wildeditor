@@ -11,6 +11,8 @@ env:
   NPM_VERSION: '12.0.2'
   AUDIT_CI_VERSION: '7.1.0'
   NETLIFY_CLI_VERSION: '27.1.0'
+  PROD_API_FALLBACK: 'https://api.wildedit.luminarimud.com/api'
+  PROD_CHAT_URL: 'https://luminarimud.com/chat'
 
 jobs:
   # Combined job for efficiency
@@ -99,26 +101,29 @@ jobs:
         run: |
           echo "Creating production .env file to override any local settings..."
           cat > apps/frontend/.env << EOF
-          VITE_API_URL=${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
+          WILDEDITOR_ENVIRONMENT=remote-production
+          VITE_API_URL=${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
+          VITE_CHAT_API_URL=${{ env.PROD_CHAT_URL }}
           VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL || '' }}
           VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY || '' }}
-          VITE_DISABLE_AUTH=true
-          VITE_ENVIRONMENT=production
+          VITE_DISABLE_AUTH=false
           EOF
           echo "Preview environment file created"
         
       - name: Build preview with correct API URL
         run: npm run build
         env:
-          VITE_API_URL: ${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
+          VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
+          VITE_CHAT_API_URL: ${{ env.PROD_CHAT_URL }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          VITE_DISABLE_AUTH: 'true'
+          VITE_DISABLE_AUTH: 'false'
           
       - name: Debug build environment
         run: |
           echo "Debugging environment variables during build..."
-          echo "VITE_API_URL that was used: ${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}"
+          echo "VITE_API_URL is set: ${{ secrets.PROD_API_URL != '' || env.PROD_API_FALLBACK != '' }}"
+          echo "VITE_CHAT_API_URL is set: ${{ env.PROD_CHAT_URL != '' }}"
           echo "Checking if build files contain the expected API URL..."
           echo "Contents of dist directory:"
           ls -la apps/frontend/dist/ || echo "No dist directory found"
@@ -129,12 +134,13 @@ jobs:
           
       - name: Verify preview build environment variables
         run: |
-          echo "Checking if API URL was properly embedded in preview build..."
-          if grep -q "74.208.126.44:8000" apps/frontend/dist/assets/*.js 2>/dev/null; then
-            echo "✅ Found correct API URL in preview build files"
-          else
-            echo "❌ Correct API URL not found in preview build files"
-          fi
+          test -n "$VITE_API_URL"
+          test -n "$VITE_CHAT_API_URL"
+          grep -RqsF "$VITE_API_URL" apps/frontend/dist/assets
+          grep -RqsF "$VITE_CHAT_API_URL" apps/frontend/dist/assets
+        env:
+          VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
+          VITE_CHAT_API_URL: ${{ env.PROD_CHAT_URL }}
           
       - name: Deploy preview
         run: |
@@ -170,7 +176,7 @@ jobs:
     
     environment:
       name: production
-      url: https://wildeditor.luminari.com
+      url: https://wildedit.luminarimud.com
       
     steps:
       - name: Checkout code
@@ -208,38 +214,37 @@ jobs:
         run: |
           echo "Creating production .env file to override any local settings..."
           cat > apps/frontend/.env << EOF
-          VITE_API_URL=${{ secrets.PROD_API_URL || 'http://74.208.126.44:8000/api' }}
+          WILDEDITOR_ENVIRONMENT=remote-production
+          VITE_API_URL=${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
+          VITE_CHAT_API_URL=${{ env.PROD_CHAT_URL }}
           VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL || '' }}
           VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY || '' }}
-          VITE_DISABLE_AUTH=true
-          VITE_ENVIRONMENT=production
+          VITE_DISABLE_AUTH=false
           EOF
           echo "Production environment file created"
           
       - name: Verify source code before build
         run: |
-          echo "=== CHECKING SOURCE CODE BEFORE BUILD ==="
-          echo "Contents of api.ts file (first 10 lines):"
-          cat apps/frontend/src/services/api.ts | head -10
-          echo ""
-          echo "Environment variables available during build:"
-          echo "NODE_ENV: ${NODE_ENV}"
-          test -n "${VITE_API_URL}" && echo "VITE_API_URL is set"
-          test -n "${VITE_SUPABASE_URL}" && echo "VITE_SUPABASE_URL is set"
-          test -n "${VITE_SUPABASE_ANON_KEY}" && echo "VITE_SUPABASE_ANON_KEY is set"
+          test -n "$VITE_API_URL"
+          test -n "$VITE_CHAT_API_URL"
+          test -n "$VITE_SUPABASE_URL"
+          test -n "$VITE_SUPABASE_ANON_KEY"
+          echo "Required production frontend configuration is present"
         env:
-          VITE_API_URL: ${{ secrets.PROD_API_URL || 'https://api.wildedit.luminarimud.com/api' }}
+          VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
+          VITE_CHAT_API_URL: ${{ env.PROD_CHAT_URL }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }} 
-          VITE_DISABLE_AUTH: 'true'
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VITE_DISABLE_AUTH: 'false'
           
       - name: Build production
         run: npm run build
         env:
-          VITE_API_URL: ${{ secrets.PROD_API_URL || 'https://api.wildedit.luminarimud.com/api' }}
+          VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
+          VITE_CHAT_API_URL: ${{ env.PROD_CHAT_URL }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          VITE_DISABLE_AUTH: 'true'
+          VITE_DISABLE_AUTH: 'false'
           
       - name: Verify build environment variables
         run: |
@@ -248,12 +253,21 @@ jobs:
             echo "✅ Found configured API URL in build files"
           else
             echo "❌ Configured API URL not found in build files"
+            exit 1
+          fi
+
+          if grep -RqsF "$VITE_CHAT_API_URL" apps/frontend/dist/assets; then
+            echo "✅ Found configured chat URL in build files"
+          else
+            echo "❌ Configured chat URL not found in build files"
+            exit 1
           fi
           
           if grep -RqsF "$VITE_SUPABASE_URL" apps/frontend/dist/assets; then
             echo "✅ Found Supabase URL in build files"
           else
             echo "❌ Supabase URL not found in build files - environment variables may not be set correctly"
+            exit 1
           fi
           
           echo "Checking for masked values (asterisks)..."
@@ -264,6 +278,10 @@ jobs:
           else
             echo "✅ No masked values found in build files"
           fi
+        env:
+          VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
+          VITE_CHAT_API_URL: ${{ env.PROD_CHAT_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           
       - name: Deploy to Netlify
         run: |
@@ -274,7 +292,7 @@ jobs:
           echo ""
           npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" deploy --prod --dir=apps/frontend/dist --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="Production deploy from ${GITHUB_SHA}"
         env:
-          VITE_API_URL: ${{ secrets.PROD_API_URL || 'https://api.wildedit.luminarimud.com/api' }}
+          VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_PROD_SITE_ID }}
           

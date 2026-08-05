@@ -312,10 +312,10 @@ jobs:
             -e WILDEDITOR_MCP_KEY="$MCP_KEY" \
             -e WILDEDITOR_API_KEY="$MCP_BACKEND_KEY" \
             -e WILDEDITOR_BACKEND_URL="http://localhost:8000" \
-            -e ENVIRONMENT="production" \
-            -e DEBUG="false" \
-            -e PORT="8001" \
-            -e LOG_LEVEL="INFO" \
+            -e WILDEDITOR_ENVIRONMENT="remote-production" \
+            -e WILDEDITOR_NODE_ENV="production" \
+            -e WILDEDITOR_MCP_PORT="8001" \
+            -e WILDEDITOR_LOG_LEVEL="INFO" \
             -e AI_PROVIDER="${AI_PROVIDER:-none}" \
             -e OPENAI_API_KEY="$OPENAI_API_KEY" \
             -e OPENAI_MODEL="${OPENAI_MODEL:-gpt-5.6-sol}" \
@@ -362,10 +362,10 @@ jobs:
           
           # Test MCP endpoints
           echo "🧪 Testing MCP endpoints..."
-          if curl -s --connect-timeout 5 --max-time 10 http://localhost:8001/health >/dev/null; then
-            echo "✅ Health endpoint working"
+          if curl -s --connect-timeout 5 --max-time 10 http://localhost:8001/health | grep -q '"environment":"production"'; then
+            echo "✅ Health endpoint working in production mode"
           else
-            echo "❌ Health endpoint failed"
+            echo "❌ Health endpoint failed or runtime environment is not production"
             exit 1
           fi
           

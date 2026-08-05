@@ -6,7 +6,7 @@
 # Chat service proxy
 [[redirects]]
   from = "/chat/*"
-  to = "http://luminarimud.com:8002/:splat"
+  to = "https://luminarimud.com/chat/:splat"
   status = 200
   force = true
 

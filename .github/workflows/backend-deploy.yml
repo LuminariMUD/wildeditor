@@ -145,15 +145,15 @@ jobs:
       - name: Output image digest
         run: echo ${{ steps.build.outputs.digest }}
 
-  # Deploy to development server
-  deploy-development:
-    name: Deploy to Development
+  # Deploy to production server
+  deploy-production:
+    name: Deploy to Production
     runs-on: ubuntu-latest
     needs: [test-backend, build-image]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     environment:
-      name: development
+      name: production
       # URL will be determined by PRODUCTION_HOST:8000
       
     steps:
@@ -351,13 +351,11 @@ jobs:
             -e MYSQL_DATABASE_URL="\$DATABASE_URL" \\
             -e WILDEDITOR_API_KEY="\$API_KEY" \\
             -e REQUIRE_AUTH="true" \\
+            -e WILDEDITOR_ENVIRONMENT="remote-production" \\
             -e ENVIRONMENT="production" \\
-            -e DEBUG="false" \\
             -e PORT="8000" \\
-            -e FRONTEND_URL="*" \\
+            -e CORS_ORIGINS="https://wildedit.luminarimud.com" \\
             -e LOG_LEVEL="INFO" \\
-            -e WORKERS="4" \\
-            -e ENABLE_DOCS="false" \\
             -v /var/log/wildeditor:/var/log/wildeditor \\
             \$DOCKER_IMAGE; then
             echo "✅ Container started with host networking (can use localhost for database)"
@@ -370,13 +368,11 @@ jobs:
               -e MYSQL_DATABASE_URL="\$UPDATED_DATABASE_URL" \\
               -e WILDEDITOR_API_KEY="\$API_KEY" \\
               -e REQUIRE_AUTH="true" \\
+              -e WILDEDITOR_ENVIRONMENT="remote-production" \\
               -e ENVIRONMENT="production" \\
-              -e DEBUG="false" \\
               -e PORT="8000" \\
-              -e FRONTEND_URL="*" \\
+              -e CORS_ORIGINS="https://wildedit.luminarimud.com" \\
               -e LOG_LEVEL="INFO" \\
-              -e WORKERS="4" \\
-              -e ENABLE_DOCS="false" \\
               -v /var/log/wildeditor:/var/log/wildeditor \\
               \$DOCKER_IMAGE
             echo "✅ Container started with bridge networking"
@@ -531,13 +527,13 @@ jobs:
   notify:
     name: Notify Deployment Status
     runs-on: ubuntu-latest
-    needs: [deploy-development]
+    needs: [deploy-production]
     if: always() && github.ref == 'refs/heads/main'
     
     steps:
       - name: Log deployment result
         run: |
-          if [ "${{ needs.deploy-development.result }}" == "success" ]; then
+          if [ "${{ needs.deploy-production.result }}" == "success" ]; then
             echo "🚀 Wildeditor Backend deployed successfully!"
           else
             echo "❌ Wildeditor Backend deployment failed!"
