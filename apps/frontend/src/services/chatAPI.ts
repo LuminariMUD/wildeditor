@@ -52,8 +52,8 @@ class ChatAPIClient {
   private baseUrl: string;
 
   constructor() {
-    // Use HTTPS URL with Apache reverse proxy
-    this.baseUrl = import.meta.env.VITE_CHAT_API_URL || 'https://luminarimud.com/chat';
+    // Use the dedicated TLS endpoint backed by the production Cloudflare tunnel.
+    this.baseUrl = import.meta.env.VITE_CHAT_API_URL || 'https://wildedit-chat.luminarimud.com';
   }
 
   async createSession(): Promise<ChatSession> {

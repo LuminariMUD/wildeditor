@@ -464,6 +464,8 @@ jobs:
             'ingress:' \
             '  - hostname: wildedit-api.luminarimud.com' \
             '    service: http://127.0.0.1:8000' \
+            '  - hostname: wildedit-chat.luminarimud.com' \
+            '    service: http://127.0.0.1:8002' \
             '  - service: http_status:404' \
             | ssh \
                 -o StrictHostKeyChecking=no \
@@ -542,6 +544,15 @@ jobs:
             echo "✅ Public HTTPS API health check passed"
           else
             echo "❌ Public HTTPS API health check failed"
+            exit 1
+          fi
+
+          if curl -fsS --connect-timeout 10 --max-time 30 \
+            "https://wildedit-chat.luminarimud.com/health/" \
+            | grep -q '"service":"Chat Agent"'; then
+            echo "✅ Public HTTPS chat health check passed"
+          else
+            echo "❌ Public HTTPS chat health check failed"
             exit 1
           fi
           

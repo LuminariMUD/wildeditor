@@ -12,7 +12,7 @@ env:
   AUDIT_CI_VERSION: '7.1.0'
   NETLIFY_CLI_VERSION: '27.1.0'
   PROD_API_FALLBACK: 'https://wildedit-api.luminarimud.com/api'
-  PROD_CHAT_URL: 'https://luminarimud.com/chat'
+  PROD_CHAT_URL: 'https://wildedit-chat.luminarimud.com'
 
 jobs:
   # Combined job for efficiency
