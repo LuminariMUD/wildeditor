@@ -5,7 +5,9 @@ This module provides a proxy endpoint for the frontend to call MCP services,
 avoiding CORS issues with direct browser-to-MCP communication.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from wildeditor_auth import Principal
+from ..middleware.auth import require_human_editor
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
 import httpx
@@ -13,14 +15,33 @@ import os
 import json
 import ast
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_human_editor)])
 
 # MCP Server Configuration
-MCP_URL = os.getenv("MCP_URL", "http://luminarimud.com:8001/mcp")
-MCP_API_KEY = os.getenv("MCP_API_KEY", "xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=")
+MCP_URL = os.getenv("MCP_URL", "http://localhost:8001/mcp").rstrip("/")
+MCP_API_KEY = os.getenv("MCP_API_KEY", "")
+
+
+def get_internal_audit_headers(
+    principal: Principal = Depends(require_human_editor),
+) -> Dict[str, str]:
+    """Create trusted audit context; never accept actor IDs from request bodies."""
+
+    if not MCP_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="MCP service authentication is not configured.",
+        )
+    return {
+        "X-API-Key": MCP_API_KEY,
+        "Content-Type": "application/json",
+        "X-Wildeditor-Actor": principal.subject,
+        "X-Wildeditor-Request-ID": str(uuid.uuid4()),
+    }
 
 
 class MCPRequest(BaseModel):
@@ -50,7 +71,10 @@ class GenerateDescriptionRequest(BaseModel):
 
 
 @router.post("/generate-description", response_model=MCPResponse)
-async def generate_region_description(request: GenerateDescriptionRequest):
+async def generate_region_description(
+    request: GenerateDescriptionRequest,
+    audit_headers: Dict[str, str] = Depends(get_internal_audit_headers),
+):
     """
     Generate a region description using the MCP AI service.
     
@@ -93,10 +117,7 @@ async def generate_region_description(request: GenerateDescriptionRequest):
             response = await client.post(
                 f"{MCP_URL}/request",
                 json=mcp_request,
-                headers={
-                    "X-API-Key": MCP_API_KEY,
-                    "Content-Type": "application/json"
-                },
+                headers=audit_headers,
                 timeout=60.0  # Longer timeout for AI generation
             )
             
@@ -190,14 +211,24 @@ async def generate_region_description(request: GenerateDescriptionRequest):
             else:
                 return MCPResponse(success=False, error="Invalid response from MCP server")
                 
-    except httpx.RequestError as e:
-        return MCPResponse(success=False, error=f"Failed to connect to MCP server: {str(e)}")
-    except Exception as e:
-        return MCPResponse(success=False, error=f"Internal error: {str(e)}")
+    except HTTPException:
+        raise
+    except httpx.RequestError as exc:
+        logger.error("MCP description request failed (%s)", type(exc).__name__)
+        return MCPResponse(success=False, error="MCP service is unavailable.")
+    except Exception as exc:
+        logger.error(
+            "MCP description response could not be processed (%s)",
+            type(exc).__name__,
+        )
+        return MCPResponse(success=False, error="MCP request failed.")
 
 
 @router.post("/call-tool", response_model=MCPResponse)
-async def call_mcp_tool(request: MCPRequest):
+async def call_mcp_tool(
+    request: MCPRequest,
+    audit_headers: Dict[str, str] = Depends(get_internal_audit_headers),
+):
     """
     Generic proxy endpoint for calling any MCP tool.
     
@@ -222,10 +253,7 @@ async def call_mcp_tool(request: MCPRequest):
             response = await client.post(
                 f"{MCP_URL}/request",
                 json=mcp_request,
-                headers={
-                    "X-API-Key": MCP_API_KEY,
-                    "Content-Type": "application/json"
-                },
+                headers=audit_headers,
                 timeout=60.0
             )
             
@@ -251,23 +279,29 @@ async def call_mcp_tool(request: MCPRequest):
                         # If that fails too, return as plain text
                         result = {"text": result_text}
                 
-                # Log the result for debugging hint generation
-                if request.tool_name == "generate_hints_from_description":
-                    logger.info(f"MCP returned hints result: {json.dumps(result, indent=2)[:500]}...")
                 return MCPResponse(success=True, result=result)
             elif "error" in data:
                 return MCPResponse(success=False, error=data["error"].get("message", "Unknown error"))
             else:
                 return MCPResponse(success=False, error="Invalid response from MCP server")
                 
-    except httpx.RequestError as e:
-        return MCPResponse(success=False, error=f"Failed to connect to MCP server: {str(e)}")
-    except Exception as e:
-        return MCPResponse(success=False, error=f"Internal error: {str(e)}")
+    except HTTPException:
+        raise
+    except httpx.RequestError as exc:
+        logger.error("MCP tool request failed (%s)", type(exc).__name__)
+        return MCPResponse(success=False, error="MCP service is unavailable.")
+    except Exception as exc:
+        logger.error(
+            "MCP tool response could not be processed (%s)",
+            type(exc).__name__,
+        )
+        return MCPResponse(success=False, error="MCP request failed.")
 
 
 @router.get("/status")
-async def get_mcp_status():
+async def get_mcp_status(
+    audit_headers: Dict[str, str] = Depends(get_internal_audit_headers),
+):
     """
     Check if the MCP server is accessible and running.
     
@@ -278,26 +312,24 @@ async def get_mcp_status():
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{MCP_URL}/status",
-                headers={"X-API-Key": MCP_API_KEY},
+                headers=audit_headers,
                 timeout=5.0
             )
             
             if response.status_code == 200:
                 return {
                     "mcp_available": True,
-                    "mcp_url": MCP_URL,
                     "status": response.json()
                 }
             else:
                 return {
                     "mcp_available": False,
-                    "mcp_url": MCP_URL,
                     "error": f"MCP server returned status {response.status_code}"
                 }
                 
-    except Exception as e:
+    except Exception as exc:
+        logger.error("MCP status request failed (%s)", type(exc).__name__)
         return {
             "mcp_available": False,
-            "mcp_url": MCP_URL,
-            "error": str(e)
+            "error": "MCP service is unavailable."
         }

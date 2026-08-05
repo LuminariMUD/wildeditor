@@ -1,12 +1,39 @@
 # Self-hosted PostgreSQL authentication migration plan
 
-Status: proposed
+Status: implemented and validated locally; production cutover blocked on the
+recorded source-user, SMTP, role-map, recovery-owner, and backup-recipient
+inputs in `docs/operations/self-hosted-auth-runbook.md`
 
 Last updated: 2026-08-05
 
 Applies to: Wildeditor and its integration with LuminariMUD
 
 Supersedes: the idea of moving the shared wilderness datastore from MariaDB to PostgreSQL
+
+Implementation evidence as of 2026-08-05:
+
+- The official pinned self-hosted stack and Auth-only loopback gateway are in
+  `infrastructure/supabase/`; PostgreSQL has no public host port.
+- The disposable full drill proves confirmation, protected role claims, login,
+  refresh, logout/revocation, recovery/password update, backup, clean database
+  replacement, ownership/ACL restoration, reconciliation, and post-restore
+  login. CI repeats that drill.
+- Backend, MCP, chat, and frontend use typed JWT/service principals, enforce the
+  authorization matrix and chat ownership, and do not ship a backend/MCP
+  credential in browser assets.
+- A real ES256 editor token issued by the disposable self-hosted stack was
+  accepted by the rebuilt backend and chat images, anonymous calls were
+  rejected, and the Redis session owner matched the token subject.
+- The rebuilt production images were also run with the production-equivalent
+  private host-network topology: backend service authentication, MCP-to-backend
+  readiness, and chat-to-Redis/MCP readiness all passed over loopback.
+- The MariaDB CI gate builds the pinned LuminariMUD source from a clean archive,
+  runs the real game twice, verifies its runtime-owned table and triggers, runs
+  Wildeditor region/path/spatial/hint/profile operations, and proves the game
+  can boot while consuming the resulting region and path fixtures.
+- Production deployment is deliberately manual-gated and will refuse to run
+  without real SMTP configuration, an `age` backup recipient, and the remaining
+  production secrets. No production cutover has been performed.
 
 ## Decision
 
@@ -51,9 +78,9 @@ Therefore, there is no application-data migration from Supabase to design. The m
 
 PostgreSQL alone is not an authentication service. It can store password hashes and session records, but it does not implement secure password handling, refresh-token rotation, email confirmation, account recovery, OAuth callbacks, or JWT issuance. The recommended deployment keeps the open-source Supabase Auth service (GoTrue) in front of PostgreSQL rather than reimplementing those security-sensitive features in FastAPI.
 
-## Current authentication gaps to fix during the move
+## Authentication gaps addressed by the implementation
 
-The migration must repair the authorization boundary rather than only changing the Supabase URL:
+The migration repairs the authorization boundary rather than only changing the Supabase URL. The original gaps were:
 
 1. Supabase currently gates the React UI, but the backend does not validate Supabase access tokens.
 2. `apps/frontend/src/services/api.ts` sends `VITE_WILDEDITOR_API_KEY` for mutations. A Vite variable is compiled into public browser assets and cannot be treated as a secret.
@@ -65,7 +92,8 @@ The migration must repair the authorization boundary rather than only changing t
 8. Signup and recovery redirects are hard-coded in `apps/frontend/src/hooks/useAuth.ts`.
 9. `.github/workflows/ci.yml` currently treats a compiled `supabase.co` URL as an expected production condition.
 
-These are cutover blockers. Copying Auth tables without fixing them would leave the browser login disconnected from API authorization.
+These code-level blockers are covered by the implementation and focused tests.
+The separate production-data and operator gates remain recorded in the runbook.
 
 ## Target architecture
 
@@ -452,7 +480,11 @@ Add an agent-local focused suite for JWT and session ownership before relying on
 
 - Fail CI if frontend source or built assets contain `VITE_WILDEDITOR_API_KEY` or a known backend/MCP credential.
 - Permit only the Auth publishable key in frontend assets; explicitly document that it is public.
-- After cutover, fail CI if built assets contain `supabase.co` or the retired managed project identifier.
+- After cutover, fail CI if built assets contain a configured
+  `https://<project-ref>.supabase.co` endpoint or the retired managed project
+  identifier. The Supabase client itself embeds a literal `*.supabase.co`
+  compatibility pattern, so that vendor string is not evidence of app
+  configuration.
 - Scan logs and error responses to ensure tokens, database URLs, API keys, password hashes, and SMTP credentials are redacted.
 
 ## Acceptance criteria
@@ -485,7 +517,7 @@ The migration is complete only when all of the following are proven:
 | Rollback creates identity divergence | Freeze account changes during cutover, avoid dual writes, keep the rollback period short, and define reconciliation rules in advance. |
 | MariaDB schema drift breaks either application | Establish LuminariMUD as schema authority and add a shared compatibility test before changing any game table. |
 
-## Required decisions before implementation
+## Required decisions before production cutover
 
 The plan recommends defaults, but implementation must record the actual values for:
 

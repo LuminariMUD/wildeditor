@@ -5,10 +5,11 @@ Test the backend API key
 
 import requests
 import json
+import os
 
 # API Configuration
-API_URL = "http://luminarimud.com:8000/api"
-API_KEY = "0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu"
+API_URL = os.getenv("WILDEDITOR_BACKEND_URL", "http://127.0.0.1:8000/api")
+API_KEY = os.environ["WILDEDITOR_BACKEND_SERVICE_KEY"]
 
 def test_api_endpoint(name, method, endpoint, data=None):
     """Test a single API endpoint"""

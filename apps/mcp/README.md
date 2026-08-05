@@ -14,7 +14,7 @@ cp .env.example .env
 python -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-Configure matching values for `WILDEDITOR_MCP_KEY`, `WILDEDITOR_API_KEY`, and the backend URL. AI provider configuration is optional for non-generation operations.
+Configure matching values for `WILDEDITOR_MCP_KEY`, the server-only `WILDEDITOR_BACKEND_SERVICE_KEY`, and the backend URL. AI provider configuration is optional for non-generation operations.
 
 ## Endpoints
 

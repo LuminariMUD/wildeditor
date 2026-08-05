@@ -9,15 +9,20 @@ Vite embeds every `VITE_` value into public browser assets at build time.
 | Variable | Purpose | Notes |
 | --- | --- | --- |
 | `VITE_API_URL` | Backend base URL including `/api` | Defaults in code to the production API; set it explicitly for local and preview builds |
+| `VITE_CHAT_API_URL` | Chat-agent base URL | Set explicitly per environment |
 | `VITE_SUPABASE_URL` | Browser authentication service URL | Required unless using the development-only bypass |
-| `VITE_SUPABASE_ANON_KEY` | Supabase publishable/anonymous key | Public by design; never substitute a service-role key |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Self-hosted Auth publishable key | Public by design; never substitute a secret/service-role key |
+| `VITE_AUTH_CALLBACK_URL` | Exact post-confirmation callback | Must be present in the Auth redirect allow-list |
+| `VITE_PASSWORD_RECOVERY_URL` | Exact password-recovery route | Must be present in the Auth redirect allow-list |
+| `VITE_AUTH_SIGNUP_ENABLED` | Shows public signup UI | Keep `false` for invite-only production |
 | `VITE_DISABLE_AUTH` | Development login bypass | Use only with a Vite development build; never use for a deployed environment |
-| `VITE_WILDEDITOR_API_KEY` | Current mutation credential | Transitional and insecure for production because it is compiled into the bundle |
-| `VITE_CHAT_API_URL` | Chat-agent base URL | Defaults to the deployed `/chat` endpoint |
 
 `VITE_MCP_URL` and `VITE_MCP_API_KEY` appeared in older templates but are not read by the current frontend. Browser AI requests use the backend MCP proxy or chat-agent API instead.
 
-Current frontend validation flags a `VITE_SUPABASE_URL` that does not contain `supabase.co` as a configuration error. The self-hosted Auth migration therefore requires a code change as well as a URL change; a self-hosted hostname is not supported by the current validation path.
+Production accepts the configured self-hosted HTTPS URL. Placeholder hosts and
+non-HTTPS production Auth URLs fail closed. One `AuthProvider` owns the session
+subscription and propagates the current user access token to backend and chat
+adapters.
 
 ## Backend
 
@@ -25,15 +30,24 @@ Current frontend validation flags a `VITE_SUPABASE_URL` that does not contain `s
 | --- | --- | --- |
 | `MYSQL_DATABASE_URL` | SQLAlchemy MySQL URL, normally `mysql+pymysql://...` | Preferred |
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Fallback database components when no explicit URL is supplied | As a complete set |
-| `WILDEDITOR_API_KEY` | Bearer key checked by protected backend routes | Yes when auth is enabled |
-| `REQUIRE_AUTH` | Enables Bearer-key validation; defaults to `true` | Yes in any shared environment |
+| `WILDEDITOR_AUTH_ISSUERS` | Exact comma-separated Auth issuer allow-list | Yes when auth is enabled |
+| `WILDEDITOR_AUTH_JWKS_URLS` | Optional comma-aligned JWKS URL list | Optional; derived from each issuer by default |
+| `WILDEDITOR_AUTH_AUDIENCE` | Required JWT audience | Defaults to `authenticated` |
+| `WILDEDITOR_AUTH_ALLOWED_ALGORITHMS` | Asymmetric JWT algorithm allow-list | Production default is `ES256` |
+| `WILDEDITOR_AUTH_JWKS_CACHE_TTL` | Bounded JWKS cache lifetime | Defaults to 300 seconds |
+| `WILDEDITOR_BACKEND_SERVICE_KEY` | Server-only MCP-to-backend Bearer credential | Required for MCP calls; never expose to Vite |
+| `REQUIRE_AUTH` | Enables JWT/service Bearer validation; defaults to `true` | Yes in any shared environment |
 | `CORS_ORIGINS` | Comma-separated browser origins | Set explicitly outside local development |
 | `ENVIRONMENT` | Selects database-host fallback behavior | Recommended |
 | `MCP_URL` | Base URL used by `/api/mcp/*` proxy routes | Required for proxy features |
-| `MCP_API_KEY` | MCP operations key sent by the proxy | Required for proxy features; the current proxy source contains a legacy literal fallback, so override it and treat the fallback as exposed pending removal |
+| `MCP_API_KEY` | MCP operations key sent by the human-only backend proxy | Required for proxy features; no literal fallback exists |
 | `TESTING` | Enables test-only database fallback behavior | Tests only |
 
-The Docker image fixes Uvicorn to `0.0.0.0:8000`; workflow variables such as `PORT`, `HOST`, `WORKERS`, `LOG_LEVEL`, and `ENABLE_DOCS` are not all consumed by the current application code. Backend OpenAPI routes are currently enabled unconditionally in `apps/backend/src/main.py`.
+The Docker image defaults Uvicorn to `0.0.0.0:8000`; the production workflow
+overrides that command to bind host loopback only. Workflow variables such as
+`PORT`, `HOST`, `WORKERS`, `LOG_LEVEL`, and `ENABLE_DOCS` are not all consumed
+by the current application code. Backend OpenAPI routes are currently enabled
+unconditionally in `apps/backend/src/main.py`.
 
 ## MCP service
 
@@ -46,7 +60,7 @@ Pydantic settings use the `WILDEDITOR_` prefix:
 | `WILDEDITOR_HOST` | Bind host |
 | `WILDEDITOR_LOG_LEVEL` | Python log level |
 | `WILDEDITOR_MCP_KEY` | `X-API-Key` accepted for MCP operations |
-| `WILDEDITOR_API_KEY` | Bearer key used for MCP-to-backend calls |
+| `WILDEDITOR_BACKEND_SERVICE_KEY` | Server-only Bearer key used for MCP-to-backend calls |
 | `WILDEDITOR_BACKEND_URL` | Backend origin, normally `http://localhost:8000` |
 | `WILDEDITOR_BACKEND_API_BASE` | Backend prefix, normally `/api` |
 | `WILDEDITOR_CORS_ORIGINS` | Comma-separated allowed origins |
@@ -75,6 +89,10 @@ Provider/model availability changes independently of this repository. Select a m
 | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY` | Provider credentials; at least one must initialize successfully |
 | `WILDERNESS_MCP_URL` | MCP service origin, without `/mcp` |
 | `MCP_API_KEY` | MCP `X-API-Key` used by the agent |
+| `WILDEDITOR_AUTH_ISSUERS`, `WILDEDITOR_AUTH_JWKS_URLS` | Exact human JWT trust configuration |
+| `WILDEDITOR_AUTH_AUDIENCE`, `WILDEDITOR_AUTH_ALLOWED_ALGORITHMS`, `WILDEDITOR_AUTH_JWKS_CACHE_TTL` | JWT claim, algorithm, and key-cache policy |
+| `REQUIRE_AUTH` | Must be `true` outside explicit local development |
+| `WILDEDITOR_ENVIRONMENT` | `local-development` or `remote-production`; production enforces Redis sessions |
 | `STORAGE_BACKEND` | `memory` or `redis` |
 | `REDIS_URL` | Redis connection string when Redis storage is selected |
 | `SESSION_TTL` | Session lifetime in seconds |
@@ -82,6 +100,9 @@ Provider/model availability changes independently of this repository. Select a m
 | `CORS_ORIGINS` | JSON list of browser origins parsed by Pydantic settings |
 
 There is no supported direct agent-to-backend variable; application data must flow through MCP.
+The production workflow provisions a pinned, loopback-only Redis container and
+constructs `REDIS_URL` from the URL-safe `WILDEDITOR_REDIS_PASSWORD` GitHub
+secret. The password must contain at least 32 characters.
 
 ## Current authentication flows
 
@@ -90,10 +111,13 @@ There is no supported direct agent-to-backend variable; application data must fl
 Protected backend routes expect:
 
 ```http
-Authorization: Bearer <backend-api-key>
+Authorization: Bearer <user-access-token>
 ```
 
-Region and path mutations are protected. Terrain and wilderness routes also use the same dependency, while several read and region-hint routes remain public. Check the route dependency before treating an endpoint as protected.
+All application-data routes require a typed principal. Viewer/editor/admin users
+may read; editor/admin users may mutate; a service principal is accepted only
+where MCP-to-backend operation is intended. The backend MCP proxy requires a
+human editor/admin.
 
 ### MCP
 
@@ -103,11 +127,16 @@ All `/mcp` operations expect:
 X-API-Key: <mcp-operations-key>
 ```
 
-MCP then calls protected backend routes with the backend Bearer key. Use separate randomly generated values for the two roles even where existing workflows use the same named backend key across services.
+MCP then calls protected backend routes with the independent server-only
+`WILDEDITOR_BACKEND_SERVICE_KEY` as a Bearer credential and propagates only
+server-derived audit actor/request context.
 
 ### Browser and chat
 
-Supabase currently protects the frontend UI, but the backend does not validate the user's Supabase access token. Chat routes are also unauthenticated. Do not describe the current setup as end-to-end user authorization. The [active authentication migration plan](ongoing-projects/self-hosted-postgres-auth-migration-plan.md) defines the proposed principal and role model.
+Self-hosted Supabase Auth protects the UI and issues human access tokens.
+Backend and chat validate those JWTs; chat requires editor/admin and enforces
+session ownership by token subject. The browser never receives a backend or
+MCP service credential.
 
 ## Secret handling
 
@@ -116,5 +145,4 @@ Supabase currently protects the frontend UI, but the backend does not validate t
 - Never put server credentials in a `VITE_` variable.
 - Do not log credentials, complete database URLs, tokens, or request authorization headers.
 - Rotate a value immediately if it appears in source, documentation, build artifacts, CI output, or browser assets.
-- Do not rely on the legacy MCP proxy fallback credential. Replace it with required configuration and rotate any matching deployed key before exposing proxy routes.
 - Keep `.env` files local; only placeholder-only `.env*.example` files belong in Git.

@@ -52,8 +52,8 @@ def check_tables():
         print("\nDatabase check complete!")
         return True
         
-    except Exception as e:
-        print(f"ERROR checking database: {e}")
+    except Exception as exc:
+        print(f"ERROR checking database: {type(exc).__name__}")
         return False
 
 if __name__ == "__main__":

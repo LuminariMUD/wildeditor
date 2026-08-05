@@ -1,0 +1,19 @@
+# Isolated Auth-flow testing only. Never include this override in production.
+services:
+  inbucket:
+    container_name: wildeditor-auth-test-mail
+    image: inbucket/inbucket:3.0.3
+    restart: "no"
+    ports:
+      - "127.0.0.1:${WILDEDITOR_TEST_MAIL_PORT:-9010}:9000"
+
+  auth:
+    depends_on:
+      inbucket:
+        condition: service_started
+    environment:
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_SMTP_HOST: inbucket
+      GOTRUE_SMTP_PORT: "2500"
+      GOTRUE_SMTP_USER: ""
+      GOTRUE_SMTP_PASS: ""

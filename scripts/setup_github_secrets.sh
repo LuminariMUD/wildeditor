@@ -1,117 +1,51 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# GitHub Secrets Setup Script for Wildeditor MCP Server
-# This script helps you configure the required GitHub Actions secrets
+# Generate and install the three independent server-only credentials used by
+# the production workflows. Values travel to GitHub CLI over stdin and are
+# never printed or written to a plaintext file.
 
-echo "=================================="
-echo "GitHub Secrets Setup for Wildeditor"
-echo "=================================="
-echo ""
-echo "This script will generate the necessary values for GitHub Actions secrets."
-echo "You'll need to manually add these to your repository settings."
-echo ""
+command -v gh >/dev/null 2>&1 || {
+  echo "gh is required" >&2
+  exit 1
+}
+command -v openssl >/dev/null 2>&1 || {
+  echo "openssl is required" >&2
+  exit 1
+}
+gh auth status >/dev/null
 
-# Function to generate random key
-generate_key() {
-    openssl rand -base64 32
+repo_args=()
+if [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
+  repo_args=(--repo "$GITHUB_REPOSITORY")
+fi
+
+generate_secret() {
+  openssl rand -hex 32
 }
 
-# Generate authentication keys
-echo "1. Generating Authentication Keys..."
-MCP_KEY=$(generate_key)
-API_KEY=$(generate_key)
+set_secret() {
+  local name=$1
+  local value=$2
+  printf '%s' "$value" | gh secret set "$name" "${repo_args[@]}"
+}
 
-echo "✅ Keys generated successfully"
-echo ""
+mcp_key=${WILDEDITOR_MCP_KEY:-$(generate_secret)}
+backend_service_key=${WILDEDITOR_BACKEND_SERVICE_KEY:-$(generate_secret)}
+redis_password=${WILDEDITOR_REDIS_PASSWORD:-$(generate_secret)}
 
-# Get OpenAI configuration from environment or use placeholder
-# IMPORTANT: Replace with your actual OpenAI API key!
-OPENAI_KEY="${OPENAI_API_KEY:-your-openai-api-key-here}"
-OPENAI_MODEL="${OPENAI_MODEL:-gpt-5.6-luna}"
-case "$OPENAI_MODEL" in
-    gpt-5.6-sol|gpt-5.6-terra|gpt-5.6-luna) ;;
-    *)
-        echo "❌ OPENAI_MODEL must be gpt-5.6-sol, gpt-5.6-terra, or gpt-5.6-luna"
-        exit 1
-        ;;
-esac
+set_secret WILDEDITOR_MCP_KEY "$mcp_key"
+set_secret WILDEDITOR_BACKEND_SERVICE_KEY "$backend_service_key"
+set_secret WILDEDITOR_REDIS_PASSWORD "$redis_password"
 
-# Production server details (update these as needed)
-PRODUCTION_HOST="luminarimud.com"
-PRODUCTION_USER="root"
+if [[ -n "${SELF_HOSTED_AUTH_PUBLISHABLE_KEY:-}" ]]; then
+  set_secret SELF_HOSTED_AUTH_PUBLISHABLE_KEY "$SELF_HOSTED_AUTH_PUBLISHABLE_KEY"
+fi
 
-echo "=================================="
-echo "GITHUB SECRETS TO ADD"
-echo "=================================="
-echo ""
-echo "Go to: https://github.com/LuminariMUD/wildeditor/settings/secrets/actions"
-echo "Click 'New repository secret' for each of the following:"
-echo ""
-echo "### Required Secrets ###"
-echo ""
-echo "WILDEDITOR_MCP_KEY:"
-echo "$MCP_KEY"
-echo ""
-echo "WILDEDITOR_API_KEY:"
-echo "$API_KEY"
-echo ""
-echo "PRODUCTION_HOST:"
-echo "$PRODUCTION_HOST"
-echo ""
-echo "PRODUCTION_USER:"
-echo "$PRODUCTION_USER"
-echo ""
-echo "PRODUCTION_SSH_KEY:"
-echo "(Use your existing SSH private key for the server)"
-echo ""
-echo "### AI Provider Secrets ###"
-echo ""
-echo "AI_PROVIDER:"
-echo "openai"
-echo ""
-echo "OPENAI_API_KEY:"
-echo "$OPENAI_KEY"
-echo ""
-echo "OPENAI_MODEL:"
-echo "$OPENAI_MODEL"
-echo ""
-echo "=================================="
-echo "SUMMARY"
-echo "=================================="
-echo ""
-echo "Total secrets to add: 8"
-echo "- 5 Required (authentication & deployment)"
-echo "- 3 AI Provider (OpenAI configuration)"
-echo ""
-echo "After adding these secrets:"
-echo "1. Push any change to main branch to trigger deployment"
-echo "2. Check GitHub Actions for deployment status"
-echo "3. Test the MCP server at http://$PRODUCTION_HOST:8001/health"
-echo ""
-echo "AI Features enabled:"
-echo "- Model: $OPENAI_MODEL"
-echo "- Reasoning effort: none"
-echo ""
+self_hosted_auth_url=${SELF_HOSTED_AUTH_URL:-https://auth.wildedit.luminarimud.com}
+set_secret SELF_HOSTED_AUTH_URL "$self_hosted_auth_url"
 
-# Save configuration to file for reference
-cat > github_secrets_values.txt << EOF
-# GitHub Secrets Configuration
-# Generated: $(date)
-# IMPORTANT: Keep this file secure and delete after use!
-
-WILDEDITOR_MCP_KEY=$MCP_KEY
-WILDEDITOR_API_KEY=$API_KEY
-PRODUCTION_HOST=$PRODUCTION_HOST
-PRODUCTION_USER=$PRODUCTION_USER
-PRODUCTION_SSH_KEY=(Add your SSH private key)
-AI_PROVIDER=openai
-OPENAI_API_KEY=$OPENAI_KEY
-OPENAI_MODEL=$OPENAI_MODEL
-EOF
-
-echo "✅ Configuration saved to: github_secrets_values.txt"
-echo "   (Delete this file after adding secrets to GitHub)"
-echo ""
-echo "📚 Documentation:"
-echo "   - Setup Guide: docs/GITHUB_SECRETS_SETUP.md"
-echo "   - Quick Start: docs/GITHUB_SECRETS_QUICKSTART.md"
+echo "Installed separated MCP, backend-service, Redis, and Auth URL secrets."
+if [[ -z "${SELF_HOSTED_AUTH_PUBLISHABLE_KEY:-}" ]]; then
+  echo "SELF_HOSTED_AUTH_PUBLISHABLE_KEY was not changed; supply it after provisioning Auth."
+fi

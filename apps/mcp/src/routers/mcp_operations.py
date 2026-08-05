@@ -5,8 +5,8 @@ This router implements the core MCP protocol with tools, resources, and prompts
 for wilderness management.
 """
 
-from typing import Dict, Any, List, Optional
-import httpx
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from wildeditor_auth import verify_mcp_key
@@ -17,6 +17,7 @@ from ..mcp.resources import ResourceRegistry
 from ..mcp.prompts import PromptRegistry
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Initialize MCP components
 mcp_server = MCPServer("wildeditor-mcp-server", "1.0.0")
@@ -110,7 +111,6 @@ async def mcp_status(authenticated: bool = Depends(verify_mcp_key)):
             "status": "ready"
         },
         "backend_integration": {
-            "url": settings.backend_base_url,
             "status": "configured"
         },
         "authenticated": True
@@ -272,8 +272,9 @@ async def read_resource(uri: str, authenticated: bool = Depends(verify_mcp_key))
             "description": resource["description"],
             "content": result
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading resource: {str(e)}")
+    except Exception as exc:
+        logger.error("Resource read failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Resource read failed") from exc
 
 @router.post("/tools/{tool_name}")
 async def call_tool(tool_name: str, arguments: dict = None, authenticated: bool = Depends(verify_mcp_key)):
@@ -288,8 +289,9 @@ async def call_tool(tool_name: str, arguments: dict = None, authenticated: bool 
             "tool": tool_name,
             "result": result
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Tool execution error: {str(e)}")
+    except Exception as exc:
+        logger.error("Tool execution failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Tool execution failed") from exc
 
 @router.post("/prompts/{prompt_name}")
 async def get_prompt(prompt_name: str, arguments: dict = None, authenticated: bool = Depends(verify_mcp_key)):
@@ -304,5 +306,6 @@ async def get_prompt(prompt_name: str, arguments: dict = None, authenticated: bo
             "prompt": prompt_name,
             "result": result
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prompt execution error: {str(e)}")
+    except Exception as exc:
+        logger.error("Prompt execution failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Prompt execution failed") from exc

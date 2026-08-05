@@ -3,6 +3,7 @@ Multi-key authentication system for Wildeditor services
 """
 
 import os
+import hmac
 from enum import Enum
 from typing import Set, Optional, Dict
 from .exceptions import InvalidAPIKeyError, MissingAPIKeyError
@@ -10,27 +11,21 @@ from .exceptions import InvalidAPIKeyError, MissingAPIKeyError
 
 class KeyType(Enum):
     """Available API key types"""
-    BACKEND_API = "backend_api"
     MCP_OPERATIONS = "mcp_operations"
-    MCP_BACKEND_ACCESS = "mcp_backend_access"
 
 
 class MultiKeyAuth:
     """
-    Multi-key authentication handler supporting three key types:
-    - BACKEND_API: For direct backend API access
-    - MCP_OPERATIONS: For MCP server operations
-    - MCP_BACKEND_ACCESS: For MCP server to access backend
+    Service-key authentication retained only for the agent-to-MCP boundary.
+
+    Backend access uses human JWTs or the dedicated Bearer service credential
+    implemented by ``BearerAuthenticator``.
     """
 
     def __init__(self):
         """Initialize with environment variables"""
         self.keys: Dict[KeyType, Set[str]] = {
-            KeyType.BACKEND_API: {os.getenv("WILDEDITOR_API_KEY", "")},
             KeyType.MCP_OPERATIONS: {os.getenv("WILDEDITOR_MCP_KEY", "")},
-            KeyType.MCP_BACKEND_ACCESS: {
-                os.getenv("WILDEDITOR_MCP_BACKEND_KEY", "")
-            }
         }
 
         # Remove empty keys
@@ -41,7 +36,10 @@ class MultiKeyAuth:
         """Check if an API key is valid for the given key type"""
         if not api_key:
             return False
-        return api_key in self.keys.get(key_type, set())
+        return any(
+            hmac.compare_digest(api_key, candidate)
+            for candidate in self.keys.get(key_type, set())
+        )
 
     def verify_key(self, api_key: Optional[str], key_type: KeyType) -> bool:
         """

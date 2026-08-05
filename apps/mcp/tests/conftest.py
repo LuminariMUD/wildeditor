@@ -11,6 +11,11 @@ current_dir = Path(__file__).parent  # tests/
 mcp_dir = current_dir.parent         # apps/mcp/
 sys.path.insert(0, str(mcp_dir))
 
+# Authentication singletons are initialized during application import, so the
+# test contract must exist before pytest imports any test modules.
+os.environ["WILDEDITOR_MCP_KEY"] = "test-mcp-key"
+os.environ["WILDEDITOR_BACKEND_SERVICE_KEY"] = "test-backend-service-key"
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -26,7 +31,7 @@ def setup_test_env():
     """Set up test environment variables for all tests"""
     test_env = {
         "WILDEDITOR_MCP_KEY": "test-mcp-key",
-        "WILDEDITOR_API_KEY": "test-backend-key"
+        "WILDEDITOR_BACKEND_SERVICE_KEY": "test-backend-service-key"
     }
     
     with patch.dict(os.environ, test_env):

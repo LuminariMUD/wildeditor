@@ -4,6 +4,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Result
 from typing import List, Optional, Any
 from datetime import datetime
+import logging
 from ..models.path import Path
 from ..schemas.path import (
     PathCreate, PathResponse, PathUpdate, get_path_type_name,
@@ -11,9 +12,10 @@ from ..schemas.path import (
     PATH_SECTOR_MAPPING
 )
 from ..config.config_database import get_db
-from ..middleware.auth import RequireAuth
+from ..middleware.auth import RequireAuth, require_editor, require_reader
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_reader)])
+logger = logging.getLogger(__name__)
  
 def coordinates_to_linestring_wkt(coordinates: List[dict]) -> str:
     """
@@ -59,7 +61,7 @@ def linestring_wkt_to_coordinates(wkt: str) -> List[dict]:
         
         return coordinates
     except Exception as e:
-        print(f"Error parsing LINESTRING WKT: {e}, WKT: {wkt}")
+        logger.error("LINESTRING parsing failed: %s", type(e).__name__)
         return []
 
 @router.get("", response_model=List[PathResponse])
@@ -108,7 +110,10 @@ def get_paths(
                     if result and result[0]:
                         coordinates = linestring_wkt_to_coordinates(result[0])
                 except Exception as e:
-                    print(f"Error converting linestring for path {path.vnum}: {e}")
+                    logger.error(
+                        "Path LINESTRING conversion failed: %s",
+                        type(e).__name__,
+                    )
                     coordinates = []
             
             path_dict = {
@@ -124,9 +129,10 @@ def get_paths(
         
         return response_paths
     except Exception as e:
+        logger.error("Path retrieval failed: %s", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving paths: {str(e)}"
+            detail="Error retrieving paths"
         )
 
 @router.get("/types", response_model=dict)
@@ -233,7 +239,7 @@ def get_path(vnum: int, db: Session = Depends(get_db)):
             if result and result[0]:
                 coordinates = linestring_wkt_to_coordinates(result[0])
         except Exception as e:
-            print(f"Error converting linestring for path {path.vnum}: {e}")
+            logger.error("Path LINESTRING conversion failed: %s", type(e).__name__)
             coordinates = []
     
     path_dict = {
@@ -248,7 +254,12 @@ def get_path(vnum: int, db: Session = Depends(get_db)):
     
     return PathResponse(**path_dict)
 
-@router.post("/", response_model=PathResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=PathResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_editor)],
+)
 def create_path(path: PathCreate, db: Session = Depends(get_db), authenticated: bool = RequireAuth):
     """
     Create a new path.
@@ -313,12 +324,17 @@ def create_path(path: PathCreate, db: Session = Depends(get_db), authenticated: 
         raise
     except Exception as e:
         db.rollback()
+        logger.error("Path creation failed: %s", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error creating path: {str(e)}"
+            detail="Error creating path"
         )
 
-@router.put("/{vnum}", response_model=PathResponse)
+@router.put(
+    "/{vnum}",
+    response_model=PathResponse,
+    dependencies=[Depends(require_editor)],
+)
 def update_path(vnum: int, path_update: PathUpdate, db: Session = Depends(get_db), authenticated: bool = RequireAuth):
     """
     Update an existing path.
@@ -374,12 +390,17 @@ def update_path(vnum: int, path_update: PathUpdate, db: Session = Depends(get_db
         raise
     except Exception as e:
         db.rollback()
+        logger.error("Path update failed: %s", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error updating path: {str(e)}"
+            detail="Error updating path"
         )
 
-@router.delete("/{vnum}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{vnum}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_editor)],
+)
 def delete_path(vnum: int, db: Session = Depends(get_db), authenticated: bool = RequireAuth):
     """
     Delete a path.
@@ -404,7 +425,8 @@ def delete_path(vnum: int, db: Session = Depends(get_db), authenticated: bool = 
         raise
     except Exception as e:
         db.rollback()
+        logger.error("Path deletion failed: %s", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error deleting path: {str(e)}"
+            detail="Error deleting path"
         )

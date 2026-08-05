@@ -7,7 +7,7 @@ echo "======================================"
 # Configuration
 MCP_URL="http://luminarimud.com:8001"
 BACKEND_URL="http://luminarimud.com:8000"
-MCP_API_KEY="xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0="
+MCP_API_KEY=${WILDEDITOR_MCP_KEY:?WILDEDITOR_MCP_KEY is required}
 BACKEND_API_KEY=""
 
 echo ""

@@ -11,6 +11,8 @@ from pathlib import Path
 # Set test environment variable BEFORE importing any modules
 os.environ["MYSQL_DATABASE_URL"] = "mysql+pymysql://test:test@localhost:3306/test_db"
 os.environ["TESTING"] = "1"  # Flag to indicate we're in testing mode
+os.environ["REQUIRE_AUTH"] = "false"
+os.environ["WILDEDITOR_ENVIRONMENT"] = "local-development"
 
 # Add both the parent directory (for 'src' module) and src directory itself to Python path
 # This ensures imports work in both local development and CI environments

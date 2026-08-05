@@ -1,39 +1,29 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import { MapPin, CheckCircle, AlertCircle } from 'lucide-react'
+import { useAuth } from '../hooks/useAuth'
 
 export const AuthCallback: React.FC = () => {
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
-  const [message, setMessage] = useState('')
+  const { loading, session, configurationError } = useAuth()
+  const { searchParams } = new URL(window.location.href)
+  const callbackError = searchParams.get('error_description') || searchParams.get('error')
+  const errorMessage = configurationError || callbackError
+  const status = errorMessage || (!loading && !session)
+    ? 'error'
+    : session
+      ? 'success'
+      : 'loading'
+  const message = errorMessage
+    || (status === 'success'
+      ? 'Authentication completed. Redirecting to the editor…'
+      : 'The authentication link is invalid or expired.')
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
-      try {
-        const { searchParams } = new URL(window.location.href)
-        const error = searchParams.get('error')
-        const errorDescription = searchParams.get('error_description')
-
-        if (error) {
-          setStatus('error')
-          setMessage(errorDescription || 'Authentication failed')
-          return
-        }
-
-        // If we get here, the email verification was successful
-        setStatus('success')
-        setMessage('Email verified successfully! Redirecting to the editor...')
-        
-        // Redirect to main app after a short delay
-        setTimeout(() => {
-          window.location.href = '/'
-        }, 2000)
-      } catch {
-        setStatus('error')
-        setMessage('An unexpected error occurred during verification')
-      }
-    }
-
-    handleAuthCallback()
-  }, [])
+    if (status !== 'success') return
+    const timer = window.setTimeout(() => {
+      window.location.assign('/')
+    }, 1200)
+    return () => window.clearTimeout(timer)
+  }, [status])
 
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">

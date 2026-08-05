@@ -29,7 +29,11 @@ OpenAPI is at `http://localhost:8000/docs`.
 
 ## Authentication
 
-Protected routes use `Authorization: Bearer <WILDEDITOR_API_KEY>` when `REQUIRE_AUTH=true`. Enforcement is currently inconsistent across route groups, so consult the route dependency and [configuration guide](../../docs/configuration.md) before exposing the API.
+Protected routes use `Authorization: Bearer <user-access-token>` when
+`REQUIRE_AUTH=true`. MCP uses the distinct server-only backend service key.
+Read routes accept viewer/editor/admin principals, mutations require editor or
+admin, and the backend MCP proxy requires a human editor/admin. See the
+[configuration guide](../../docs/configuration.md).
 
 ## Tests
 

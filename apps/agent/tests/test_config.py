@@ -1,21 +1,30 @@
-"""Focused tests for chat-agent model configuration."""
+"""Chat runtime configuration safety tests."""
 
 import pytest
 from pydantic import ValidationError
 
-from src.config import Settings
+from config import Settings
+from session.storage import create_storage
 
 
-@pytest.mark.parametrize(
-    "model_name",
-    ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"],
-)
-def test_supported_openai_models(model_name: str) -> None:
-    settings = Settings(_env_file=None, model_name=model_name)
+def test_production_rejects_ephemeral_session_storage():
+    with pytest.raises(ValidationError, match="STORAGE_BACKEND=redis"):
+        Settings(
+            _env_file=None,
+            WILDEDITOR_ENVIRONMENT="remote-production",
+            storage_backend="memory",
+        )
 
-    assert settings.model_name == model_name
+
+def test_redis_storage_requires_a_connection_url():
+    with pytest.raises(ValidationError, match="REDIS_URL is required"):
+        Settings(
+            _env_file=None,
+            storage_backend="redis",
+            redis_url="",
+        )
 
 
-def test_legacy_openai_model_is_rejected() -> None:
-    with pytest.raises(ValidationError):
-        Settings(_env_file=None, model_name="gpt-4.1")
+def test_unknown_storage_backend_is_rejected():
+    with pytest.raises(ValueError, match="Unsupported session storage backend"):
+        create_storage("filesystem")

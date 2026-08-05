@@ -2,7 +2,7 @@
 """
 Authentication test script for Wildeditor API.
 
-Tests API key authentication functionality.
+Tests the server-only backend service credential boundary.
 """
 
 import os
@@ -12,7 +12,7 @@ from typing import Optional
 
 # Configuration
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api")
-API_KEY = os.getenv("WILDEDITOR_API_KEY", "")
+SERVICE_KEY = os.getenv("WILDEDITOR_BACKEND_SERVICE_KEY", "")
 
 def test_health_endpoint():
     """Test the public health endpoint."""
@@ -51,9 +51,9 @@ def test_auth_status(api_key: Optional[str] = None):
     except Exception as e:
         print(f"❌ Auth status error: {e}")
 
-def test_read_endpoints():
-    """Test read-only endpoints (should be public)."""
-    print("🔍 Testing read-only endpoints (should be public)...")
+def test_read_endpoints(service_key: str):
+    """Test authenticated read-only endpoints."""
+    print("🔍 Testing authenticated read-only endpoints...")
     
     endpoints = [
         "/regions",
@@ -64,7 +64,10 @@ def test_read_endpoints():
     
     for endpoint in endpoints:
         try:
-            response = requests.get(f"{API_BASE_URL}{endpoint}")
+            response = requests.get(
+                f"{API_BASE_URL}{endpoint}",
+                headers={"Authorization": f"Bearer {service_key}"},
+            )
             if response.status_code in [200, 404]:  # 404 is OK if no data exists
                 print(f"✅ GET {endpoint} - accessible")
             else:
@@ -144,27 +147,27 @@ def main():
     
     # Test authentication status
     test_auth_status()  # Without API key
-    if API_KEY:
-        test_auth_status(API_KEY)  # With API key
+    if SERVICE_KEY:
+        test_auth_status(SERVICE_KEY)  # With server-only service key
     print()
     
     # Test read-only endpoints
-    test_read_endpoints()
+    if SERVICE_KEY:
+        test_read_endpoints(SERVICE_KEY)
     print()
     
     # Test protected endpoints
-    if API_KEY:
-        test_protected_endpoints(API_KEY)
+    if SERVICE_KEY:
+        test_protected_endpoints(SERVICE_KEY)
     else:
-        print("⚠️  WILDEDITOR_API_KEY not set - skipping protected endpoint tests")
-        print("   Set WILDEDITOR_API_KEY environment variable to test authentication")
+        print("⚠️  WILDEDITOR_BACKEND_SERVICE_KEY not set - skipping protected endpoint tests")
     
     print()
     print("✅ Authentication tests completed!")
 
 if __name__ == "__main__":
-    if not API_KEY:
-        print("⚠️  Warning: WILDEDITOR_API_KEY environment variable not set")
+    if not SERVICE_KEY:
+        print("⚠️  Warning: WILDEDITOR_BACKEND_SERVICE_KEY environment variable not set")
         print("   Some tests will be skipped")
         print()
     

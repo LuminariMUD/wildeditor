@@ -20,7 +20,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
         app,
         exclude_paths: Optional[Set[str]] = None,
         mcp_path_prefix: str = "/mcp",
-        backend_path_prefix: str = "/api"
     ):
         """
         Initialize auth middleware
@@ -29,7 +28,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
             app: FastAPI application
             exclude_paths: Paths to exclude from authentication
             mcp_path_prefix: Path prefix for MCP endpoints
-            backend_path_prefix: Path prefix for backend endpoints
         """
         super().__init__(app)
         self.auth = MultiKeyAuth()
@@ -41,7 +39,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/favicon.ico"
         }
         self.mcp_path_prefix = mcp_path_prefix
-        self.backend_path_prefix = backend_path_prefix
 
     async def dispatch(self, request: Request, call_next):
         """Process request through authentication"""
@@ -90,8 +87,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
         """
         if path.startswith(self.mcp_path_prefix):
             return KeyType.MCP_OPERATIONS
-        elif path.startswith(self.backend_path_prefix):
-            return KeyType.BACKEND_API
 
         # Default to no authentication required
         return None

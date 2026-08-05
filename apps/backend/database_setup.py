@@ -102,7 +102,7 @@ if __name__ == "__main__":
         print("Please ensure your .env file is configured correctly")
         sys.exit(1)
     
-    print(f"🔗 Using database URL: {db_url.replace(db_url.split('@')[0].split('//')[1], '***:***')}")
+    print("🔗 Using configured MYSQL_DATABASE_URL (credential suppressed)")
     
     # Test connection and structure
     if test_connection():

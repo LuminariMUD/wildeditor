@@ -5,10 +5,11 @@ Test the MCP proxy endpoint
 
 import requests
 import json
+import os
 
 # Configuration
-BACKEND_URL = "http://luminarimud.com:8000/api"
-API_KEY = "0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu"
+BACKEND_URL = os.getenv("WILDEDITOR_BACKEND_URL", "http://127.0.0.1:8000/api")
+API_KEY = os.environ["WILDEDITOR_BACKEND_SERVICE_KEY"]
 
 def test_generate_description():
     """Test the generate-description endpoint"""

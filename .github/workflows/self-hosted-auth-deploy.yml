@@ -1,0 +1,219 @@
+name: Deploy self-hosted Auth
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'infrastructure/supabase/**'
+      - 'scripts/deploy-wildeditor-tunnel.sh'
+      - '.github/workflows/self-hosted-auth-deploy.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'infrastructure/supabase/**'
+      - 'scripts/deploy-wildeditor-tunnel.sh'
+      - '.github/workflows/self-hosted-auth-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type deploy-auth to deploy the reviewed production stack'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-hosted-auth-production-deploy
+  cancel-in-progress: false
+
+env:
+  CLOUDFLARED_IMAGE: 'cloudflare/cloudflared@sha256:e39ee8da81ad5e05d77f38d2f51c60ca51bf2a8450ac3abab50c17fdb91d91bf'
+  AUTH_HOSTNAME: auth.wildedit.luminarimud.com
+  AUTH_DIR: /home/wildedit/self-hosted-auth
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Validate pinned production boundary
+        run: |
+          for script in infrastructure/supabase/scripts/*.sh; do
+            sh -n "$script"
+          done
+          docker compose \
+            --env-file infrastructure/supabase/.env.example \
+            -f infrastructure/supabase/docker-compose.yml \
+            -f infrastructure/supabase/docker-compose.wildeditor.yml \
+            config --quiet
+          published=$(docker compose \
+            --env-file infrastructure/supabase/.env.example \
+            -f infrastructure/supabase/docker-compose.yml \
+            -f infrastructure/supabase/docker-compose.wildeditor.yml \
+            config --format json \
+            | jq -r '.services | to_entries[] | select(.value.ports != null) | .key')
+          test "$published" = auth-gateway
+
+  deploy:
+    needs: validate
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.confirm == 'deploy-auth' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production-auth
+      url: https://auth.wildedit.luminarimud.com/auth/v1/health
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
+      - name: Trust production host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$PRODUCTION_HOST" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+      - name: Synchronize immutable deployment inputs
+        run: |
+          ssh "$PRODUCTION_USER@$PRODUCTION_HOST" 'mkdir -p /home/wildedit/self-hosted-auth'
+          rsync -az --delete-delay \
+            --exclude '.env' \
+            --exclude 'backups/' \
+            --exclude 'volumes/db/data/' \
+            -e ssh \
+            infrastructure/supabase/ \
+            "$PRODUCTION_USER@$PRODUCTION_HOST:$AUTH_DIR/"
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+      - name: Install first-use protected environment
+        env:
+          AUTH_ENV_B64: ${{ secrets.SELF_HOSTED_AUTH_ENV_B64 }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          has_environment=$(ssh "$PRODUCTION_USER@$PRODUCTION_HOST" \
+            'test -s /home/wildedit/self-hosted-auth/.env && echo yes || echo no')
+          if [ "$has_environment" = no ]; then
+            test -n "$AUTH_ENV_B64"
+            printf '%s' "$AUTH_ENV_B64" | ssh "$PRODUCTION_USER@$PRODUCTION_HOST" '
+              set -e
+              umask 077
+              base64 -d > /home/wildedit/self-hosted-auth/.env.new
+              chmod 600 /home/wildedit/self-hosted-auth/.env.new
+              mv /home/wildedit/self-hosted-auth/.env.new /home/wildedit/self-hosted-auth/.env
+            '
+          else
+            echo 'Preserving existing production .env; rotate it through the runbook.'
+          fi
+      - name: Backup and deploy on production host
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          ssh "$PRODUCTION_USER@$PRODUCTION_HOST" 'bash -se' <<'REMOTE'
+            set -eu
+            cd /home/wildedit/self-hosted-auth
+            chmod 600 .env
+            case "$(sed -n "s/^COMPOSE_FILE=//p" .env | tail -n 1)" in
+              *docker-compose.wildeditor-test.yml*)
+                echo "Refusing production test override" >&2
+                exit 1
+                ;;
+            esac
+            sh scripts/validate-config.sh
+
+            command -v age >/dev/null 2>&1 || {
+              echo "age is required for production Auth backups" >&2
+              exit 1
+            }
+            recipient=$(sed -n "s/^AUTH_BACKUP_AGE_RECIPIENT=//p" .env | tail -n 1)
+            case "$recipient" in age1*) ;; *)
+              echo "A production age backup recipient is required" >&2
+              exit 1
+              ;;
+            esac
+
+            if [ -n "$(docker compose ps -q db 2>/dev/null)" ]; then
+              AUTH_BACKUP_AGE_RECIPIENT="$recipient" \
+                AUTH_BACKUP_DIR=./backups \
+                sh scripts/backup.sh
+            fi
+
+            docker compose pull
+            docker compose up -d --wait
+            sh scripts/smoke.sh http://127.0.0.1:8010
+            AUTH_BACKUP_AGE_RECIPIENT="$recipient" \
+              AUTH_BACKUP_DIR=./backups \
+              sh scripts/backup.sh
+            AUTH_PUBLIC_URL=http://127.0.0.1:8010 \
+              AUTH_BACKUP_DIR=./backups \
+              sh scripts/monitor.sh
+
+            ss -ltn | grep -qE "127\\.0\\.0\\.1:8010[[:space:]]"
+            if ss -ltn | grep -qE "(^|[[:space:]])(0\\.0\\.0\\.0|\\[::\\]):(5432|6543)[[:space:]]"; then
+              echo "PostgreSQL or pooler is publicly bound" >&2
+              exit 1
+            fi
+          REMOTE
+      - name: Ensure Cloudflare Auth ingress
+        env:
+          TUNNEL_CREDENTIALS_B64: ${{ secrets.CLOUDFLARE_TUNNEL_CREDENTIALS_B64 }}
+          TUNNEL_ID: ${{ vars.CLOUDFLARE_TUNNEL_ID }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          test -n "$TUNNEL_CREDENTIALS_B64"
+          test -n "$TUNNEL_ID"
+          printf '%s' "$TUNNEL_CREDENTIALS_B64" | ssh "$PRODUCTION_USER@$PRODUCTION_HOST" '
+            set -e
+            umask 077
+            mkdir -p "$HOME/.cloudflared"
+            chmod 700 "$HOME/.cloudflared"
+            base64 -d > "$HOME/.cloudflared/wildeditor-api.json.new"
+            chmod 600 "$HOME/.cloudflared/wildeditor-api.json.new"
+            mv "$HOME/.cloudflared/wildeditor-api.json.new" "$HOME/.cloudflared/wildeditor-api.json"
+          '
+          printf '%s\n' \
+            "tunnel: $TUNNEL_ID" \
+            'credentials-file: /etc/cloudflared/credentials.json' \
+            'ingress:' \
+            '  - hostname: wildedit-api.luminarimud.com' \
+            '    service: http://127.0.0.1:8000' \
+            '  - hostname: wildedit-chat.luminarimud.com' \
+            '    service: http://127.0.0.1:8002' \
+            '  - hostname: auth.wildedit.luminarimud.com' \
+            '    service: http://127.0.0.1:8010' \
+            '  - service: http_status:404' \
+            | ssh "$PRODUCTION_USER@$PRODUCTION_HOST" '
+                set -e
+                umask 077
+                cat > "$HOME/.cloudflared/wildeditor-api.yml.new"
+                chmod 600 "$HOME/.cloudflared/wildeditor-api.yml.new"
+                mv "$HOME/.cloudflared/wildeditor-api.yml.new" "$HOME/.cloudflared/wildeditor-api.yml"
+              '
+          scp scripts/deploy-wildeditor-tunnel.sh \
+            "$PRODUCTION_USER@$PRODUCTION_HOST:/tmp/deploy-wildeditor-tunnel.sh"
+          ssh "$PRODUCTION_USER@$PRODUCTION_HOST" '
+            set -e
+            chmod +x /tmp/deploy-wildeditor-tunnel.sh
+            trap "rm -f /tmp/deploy-wildeditor-tunnel.sh" EXIT
+            export CLOUDFLARED_IMAGE="cloudflare/cloudflared@sha256:e39ee8da81ad5e05d77f38d2f51c60ca51bf2a8450ac3abab50c17fdb91d91bf"
+            /tmp/deploy-wildeditor-tunnel.sh
+          '
+      - name: Verify public Auth-only surface
+        run: |
+          curl -fsS --connect-timeout 10 --max-time 30 \
+            "https://$AUTH_HOSTNAME/auth/v1/health" \
+            | jq -e '.version != null' >/dev/null
+          curl -fsS --connect-timeout 10 --max-time 30 \
+            "https://$AUTH_HOSTNAME/auth/v1/.well-known/jwks.json" \
+            | jq -e '.keys | length > 0' >/dev/null
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --connect-timeout 10 --max-time 30 \
+            "https://$AUTH_HOSTNAME/rest/v1/")
+          test "$status" = 404

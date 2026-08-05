@@ -3,6 +3,7 @@ pydantic==2.13.4
 pydantic-settings==2.14.2
 httpx==0.28.1
 httpx2==2.9.1
+PyJWT[crypto]==2.13.0
 
 # Development dependencies
 pytest==9.1.1

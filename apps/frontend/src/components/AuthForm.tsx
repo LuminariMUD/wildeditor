@@ -10,7 +10,13 @@ export const AuthForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
-  const { signUp, signIn, resetPassword } = useAuth()
+  const {
+    signUp,
+    signIn,
+    resetPassword,
+    signupEnabled,
+    configurationError,
+  } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,10 +83,10 @@ export const AuthForm: React.FC = () => {
           </p>
         </div>
 
-        {error && (
+        {(configurationError || error) && (
           <div className="mb-4 p-3 bg-red-900/50 border border-red-500 rounded-lg flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-            <span className="text-red-400 text-sm">{error}</span>
+            <span className="text-red-400 text-sm">{configurationError || error}</span>
           </div>
         )}
 
@@ -122,7 +128,7 @@ export const AuthForm: React.FC = () => {
                 className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                 placeholder="Enter your password"
                 required
-                minLength={6}
+                minLength={8}
                 autoComplete={isSignUp ? "new-password" : "current-password"}
               />
             </div>
@@ -141,18 +147,24 @@ export const AuthForm: React.FC = () => {
           </button>
         </form>
 
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => {
-              setIsSignUp(!isSignUp)
-              setError(null)
-              setMessage(null)
-            }}
-            className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
-          >
-            {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-          </button>
-        </div>
+        {signupEnabled ? (
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => {
+                setIsSignUp(current => !current)
+                setError(null)
+                setMessage(null)
+              }}
+              className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
+            >
+              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+            </button>
+          </div>
+        ) : (
+          <p className="mt-6 text-center text-sm text-gray-400">
+            Accounts are invite-only.
+          </p>
+        )}
 
         {!isSignUp && (
           <div className="mt-4 text-center">
@@ -168,7 +180,7 @@ export const AuthForm: React.FC = () => {
 
         <div className="mt-8 pt-6 border-t border-gray-700 text-center">
           <p className="text-xs text-gray-500">
-            Secure authentication powered by Supabase
+            Secure authentication hosted by LuminariMUD
           </p>
         </div>
       </div>

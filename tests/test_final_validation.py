@@ -4,11 +4,13 @@ Final validation of MCP server deployment
 """
 
 import json
+import os
 import requests
 import ast
 
-MCP_URL = "http://luminarimud.com:8001/mcp"
-MCP_KEY = "xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0="
+MCP_ROOT_URL = os.getenv("WILDEDITOR_MCP_ROOT_URL", "http://127.0.0.1:8001")
+MCP_URL = f"{MCP_ROOT_URL}/mcp"
+MCP_KEY = os.environ["WILDEDITOR_MCP_KEY"]
 
 print("=" * 70)
 print("🎉 MCP SERVER DEPLOYMENT VALIDATION")
@@ -16,7 +18,7 @@ print("=" * 70)
 
 # 1. Check server version and health
 print("\n1️⃣ Server Health Check")
-response = requests.get("http://luminarimud.com:8001/health")
+response = requests.get(f"{MCP_ROOT_URL}/health")
 health = response.json()
 print(f"   Version: {health['version']}")
 print(f"   Status: {health['status']}")

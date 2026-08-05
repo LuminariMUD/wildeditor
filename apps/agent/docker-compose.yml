@@ -8,6 +8,7 @@ services:
       - "8002:8002"
     environment:
       # Server Configuration
+      - WILDEDITOR_ENVIRONMENT=${WILDEDITOR_ENVIRONMENT:-local-development}
       - HOST=0.0.0.0
       - PORT=8002
       - DEBUG=false
@@ -24,9 +25,18 @@ services:
       # MCP Server Configuration (internal Docker network)
       - WILDERNESS_MCP_URL=http://wildeditor-mcp:8001
       - MCP_API_KEY=${MCP_API_KEY}
+
+      # Browser JWT authentication
+      - WILDEDITOR_AUTH_ISSUERS=${WILDEDITOR_AUTH_ISSUERS}
+      - WILDEDITOR_AUTH_JWKS_URLS=${WILDEDITOR_AUTH_JWKS_URLS:-}
+      - WILDEDITOR_AUTH_AUDIENCE=${WILDEDITOR_AUTH_AUDIENCE:-authenticated}
+      - WILDEDITOR_AUTH_ALLOWED_ALGORITHMS=${WILDEDITOR_AUTH_ALLOWED_ALGORITHMS:-ES256}
+      - WILDEDITOR_AUTH_JWKS_CACHE_TTL=${WILDEDITOR_AUTH_JWKS_CACHE_TTL:-300}
+      - REQUIRE_AUTH=${REQUIRE_AUTH:-true}
       
       # Session Storage
-      - STORAGE_BACKEND=memory
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-memory}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - SESSION_TTL=86400
       
       # CORS Configuration
@@ -42,7 +52,7 @@ services:
     restart: unless-stopped
     
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/', timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/ready', timeout=2)"]
       interval: 30s
       timeout: 3s
       retries: 3

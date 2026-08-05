@@ -7,8 +7,12 @@ from datetime import UTC, datetime
 import logging
 import json
 import asyncio
+import uuid
+from wildeditor_auth import Principal
 
 from agent.chat_agent import EditorContext, AssistantResponse
+from security import require_human_editor
+from services.request_context import bind_request_context, reset_request_context
 from session.manager import Message
 
 logger = logging.getLogger(__name__)
@@ -51,7 +55,8 @@ async def get_dependencies(request: Request):
 @router.post("/message", response_model=ChatMessageResponse)
 async def send_message(
     request: ChatMessageRequest,
-    deps: dict = Depends(get_dependencies)
+    deps: dict = Depends(get_dependencies),
+    principal: Principal = Depends(require_human_editor),
 ) -> ChatMessageResponse:
     """
     Send a message to the chat agent
@@ -64,7 +69,10 @@ async def send_message(
     
     try:
         # Verify session exists
-        if not await session_manager.session_exists(request.session_id):
+        if not await session_manager.get_owned_session(
+            request.session_id,
+            principal.subject,
+        ):
             raise HTTPException(status_code=404, detail=f"Session {request.session_id} not found")
         
         # Add user message to history
@@ -88,11 +96,15 @@ async def send_message(
             )
         
         # Get response from agent
-        response = await chat_agent.chat_with_history(
-            request.message,
-            history[:-1],  # Exclude the just-added message
-            request.context
-        )
+        context_token = bind_request_context(principal, str(uuid.uuid4()))
+        try:
+            response = await chat_agent.chat_with_history(
+                request.message,
+                history[:-1],  # Exclude the just-added message
+                request.context
+            )
+        finally:
+            reset_request_context(context_token)
         
         # Add assistant response to history
         assistant_message = await session_manager.add_message(
@@ -114,9 +126,9 @@ async def send_message(
         
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error processing message: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to process message: {str(e)}")
+    except Exception as exc:
+        logger.error("Failed to process a chat message (%s)", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Failed to process message.") from exc
 
 
 @router.get("/history", response_model=ChatHistoryResponse)
@@ -124,7 +136,8 @@ async def get_history(
     session_id: str,
     limit: int = 50,
     offset: int = 0,
-    deps: dict = Depends(get_dependencies)
+    deps: dict = Depends(get_dependencies),
+    principal: Principal = Depends(require_human_editor),
 ) -> ChatHistoryResponse:
     """
     Get chat history for a session
@@ -135,7 +148,10 @@ async def get_history(
     
     try:
         # Get session data
-        session_data = await session_manager.get_session(session_id)
+        session_data = await session_manager.get_owned_session(
+            session_id,
+            principal.subject,
+        )
         if not session_data:
             raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
         
@@ -152,15 +168,16 @@ async def get_history(
         
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error getting history: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to get history: {str(e)}")
+    except Exception as exc:
+        logger.error("Failed to read chat history (%s)", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Failed to get history.") from exc
 
 
 @router.delete("/history/{session_id}")
 async def clear_history(
     session_id: str,
-    deps: dict = Depends(get_dependencies)
+    deps: dict = Depends(get_dependencies),
+    principal: Principal = Depends(require_human_editor),
 ) -> dict:
     """
     Clear chat history for a session
@@ -170,6 +187,9 @@ async def clear_history(
     session_manager = deps["session_manager"]
     
     try:
+        if not await session_manager.get_owned_session(session_id, principal.subject):
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
         success = await session_manager.clear_history(session_id)
         if not success:
             raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
@@ -181,15 +201,16 @@ async def clear_history(
         
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error clearing history: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to clear history: {str(e)}")
+    except Exception as exc:
+        logger.error("Failed to clear chat history (%s)", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Failed to clear history.") from exc
 
 
 @router.post("/stream")
 async def stream_message(
     request: ChatMessageRequest,
-    deps: dict = Depends(get_dependencies)
+    deps: dict = Depends(get_dependencies),
+    principal: Principal = Depends(require_human_editor),
 ) -> StreamingResponse:
     """
     Send a message to the chat agent with streaming response
@@ -199,14 +220,20 @@ async def stream_message(
     """
     chat_agent = deps["chat_agent"]
     session_manager = deps["session_manager"]
+
+    if not await session_manager.get_owned_session(
+        request.session_id,
+        principal.subject,
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Session {request.session_id} not found",
+        )
+    audit_request_id = str(uuid.uuid4())
     
     async def generate_response() -> AsyncGenerator[str, None]:
+        context_token = bind_request_context(principal, audit_request_id)
         try:
-            # Verify session exists
-            if not await session_manager.session_exists(request.session_id):
-                yield f"data: {json.dumps({'error': f'Session {request.session_id} not found'})}\n\n"
-                return
-            
             # Add user message to history
             user_message = await session_manager.add_message(
                 request.session_id,
@@ -302,17 +329,22 @@ async def stream_message(
                     if not assistant_message:
                         logger.error("Failed to save assistant message")
             
-            except Exception as e:
-                logger.error(f"Error during streaming: {str(e)}")
-                yield f"data: {json.dumps({'error': f'Failed to process message: {str(e)}'})}\n\n"
+            except Exception as exc:
+                logger.error(
+                    "Failed while streaming a chat response (%s)",
+                    type(exc).__name__,
+                )
+                yield f"data: {json.dumps({'type': 'error', 'error': 'Failed to process message.'})}\n\n"
                 return
             
             # Send completion signal
             yield f"data: {json.dumps({'type': 'complete', 'message': 'Response complete'})}\n\n"
             
-        except Exception as e:
-            logger.error(f"Error in stream generator: {str(e)}")
-            yield f"data: {json.dumps({'error': f'Stream error: {str(e)}'})}\n\n"
+        except Exception as exc:
+            logger.error("Chat stream generator failed (%s)", type(exc).__name__)
+            yield f"data: {json.dumps({'type': 'error', 'error': 'Chat stream failed.'})}\n\n"
+        finally:
+            reset_request_context(context_token)
     
     return StreamingResponse(
         generate_response(),

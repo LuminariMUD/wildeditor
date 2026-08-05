@@ -20,6 +20,10 @@ class TerrainBridgeError(Exception):
     pass
 
 
+class TerrainBridgeNotFoundError(TerrainBridgeError):
+    """Exception raised when the bridge confirms an object is absent."""
+
+
 class TerrainBridgeClient:
     """
     Async client for LuminariMUD terrain bridge API
@@ -77,16 +81,22 @@ class TerrainBridgeClient:
             # Check for error
             if not response.get('success', False):
                 error_msg = response.get('error', 'Unknown terrain bridge error')
-                raise TerrainBridgeError(f"Terrain bridge error: {error_msg}")
+                if isinstance(error_msg, str) and "not found" in error_msg.lower():
+                    raise TerrainBridgeNotFoundError("Terrain object not found")
+                raise TerrainBridgeError("Terrain bridge rejected the request")
             
             return response
             
         except asyncio.TimeoutError:
             raise TerrainBridgeError("Terrain bridge connection timeout")
+        except TerrainBridgeError:
+            raise
         except json.JSONDecodeError as e:
-            raise TerrainBridgeError(f"Invalid JSON response from terrain bridge: {e}")
+            logger.error("Terrain bridge returned invalid JSON: %s", type(e).__name__)
+            raise TerrainBridgeError("Invalid response from terrain bridge") from e
         except Exception as e:
-            raise TerrainBridgeError(f"Terrain bridge connection failed: {e}")
+            logger.error("Terrain bridge connection failed: %s", type(e).__name__)
+            raise TerrainBridgeError("Terrain bridge connection failed") from e
     
     async def ping(self) -> Dict[str, Any]:
         """

@@ -16,6 +16,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _raise_bridge_unavailable(exc: TerrainBridgeError) -> None:
+    logger.error("Terrain bridge request failed: %s", type(exc).__name__)
+    raise HTTPException(status_code=503, detail="Terrain bridge unavailable") from exc
+
+
 @router.get("/health")
 async def terrain_health_check():
     """
@@ -62,7 +67,7 @@ async def get_terrain_at_coordinates(
         }
         
     except TerrainBridgeError as e:
-        raise HTTPException(status_code=503, detail=f"Terrain bridge error: {str(e)}")
+        _raise_bridge_unavailable(e)
 
 
 @router.get("/area")
@@ -105,7 +110,7 @@ async def get_terrain_area(
         }
         
     except TerrainBridgeError as e:
-        raise HTTPException(status_code=503, detail=f"Terrain bridge error: {str(e)}")
+        _raise_bridge_unavailable(e)
 
 
 @router.get("/elevation-profile")
@@ -161,7 +166,7 @@ async def get_elevation_profile(
         }
         
     except TerrainBridgeError as e:
-        raise HTTPException(status_code=503, detail=f"Terrain bridge error: {str(e)}")
+        _raise_bridge_unavailable(e)
 
 
 @router.get("/map-data")
@@ -221,7 +226,7 @@ async def generate_map_data(
         }
         
     except TerrainBridgeError as e:
-        raise HTTPException(status_code=503, detail=f"Terrain bridge error: {str(e)}")
+        _raise_bridge_unavailable(e)
 
 
 @router.get("/sector-types")

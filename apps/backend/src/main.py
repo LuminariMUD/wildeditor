@@ -10,7 +10,8 @@ from .routers.terrain import router as terrain_router
 from .routers.wilderness import router as wilderness_router
 from .routers.region_hints import router as region_hints_router
 from .routers.mcp_proxy import router as mcp_proxy_router
-from .middleware.auth import verify_api_key
+from .middleware.auth import verify_principal
+from wildeditor_auth import Principal
 from .services.terrain_bridge import is_terrain_bridge_available
 import os
 
@@ -68,11 +69,13 @@ async def health_check():
 
 
 @app.get("/api/auth/status")
-def auth_status(authenticated: bool = Depends(verify_api_key)):
+def auth_status(principal: Principal = Depends(verify_principal)):
     """Check authentication status"""
     return {
-        "authenticated": authenticated,
-        "message": "Authentication successful" if authenticated else "No authentication required"
+        "authenticated": True,
+        "kind": principal.kind,
+        "role": principal.role,
+        "subject": principal.subject,
     }
 
 @app.get("/")
@@ -87,16 +90,15 @@ def root():
 # Add validation error handler for better debugging
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Log validation errors for debugging"""
-    logger.error(f"Validation error for {request.url.path}")
-    logger.error(f"Request body: {await request.body()}")
-    logger.error(f"Validation errors: {exc.errors()}")
-    
-    # Return detailed error for debugging
+    """Return validation structure without echoing request values or secrets."""
+    errors = exc.errors(include_input=False)
+    logger.warning(
+        "Validation error for %s (%d issue(s))",
+        request.url.path,
+        len(errors),
+    )
+
     return JSONResponse(
         status_code=422,
-        content={
-            "detail": exc.errors(),
-            "body": str(exc.body) if hasattr(exc, 'body') else None
-        }
+        content={"detail": errors},
     )

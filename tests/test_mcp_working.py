@@ -4,12 +4,13 @@ Test MCP server functionality after deployment
 """
 
 import json
+import os
 import requests
 import ast
 
 # Configuration
-MCP_URL = "http://luminarimud.com:8001/mcp"
-MCP_KEY = "xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0="
+MCP_URL = os.getenv("WILDEDITOR_MCP_URL", "http://127.0.0.1:8001/mcp")
+MCP_KEY = os.environ["WILDEDITOR_MCP_KEY"]
 
 def test_mcp_tool(name, tool_name, arguments):
     """Test an MCP tool"""

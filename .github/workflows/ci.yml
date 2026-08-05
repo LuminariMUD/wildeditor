@@ -1,361 +1,501 @@
 name: CI/CD Pipeline
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 env:
   NODE_VERSION: '26.6.0'
   NPM_VERSION: '12.0.2'
-  AUDIT_CI_VERSION: '7.1.0'
+  PYTHON_VERSION: '3.14.6'
   NETLIFY_CLI_VERSION: '27.1.0'
-  PROD_API_FALLBACK: 'https://wildedit-api.luminarimud.com/api'
+  PROD_API_URL: 'https://wildedit-api.luminarimud.com/api'
   PROD_CHAT_URL: 'https://wildedit-chat.luminarimud.com'
+  PROD_AUTH_URL: 'https://auth.wildedit.luminarimud.com'
+  PROD_AUTH_CALLBACK_URL: 'https://wildedit.luminarimud.com/auth/callback'
+  PROD_RECOVERY_URL: 'https://wildedit.luminarimud.com/reset-password'
+  LUMINARI_SCHEMA_REF: 'cb8748a4adc862b7aef909c245b725bf4592ee48'
 
 jobs:
-  # Combined job for efficiency
-  build-and-test:
-    name: Build, Lint, and Test
+  frontend-checks:
+    name: Frontend lint, type check, and build
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v7.0.1
-        
-      - name: Setup Node.js
-        uses: actions/setup-node@v7.0.0
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
+          cache: npm
       - name: Use repository npm version
         run: npm install --global "npm@${NPM_VERSION}"
-          
       - name: Install dependencies
         run: npm ci
-        
-      - name: Run linting
+      - name: Reject retired browser credentials in current source
+        run: |
+          if grep -RqsE --exclude-dir=dist --exclude-dir=node_modules \
+            'VITE_WILDEDITOR_API_KEY|VITE_SUPABASE_ANON_KEY|https://[[:alnum:]-]+\.supabase\.co' \
+            apps/frontend; then
+            echo 'Retired managed Auth or browser credential reference found'
+            exit 1
+          fi
+      - name: Lint
         run: npm run lint
-        
       - name: Type check
         run: npm run type-check
-        
-      - name: Run tests
-        run: npm test
-        env:
-          CI: true
-          
-      - name: Security audit
-        run: |
-          npm audit --audit-level=low
-          npx --yes "audit-ci@${AUDIT_CI_VERSION}" --config audit-ci.json
-          
-      - name: Build application
+      - name: Build with isolated CI Auth configuration
         run: npm run build
         env:
-          VITE_API_URL: 'http://localhost:8000/api'
-          # Supabase credentials are only available in production environment
-          # The production deployment job will build with the actual credentials
-          
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v7.0.1
+          VITE_API_URL: http://127.0.0.1:8000/api
+          VITE_CHAT_API_URL: http://127.0.0.1:8002
+          VITE_SUPABASE_URL: http://127.0.0.1:8010
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_public
+          VITE_AUTH_CALLBACK_URL: http://127.0.0.1:5173/auth/callback
+          VITE_PASSWORD_RECOVERY_URL: http://127.0.0.1:5173/reset-password
+          VITE_AUTH_SIGNUP_ENABLED: 'false'
+          VITE_DISABLE_AUTH: 'false'
+      - uses: actions/upload-artifact@v7.0.1
         with:
           name: frontend-dist
           path: apps/frontend/dist/
           retention-days: 7
 
-  # Deploy preview for PRs
-  deploy-preview:
-    name: Deploy Preview
+  auth-boundary-tests:
+    name: Auth, backend, MCP, and chat authorization tests
     runs-on: ubuntu-latest
-    needs: build-and-test
-    if: github.event_name == 'pull_request'
-    
+    services:
+      redis:
+        image: redis:8.2.8-alpine3.22
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 20
     steps:
-      - name: Checkout code
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            packages/auth/requirements.txt
+            apps/backend/src/requirements.txt
+            apps/mcp/requirements.txt
+            apps/agent/requirements.txt
+      - name: Install Python service dependencies
+        run: |
+          python -m pip install --upgrade pip==26.2.1 setuptools==83.0.0 wheel==0.47.0
+          python -m pip install --no-deps -e packages/auth
+          python -m pip install -r apps/backend/src/requirements.txt
+          python -m pip install -r apps/mcp/requirements.txt
+          python -m pip install -r apps/agent/requirements.txt
+          python -m pip install flake8==7.3.0
+          python -m pip check
+      - name: Blocking Python source checks
+        run: |
+          flake8 packages/auth/src apps/backend/src apps/mcp/src apps/agent/src \
+            --select=E9,F63,F7,F82 --show-source --statistics
+      - name: Shared authentication suite
+        run: PYTHONPATH=packages/auth/src python -m pytest -q packages/auth/tests
+      - name: Backend authorization suite
+        run: (cd apps/backend && PYTHONPATH=. python -m pytest tests/ -m "not integration" --tb=short)
+      - name: MCP boundary suite
+        run: (cd apps/mcp && PYTHONPATH=. python -m pytest tests/ --tb=short)
+      - name: Chat ownership suite
+        run: (cd apps/agent && PYTHONPATH=src python -m pytest tests/ --tb=short)
+        env:
+          TEST_REDIS_URL: redis://127.0.0.1:6379/15
+
+  self-hosted-config:
+    name: Self-hosted Auth configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Validate operator scripts
+        run: |
+          for script in infrastructure/supabase/scripts/*.sh; do
+            sh -n "$script"
+          done
+      - name: Validate pinned Compose boundary
+        run: |
+          docker compose \
+            --env-file infrastructure/supabase/.env.example \
+            -f infrastructure/supabase/docker-compose.yml \
+            -f infrastructure/supabase/docker-compose.wildeditor.yml \
+            config --quiet
+          published=$(docker compose \
+            --env-file infrastructure/supabase/.env.example \
+            -f infrastructure/supabase/docker-compose.yml \
+            -f infrastructure/supabase/docker-compose.wildeditor.yml \
+            config --format json \
+            | jq -r '.services | to_entries[] | select(.value.ports != null) | .key')
+          test "$published" = auth-gateway
+
+  mariadb-compatibility:
+    name: LuminariMUD MariaDB compatibility
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: testroot
+          MARIADB_DATABASE: luminari_test
+          MARIADB_USER: wildeditor_test
+          MARIADB_PASSWORD: testpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Check out pinned LuminariMUD schema authority
         uses: actions/checkout@v7.0.1
-        
-      - name: Setup Node.js
-        uses: actions/setup-node@v7.0.0
+        with:
+          repository: LuminariMUD/Luminari-Source
+          ref: ${{ env.LUMINARI_SCHEMA_REF }}
+          path: luminari-source
+          persist-credentials: false
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            packages/auth/requirements.txt
+            apps/backend/src/requirements.txt
+      - name: Install LuminariMUD build, MariaDB, and backend dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            autoconf automake build-essential libcurl4-openssl-dev libgd-dev \
+            libjson-c-dev libmariadb-dev libssl-dev libtool mariadb-client \
+            netcat-openbsd zlib1g-dev
+          python -m pip install --upgrade pip==26.2.1 setuptools==83.0.0 wheel==0.47.0
+          python -m pip install --no-deps -e packages/auth
+          python -m pip install -r apps/backend/src/requirements.txt
+          python -m pip check
+      - name: Build pinned LuminariMUD runtime
+        working-directory: luminari-source
+        run: |
+          cp src/campaign.example.h src/campaign.h
+          cp src/mud_options.example.h src/mud_options.h
+          cp src/vnums.example.h src/vnums.h
+          autoreconf -fvi
+          ./configure
+          make -j"$(nproc)"
+          test -x circle
+      - name: Apply authoritative LuminariMUD schema
+        env:
+          MYSQL_PWD: testpass
+        run: |
+          mariadb --host=127.0.0.1 --user=wildeditor_test \
+            luminari_test < luminari-source/sql/master_schema.sql
+      - name: Prepare disposable LuminariMUD runtime
+        working-directory: luminari-source
+        run: |
+          cp lib/mysql_config_example lib/mysql_config
+          sed -i \
+            -e 's/^mysql_host = .*/mysql_host = 127.0.0.1/' \
+            -e 's/^mysql_database = .*/mysql_database = luminari_test/' \
+            -e 's/^mysql_username = .*/mysql_username = wildeditor_test/' \
+            -e 's/^mysql_password = .*/mysql_password = testpass/' \
+            lib/mysql_config
+          chmod 600 lib/mysql_config
+
+          cp lib/etc/.gitkeep lib/etc/config
+          mkdir -p lib/world/{zon,wld,mob,obj,shp,trg,qst,hlq}
+          for type in zon wld mob obj shp trg qst hlq; do
+            cp "lib/world/minimal/index.${type}" "lib/world/${type}/index"
+          done
+          cp lib/world/minimal/*.zon lib/world/zon/
+          cp lib/world/minimal/*.wld lib/world/wld/
+          cp lib/world/minimal/*.mob lib/world/mob/
+          cp lib/world/minimal/*.obj lib/world/obj/
+
+          mkdir -p lib/plrfiles/{A-E,F-J,K-O,P-T,U-Z,ZZZ}
+          mkdir -p lib/plrobjs/{A-E,F-J,K-O,P-T,U-Z,ZZZ}
+          mkdir -p lib/house lib/mudmail lib/text/help lib/misc log
+          touch lib/text/{news,credits,motd,imotd,greetings,info,wizlist,immlist,policies,handbook,background}
+          touch lib/text/help/{help,ihelp}
+          printf '$\n' > lib/text/help/index
+          printf '*\n' > lib/misc/messages
+          printf '$\n' > lib/misc/socials.new
+      - name: Boot LuminariMUD to initialize runtime-owned schema
+        working-directory: luminari-source
+        env:
+          MYSQL_PWD: testpass
+        run: |
+          set -euo pipefail
+          server_log=log/wildeditor-schema-init.log
+          ./circle -o "$server_log" -q -s 4117 &
+          server_pid=$!
+          cleanup_server() {
+            kill "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+          }
+          trap cleanup_server EXIT
+
+          listening=0
+          for _ in {1..45}; do
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              break
+            fi
+            if nc -z 127.0.0.1 4117 2>/dev/null; then
+              listening=1
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$listening" != 1 ]]; then
+            tail -n 160 "$server_log"
+            exit 1
+          fi
+          grep -q 'Entering game loop.' "$server_log"
+
+          path_types=$(mariadb --batch --skip-column-names \
+            --host=127.0.0.1 --user=wildeditor_test luminari_test \
+            --execute="SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'path_types'")
+          triggers=$(mariadb --batch --skip-column-names \
+            --host=127.0.0.1 --user=wildeditor_test luminari_test \
+            --execute="SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME IN ('ad_maintain_path_index','ad_maintain_region_index','ai_maintain_path_index','ai_maintain_region_index','au_maintain_path_index','au_maintain_region_index','bi_digitalize_linestring','bu_digitalize_linestring')")
+          test "$path_types" = 1
+          test "$triggers" = 8
+      - name: Exercise Wildeditor and spatial-trigger compatibility
+        env:
+          MYSQL_DATABASE_URL: mysql+pymysql://wildeditor_test:testpass@127.0.0.1:3306/luminari_test
+          WILDEDITOR_ENVIRONMENT: remote-production
+          WILDEDITOR_BACKEND_SERVICE_KEY: ci-mariadb-compatibility-service-key
+          WILDEDITOR_AUTH_ISSUERS: http://auth.invalid/auth/v1
+          WILDEDITOR_AUTH_AUDIENCE: authenticated
+          WILDEDITOR_AUTH_ALLOWED_ALGORITHMS: ES256
+          REQUIRE_AUTH: 'true'
+          SEED_LUMINARI_BOOT_FIXTURES: 'true'
+        run: PYTHONPATH=apps/backend python apps/backend/tests/mariadb_compatibility.py
+      - name: Prove LuminariMUD loads Wildeditor fixtures
+        working-directory: luminari-source
+        env:
+          MYSQL_PWD: testpass
+        run: |
+          set -euo pipefail
+          for table in region_data path_data region_hints region_profiles; do
+            rows=$(mariadb --batch --skip-column-names \
+              --host=127.0.0.1 --user=wildeditor_test luminari_test \
+              --execute="SELECT COUNT(*) FROM ${table}")
+            test "$rows" = 1
+          done
+
+          server_log=log/wildeditor-fixture-load.log
+          ./circle -o "$server_log" -q -s 4118 &
+          server_pid=$!
+          cleanup_server() {
+            kill "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+          }
+          trap cleanup_server EXIT
+
+          listening=0
+          for _ in {1..45}; do
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              break
+            fi
+            if nc -z 127.0.0.1 4118 2>/dev/null; then
+              listening=1
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$listening" != 1 ]]; then
+            tail -n 160 "$server_log"
+            exit 1
+          fi
+          grep -q 'Info: Loaded 1 regions, top_of_region_table set to 0' "$server_log"
+          grep -q 'Info: Loading wilderness roads and path definitions from MySQL database' "$server_log"
+          grep -q 'Entering game loop.' "$server_log"
+
+  deploy-preview:
+    name: Deploy preview
+    runs-on: ubuntu-latest
+    needs: [frontend-checks, auth-boundary-tests, self-hosted-config, mariadb-compatibility]
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Use repository npm version
-        run: npm install --global "npm@${NPM_VERSION}"
-          
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Clear build cache
+          cache: npm
+      - run: npm install --global "npm@${NPM_VERSION}"
+      - run: npm ci
+      - name: Validate preview Auth configuration
         run: |
-          echo "Clearing any cached build artifacts..."
-          rm -rf apps/frontend/dist
-          rm -rf apps/frontend/.vite
-          rm -rf apps/frontend/node_modules/.vite
-          npm cache clean --force
-          
-      - name: Override environment files
-        run: |
-          echo "Creating production .env file to override any local settings..."
-          cat > apps/frontend/.env << EOF
-          WILDEDITOR_ENVIRONMENT=remote-production
-          VITE_API_URL=${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
-          VITE_CHAT_API_URL=${{ env.PROD_CHAT_URL }}
-          VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL || '' }}
-          VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY || '' }}
-          VITE_DISABLE_AUTH=false
-          EOF
-          echo "Preview environment file created"
-        
-      - name: Build preview with correct API URL
+          test "$VITE_SUPABASE_URL" = "$PROD_AUTH_URL"
+          case "$VITE_SUPABASE_PUBLISHABLE_KEY" in sb_publishable_*) ;; *) exit 1 ;; esac
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SELF_HOSTED_AUTH_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SELF_HOSTED_AUTH_PUBLISHABLE_KEY }}
+      - name: Build preview
         run: npm run build
         env:
-          VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
+          VITE_API_URL: ${{ env.PROD_API_URL }}
           VITE_CHAT_API_URL: ${{ env.PROD_CHAT_URL }}
-          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_URL: ${{ secrets.SELF_HOSTED_AUTH_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SELF_HOSTED_AUTH_PUBLISHABLE_KEY }}
+          VITE_AUTH_CALLBACK_URL: ${{ env.PROD_AUTH_CALLBACK_URL }}
+          VITE_PASSWORD_RECOVERY_URL: ${{ env.PROD_RECOVERY_URL }}
+          VITE_AUTH_SIGNUP_ENABLED: 'false'
           VITE_DISABLE_AUTH: 'false'
-          
-      - name: Debug build environment
+      - name: Gate preview artifact
         run: |
-          echo "Debugging environment variables during build..."
-          echo "VITE_API_URL is set: ${{ secrets.PROD_API_URL != '' || env.PROD_API_FALLBACK != '' }}"
-          echo "VITE_CHAT_API_URL is set: ${{ env.PROD_CHAT_URL != '' }}"
-          echo "Checking if build files contain the expected API URL..."
-          echo "Contents of dist directory:"
-          ls -la apps/frontend/dist/ || echo "No dist directory found"
-          echo "Contents of assets directory:"
-          ls -la apps/frontend/dist/assets/ || echo "No assets directory found"
-          echo "Searching for API URLs in all JS files:"
-          find apps/frontend/dist -name "*.js" -exec grep -l "api\|localhost\|http" {} \; || echo "No JS files with API URLs found"
-          
-      - name: Verify preview build environment variables
-        run: |
-          test -n "$VITE_API_URL"
-          test -n "$VITE_CHAT_API_URL"
-          grep -RqsF "$VITE_API_URL" apps/frontend/dist/assets
-          grep -RqsF "$VITE_CHAT_API_URL" apps/frontend/dist/assets
-        env:
-          VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
-          VITE_CHAT_API_URL: ${{ env.PROD_CHAT_URL }}
-          
+          grep -RqsF "$PROD_API_URL" apps/frontend/dist/assets
+          grep -RqsF "$PROD_CHAT_URL" apps/frontend/dist/assets
+          grep -RqsF "$PROD_AUTH_URL" apps/frontend/dist/assets
+          if grep -RqsE 'https://[[:alnum:]-]+\.supabase\.co' apps/frontend/dist \
+            || grep -Rqs 'VITE_WILDEDITOR_API_KEY\|VITE_SUPABASE_ANON_KEY' apps/frontend/dist; then
+            echo 'Retired managed Auth or browser credential found in preview artifact'
+            exit 1
+          fi
       - name: Deploy preview
-        run: |
-          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" deploy --no-build --dir=apps/frontend/dist --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="PR #${PR_NUMBER}: ${PR_TITLE}"
+        run: >-
+          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" deploy --no-build
+          --dir=apps/frontend/dist --filter=@wildeditor/frontend
+          --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
+          --message="PR #${PR_NUMBER}: ${PR_TITLE}"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_PROD_SITE_ID }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
-          
-      - name: Comment PR
-        uses: actions/github-script@v9.0.0
-        with:
-          script: |
-            const output = `#### Netlify Preview Deployment 🚀\n
-            Preview URL will be available shortly.\n
-            
-            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            })
 
-  # Production deployment
   deploy-production:
-    name: Deploy to Production
+    name: Deploy frontend to production
     runs-on: ubuntu-latest
-    needs: build-and-test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
+    needs: [frontend-checks, auth-boundary-tests, self-hosted-config, mariadb-compatibility]
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && vars.SELF_HOSTED_AUTH_PRODUCTION_ENABLED == 'true'))
     environment:
       name: production
       url: https://wildedit.luminarimud.com
-      
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v7.0.1
-        
-      - name: Setup Node.js
-        uses: actions/setup-node@v7.0.0
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Use repository npm version
-        run: npm install --global "npm@${NPM_VERSION}"
-          
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Debug environment secrets
+          cache: npm
+      - run: npm install --global "npm@${NPM_VERSION}"
+      - run: npm ci
+      - name: Validate production Auth configuration
         run: |
-          echo "Checking if environment secrets are accessible..."
-          echo "SUPABASE_URL is set: ${{ secrets.SUPABASE_URL != '' }}"
-          echo "SUPABASE_ANON_KEY is set: ${{ secrets.SUPABASE_ANON_KEY != '' }}"
-          echo "Using production environment: ${{ github.event.deployment.environment || 'production' }}"
-          echo "Note: These will be exposed as VITE_ prefixed variables during build"
-          
-      - name: Clean previous build artifacts
-        run: |
-          echo "Cleaning any previous build artifacts to ensure fresh production build..."
-          rm -rf apps/frontend/dist
-          rm -rf apps/frontend/.vite
-          rm -rf apps/frontend/node_modules/.vite
-          npm cache clean --force
-          
-      - name: Override environment files for production
-        run: |
-          echo "Creating production .env file to override any local settings..."
-          cat > apps/frontend/.env << EOF
-          WILDEDITOR_ENVIRONMENT=remote-production
-          VITE_API_URL=${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
-          VITE_CHAT_API_URL=${{ env.PROD_CHAT_URL }}
-          VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL || '' }}
-          VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY || '' }}
-          VITE_DISABLE_AUTH=false
-          EOF
-          echo "Production environment file created"
-          
-      - name: Verify source code before build
-        run: |
-          test -n "$VITE_API_URL"
-          test -n "$VITE_CHAT_API_URL"
-          test -n "$VITE_SUPABASE_URL"
-          test -n "$VITE_SUPABASE_ANON_KEY"
-          echo "Required production frontend configuration is present"
+          test "$VITE_SUPABASE_URL" = "$PROD_AUTH_URL"
+          case "$VITE_SUPABASE_PUBLISHABLE_KEY" in sb_publishable_*) ;; *) exit 1 ;; esac
         env:
-          VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
-          VITE_CHAT_API_URL: ${{ env.PROD_CHAT_URL }}
-          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          VITE_DISABLE_AUTH: 'false'
-          
-      - name: Build production
+          VITE_SUPABASE_URL: ${{ secrets.SELF_HOSTED_AUTH_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SELF_HOSTED_AUTH_PUBLISHABLE_KEY }}
+      - name: Build production artifact
         run: npm run build
         env:
-          VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
+          VITE_API_URL: ${{ env.PROD_API_URL }}
           VITE_CHAT_API_URL: ${{ env.PROD_CHAT_URL }}
-          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_URL: ${{ secrets.SELF_HOSTED_AUTH_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SELF_HOSTED_AUTH_PUBLISHABLE_KEY }}
+          VITE_AUTH_CALLBACK_URL: ${{ env.PROD_AUTH_CALLBACK_URL }}
+          VITE_PASSWORD_RECOVERY_URL: ${{ env.PROD_RECOVERY_URL }}
+          VITE_AUTH_SIGNUP_ENABLED: 'false'
           VITE_DISABLE_AUTH: 'false'
-          
-      - name: Verify build environment variables
+      - name: Gate production artifact and server secrets
         run: |
-          echo "Checking if environment variables were properly embedded in build..."
-          if grep -RqsF "$VITE_API_URL" apps/frontend/dist/assets; then
-            echo "✅ Found configured API URL in build files"
-          else
-            echo "❌ Configured API URL not found in build files"
+          grep -RqsF "$PROD_API_URL" apps/frontend/dist/assets
+          grep -RqsF "$PROD_CHAT_URL" apps/frontend/dist/assets
+          grep -RqsF "$PROD_AUTH_URL" apps/frontend/dist/assets
+          if grep -RqsE 'https://[[:alnum:]-]+\.supabase\.co' apps/frontend/dist \
+            || grep -Rqs 'VITE_WILDEDITOR_API_KEY\|VITE_SUPABASE_ANON_KEY' apps/frontend/dist; then
+            echo 'Retired managed Auth or browser credential found in production artifact'
             exit 1
           fi
-
-          if grep -RqsF "$VITE_CHAT_API_URL" apps/frontend/dist/assets; then
-            echo "✅ Found configured chat URL in build files"
-          else
-            echo "❌ Configured chat URL not found in build files"
-            exit 1
-          fi
-          
-          if grep -RqsF "$VITE_SUPABASE_URL" apps/frontend/dist/assets; then
-            echo "✅ Found Supabase URL in build files"
-          else
-            echo "❌ Supabase URL not found in build files - environment variables may not be set correctly"
-            exit 1
-          fi
-          
-          echo "Checking for masked values (asterisks)..."
-          if grep -q "\*\*\*\*\*\*\*\*" apps/frontend/dist/assets/*.js 2>/dev/null; then
-            echo "⚠️  WARNING: Found asterisk patterns in build files - possible masked secrets!"
-            echo "This indicates environment variables may have been masked during build"
-            exit 1
-          else
-            echo "✅ No masked values found in build files"
-          fi
+          for server_secret in "$BACKEND_SERVICE_KEY" "$MCP_SERVICE_KEY"; do
+            if [ -n "$server_secret" ] && grep -RqsF "$server_secret" apps/frontend/dist; then
+              echo 'Server credential found in production artifact'
+              exit 1
+            fi
+          done
         env:
-          VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
-          VITE_CHAT_API_URL: ${{ env.PROD_CHAT_URL }}
-          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          
-      - name: Synchronize Netlify build environment
+          BACKEND_SERVICE_KEY: ${{ secrets.WILDEDITOR_BACKEND_SERVICE_KEY }}
+          MCP_SERVICE_KEY: ${{ secrets.WILDEDITOR_MCP_KEY }}
+      - name: Synchronize public Netlify environment
         run: |
-          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" env:set VITE_API_URL "$VITE_API_URL" --context production --force --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
-          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" env:set VITE_CHAT_API_URL "$VITE_CHAT_API_URL" --context production --force --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
+          for assignment in \
+            "VITE_API_URL=$PROD_API_URL" \
+            "VITE_CHAT_API_URL=$PROD_CHAT_URL" \
+            "VITE_SUPABASE_URL=$PROD_AUTH_URL" \
+            "VITE_SUPABASE_PUBLISHABLE_KEY=$AUTH_PUBLISHABLE_KEY" \
+            "VITE_AUTH_CALLBACK_URL=$PROD_AUTH_CALLBACK_URL" \
+            "VITE_PASSWORD_RECOVERY_URL=$PROD_RECOVERY_URL" \
+            'VITE_AUTH_SIGNUP_ENABLED=false' \
+            'VITE_DISABLE_AUTH=false'; do
+            name=${assignment%%=*}
+            value=${assignment#*=}
+            npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" env:set "$name" "$value" \
+              --context production --force --filter=@wildeditor/frontend \
+              --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
+          done
         env:
-          VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
-          VITE_CHAT_API_URL: ${{ env.PROD_CHAT_URL }}
+          AUTH_PUBLISHABLE_KEY: ${{ secrets.SELF_HOSTED_AUTH_PUBLISHABLE_KEY }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_PROD_SITE_ID }}
-
-      - name: Deploy verified build to Netlify
-        run: |
-          echo "=== PRE-DEPLOYMENT FINAL CHECK ==="
-          echo "Final verification of what's being deployed:"
-          grep -Rqs "localhost:3001" apps/frontend/dist && echo "❌ FOUND localhost:3001 in build!" || echo "✅ No localhost:3001 found"
-          grep -RqsF "$VITE_API_URL" apps/frontend/dist && echo "✅ Found configured API URL" || echo "❌ Configured API URL not found"
-          echo ""
-          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" deploy --prod --no-build --dir=apps/frontend/dist --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="Production deploy from ${GITHUB_SHA}"
+      - name: Deploy verified artifact
+        run: >-
+          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" deploy --prod --no-build
+          --dir=apps/frontend/dist --filter=@wildeditor/frontend
+          --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
+          --message="Production deploy from ${GITHUB_SHA}"
         env:
-          VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_PROD_SITE_ID }}
-
       - name: Verify live production bundle
         run: |
           index_file=$(mktemp)
           bundle_file=$(mktemp)
           for attempt in {1..12}; do
+            echo "Live bundle verification attempt $attempt/12"
             curl --fail --silent --show-error --output "$index_file" "$PRODUCTION_URL/"
             asset_path=$(sed -n 's/.*src="\([^"]*\/assets\/index-[^"]*\.js\)".*/\1/p' "$index_file")
             if [ -n "$asset_path" ]; then
               curl --fail --silent --show-error --output "$bundle_file" "$PRODUCTION_URL$asset_path"
             fi
-            if [ -n "$asset_path" ] && \
-               grep -qF "$EXPECTED_API_URL" "$bundle_file" && \
-               grep -qF "$EXPECTED_CHAT_URL" "$bundle_file" && \
-               ! grep -qF "$RETIRED_API_URL" "$bundle_file"; then
-              echo "Live production bundle contains the canonical API and chat endpoints"
+            if [ -n "$asset_path" ] \
+              && grep -qF "$PROD_API_URL" "$bundle_file" \
+              && grep -qF "$PROD_CHAT_URL" "$bundle_file" \
+              && grep -qF "$PROD_AUTH_URL" "$bundle_file" \
+              && ! grep -qE 'https://[[:alnum:]-]+\.supabase\.co' "$bundle_file"; then
+              echo 'Live bundle uses only the self-hosted Auth endpoint'
               exit 0
             fi
-            echo "Waiting for the verified bundle to become live (attempt $attempt/12)"
             sleep 5
           done
-          echo "Live production bundle did not converge to the verified configuration"
+          echo 'Live production bundle did not converge'
           exit 1
         env:
           PRODUCTION_URL: https://wildedit.luminarimud.com
-          EXPECTED_API_URL: ${{ env.PROD_API_FALLBACK }}
-          EXPECTED_CHAT_URL: ${{ env.PROD_CHAT_URL }}
-          RETIRED_API_URL: https://api.wildedit.luminarimud.com/api
-          
-  # Notify on deployment
+
   notify:
-    name: Notify Deployment
+    name: Notify deployment
     runs-on: ubuntu-latest
     needs: [deploy-production]
     if: always() && github.ref == 'refs/heads/main'
-    
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     steps:
-      - name: Notify Slack on Success
-        if: needs.deploy-production.result == 'success'
+      - name: Notify Slack
+        if: env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v4.0.0
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook: ${{ env.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
-            text: "🚀 Wildeditor deployed successfully to production!"
-          
-      - name: Notify Slack on Failure
-        if: needs.deploy-production.result == 'failure'
-        uses: slackapi/slack-github-action@v4.0.0
-        with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
-          payload: |
-            text: "❌ Wildeditor deployment to production failed!"
+            text: "Wildeditor frontend deployment: ${{ needs.deploy-production.result }}"

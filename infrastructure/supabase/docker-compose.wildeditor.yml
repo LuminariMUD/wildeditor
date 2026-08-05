@@ -1,0 +1,53 @@
+services:
+  # The public tunnel terminates TLS and reaches only this Auth-only gateway.
+  # Studio, REST, Storage, PostgreSQL, and pooler administration stay private.
+  kong:
+    ports: !reset []
+
+  supavisor:
+    ports: !reset []
+
+  # Enable the pinned stack's generated ES256 signing/JWKS configuration
+  # without modifying the vendored upstream Compose file during provisioning.
+  auth:
+    environment:
+      GOTRUE_JWT_KEYS: ${JWT_KEYS:-[]}
+
+  realtime:
+    environment:
+      API_JWT_JWKS: ${JWT_JWKS:-{"keys":[]}}
+
+  storage:
+    environment:
+      JWT_JWKS: ${JWT_JWKS:-{"keys":[]}}
+
+  functions:
+    environment:
+      SUPABASE_JWKS: ${JWT_JWKS:-{"keys":[]}}
+
+  auth-gateway:
+    container_name: wildeditor-auth-gateway
+    image: nginx:1.31.3-alpine3.24
+    restart: unless-stopped
+    depends_on:
+      auth:
+        condition: service_healthy
+      kong:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${WILDEDITOR_AUTH_PORT:-8010}:8080"
+    volumes:
+      - ./volumes/proxy/wildeditor-auth.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1:8080/health"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5

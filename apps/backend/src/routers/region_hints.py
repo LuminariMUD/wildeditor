@@ -26,6 +26,7 @@ import logging
 from pydantic import ValidationError
 
 from ..config.config_database import get_db
+from ..middleware.auth import require_editor, require_reader
 from ..models.region import Region
 from ..models.region_hints import RegionHint, RegionProfile, HintUsageLog
 from ..schemas.region_hints import (
@@ -44,9 +45,8 @@ from ..schemas.region_hints import (
     HintCategory
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_reader)])
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
 
 
 # ============================================================================
@@ -125,16 +125,19 @@ def list_region_hints(
             categories=category_counts
         )
     except Exception as e:
-        import traceback
-        error_detail = f"Error fetching hints for region {vnum}: {str(e)}\nTraceback: {traceback.format_exc()}"
-        logger.error(error_detail)
+        logger.error("Region hint retrieval failed: %s", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_detail
+            detail="Error fetching region hints"
         )
 
 
-@router.post("/{vnum}/hints", response_model=List[RegionHintResponse], status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{vnum}/hints",
+    response_model=List[RegionHintResponse],
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_editor)],
+)
 def create_region_hints(
     vnum: int,
     request: RegionHintBatchCreate,
@@ -197,11 +200,15 @@ def create_region_hints(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create hints: {str(e)}"
+            detail="Failed to create hints"
         )
 
 
-@router.put("/{vnum}/hints/{hint_id}", response_model=RegionHintResponse)
+@router.put(
+    "/{vnum}/hints/{hint_id}",
+    response_model=RegionHintResponse,
+    dependencies=[Depends(require_editor)],
+)
 def update_region_hint(
     vnum: int,
     hint_id: int,
@@ -252,11 +259,15 @@ def update_region_hint(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update hint: {str(e)}"
+            detail="Failed to update hint"
         )
 
 
-@router.delete("/{vnum}/hints", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{vnum}/hints",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_editor)],
+)
 def delete_all_region_hints(
     vnum: int,
     db: Session = Depends(get_db)
@@ -294,11 +305,15 @@ def delete_all_region_hints(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete hints: {str(e)}"
+            detail="Failed to delete hints"
         )
 
 
-@router.delete("/{vnum}/hints/{hint_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{vnum}/hints/{hint_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_editor)],
+)
 def delete_region_hint(
     vnum: int,
     hint_id: int,
@@ -333,7 +348,7 @@ def delete_region_hint(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete hint: {str(e)}"
+            detail="Failed to delete hint"
         )
 
 
@@ -367,7 +382,11 @@ def get_region_profile(
     return RegionProfileResponse.model_validate(profile)
 
 
-@router.post("/{vnum}/profile", response_model=RegionProfileResponse)
+@router.post(
+    "/{vnum}/profile",
+    response_model=RegionProfileResponse,
+    dependencies=[Depends(require_editor)],
+)
 def create_or_update_region_profile(
     vnum: int,
     request: RegionProfileCreate,
@@ -416,7 +435,7 @@ def create_or_update_region_profile(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save profile: {str(e)}"
+            detail="Failed to save profile"
         )
 
 
@@ -424,7 +443,11 @@ def create_or_update_region_profile(
 # GENERATION ENDPOINTS
 # ============================================================================
 
-@router.post("/{vnum}/hints/generate", response_model=GenerateHintsResponse)
+@router.post(
+    "/{vnum}/hints/generate",
+    response_model=GenerateHintsResponse,
+    dependencies=[Depends(require_editor)],
+)
 async def generate_region_hints(
     vnum: int,
     request: GenerateHintsRequest,

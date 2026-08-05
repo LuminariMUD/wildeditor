@@ -3,7 +3,8 @@
 # Authentication: X-API-Key header required
 
 # Set variables for easier testing
-API_KEY="your_api_key_here"
+API_KEY=${WILDEDITOR_BACKEND_SERVICE_KEY:?WILDEDITOR_BACKEND_SERVICE_KEY is required}
+MCP_API_KEY=${WILDEDITOR_MCP_KEY:?WILDEDITOR_MCP_KEY is required}
 BASE_URL="http://luminarimud.com:8000"
 
 # ===========================================
@@ -11,31 +12,31 @@ BASE_URL="http://luminarimud.com:8000"
 # ===========================================
 
 # Test 1: Get terrain at origin (0,0)
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/terrain/at-coordinates?x=0&y=0"
 
 # Test 2: Get terrain at specific coordinates  
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/terrain/at-coordinates?x=100&y=-50"
 
 # Test 3: Get terrain at mountain coordinates
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/terrain/at-coordinates?x=200&y=300"
 
 # Test 4: Batch terrain data (small area)
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/terrain/batch?x_min=0&y_min=0&x_max=5&y_max=5"
 
 # Test 5: Batch terrain data (larger area for mapping)
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/terrain/batch?x_min=-10&y_min=-10&x_max=10&y_max=10"
 
 # Test 6: Test coordinate bounds (should work)
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/terrain/at-coordinates?x=1024&y=-1024"
 
 # Test 7: Test coordinate bounds (should fail)
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/terrain/at-coordinates?x=1025&y=0"
 
 # ===========================================
@@ -43,23 +44,23 @@ curl -H "X-API-Key: $API_KEY" \
 # ===========================================
 
 # Test 8: List first 10 wilderness rooms
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/wilderness/rooms?limit=10"
 
 # Test 9: List more wilderness rooms
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/wilderness/rooms?limit=50"
 
 # Test 10: Get details for navigation room (room 1000000)
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/wilderness/rooms/1000000"
 
 # Test 11: Get details for another wilderness room
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/wilderness/rooms/1000123"
 
 # Test 12: Test room that might not exist
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/wilderness/rooms/9999999"
 
 # ===========================================
@@ -147,15 +148,15 @@ curl -H "X-API-Key: $API_KEY" \
 # ===========================================
 
 # Test 13: Missing coordinates
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/terrain/at-coordinates"
 
 # Test 14: Invalid coordinates (out of bounds)
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/terrain/at-coordinates?x=2000&y=2000"
 
 # Test 15: Invalid batch range (too large)
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/terrain/batch?x_min=-100&y_min=-100&x_max=100&y_max=100"
 
 # Test 16: Missing authentication
@@ -166,14 +167,14 @@ curl "$BASE_URL/api/terrain/at-coordinates?x=0&y=0"
 # ===========================================
 
 # Test 17: Large batch request (near maximum)
-curl -H "X-API-Key: $API_KEY" \
+curl -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/terrain/batch?x_min=0&y_min=0&x_max=31&y_max=31"
 # This should return 32x32 = 1024 coordinates (near the 1000 limit)
 
 # Test 18: Multiple rapid requests (test caching)
 for i in {1..5}; do
   echo "Request $i:"
-  curl -s -H "X-API-Key: $API_KEY" \
+  curl -s -H "Authorization: Bearer $API_KEY" \
     "$BASE_URL/api/terrain/at-coordinates?x=0&y=0" | jq '.data.elevation'
 done
 
@@ -184,28 +185,28 @@ done
 # These test the MCP server tools that use the new backend endpoints
 
 # Test 19: MCP terrain analysis tool
-curl -H "X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=" \
+curl -H "X-API-Key: $MCP_API_KEY" \
   -X POST \
   -H "Content-Type: application/json" \
   -d '{"x": 0, "y": 0, "include_noise_layers": true}' \
   "http://luminarimud.com:8001/mcp/tools/analyze_terrain_at_coordinates"
 
 # Test 20: MCP wilderness rooms tool
-curl -H "X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=" \
+curl -H "X-API-Key: $MCP_API_KEY" \
   -X POST \
   -H "Content-Type: application/json" \
   -d '{"limit": 10}' \
   "http://luminarimud.com:8001/mcp/tools/get_wilderness_rooms"
 
 # Test 21: MCP room details tool
-curl -H "X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=" \
+curl -H "X-API-Key: $MCP_API_KEY" \
   -X POST \
   -H "Content-Type: application/json" \
   -d '{"vnum": 1000000}' \
   "http://luminarimud.com:8001/mcp/tools/get_room_details"
 
 # Test 22: MCP terrain map generation
-curl -H "X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=" \
+curl -H "X-API-Key: $MCP_API_KEY" \
   -X POST \
   -H "Content-Type: application/json" \
   -d '{"center_x": 0, "center_y": 0, "radius": 5}' \
@@ -216,18 +217,18 @@ curl -H "X-API-Key: xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0=" \
 # ===========================================
 
 # Find interesting terrain types
-curl -s -H "X-API-Key: $API_KEY" \
+curl -s -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/terrain/batch?x_min=-50&y_min=-50&x_max=50&y_max=50" | \
   jq '.data | group_by(.sector_name) | map({sector: .[0].sector_name, count: length})'
 
 # Get elevation profile along a line
 for x in {0..10}; do
-  curl -s -H "X-API-Key: $API_KEY" \
+  curl -s -H "Authorization: Bearer $API_KEY" \
     "$BASE_URL/api/terrain/at-coordinates?x=$x&y=0" | \
     jq -r ".data | \"($x,0): elevation=\(.elevation), terrain=\(.sector_name)\""
 done
 
 # Find all wilderness rooms with exits to other zones
-curl -s -H "X-API-Key: $API_KEY" \
+curl -s -H "Authorization: Bearer $API_KEY" \
   "$BASE_URL/api/wilderness/rooms?limit=100" | \
   jq '.data[] | select(.sector_type == "Zone Entrance")'

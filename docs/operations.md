@@ -9,12 +9,14 @@ Wildeditor has basic service health checks and container restart behavior, but t
 | Backend | `GET /api/health` | Backend process responds; also reports whether the terrain bridge is reachable |
 | Backend terrain bridge | `GET /api/terrain/health` | TCP terrain bridge availability |
 | MCP | `GET /health` | MCP process responds |
-| MCP | `GET /health/detailed` | Authenticated dependency details |
+| MCP | `GET /health/detailed` | MCP-key authentication and backend service-principal acceptance |
 | Chat agent | `GET /health/` | Agent process responds |
-| Chat agent | `GET /health/ready` | Storage, session manager, and agent objects initialized |
+| Chat agent | `GET /health/ready` | Redis/storage plus authenticated MCP-to-backend readiness |
 | Chat agent | `GET /health/live` | Process liveness |
 
-Health checks are not end-to-end transactions. Add synthetic checks for backend/database reads, authenticated MCP-to-backend calls, and chat-provider/MCP calls where those features are operationally required.
+Readiness proves the service-authentication chain, but it is not a database
+read or model inference. Keep the deployment's authenticated data and chat
+synthetics for those behaviors.
 
 ## Logs
 
@@ -27,7 +29,10 @@ All services primarily log to standard output/error; collect container logs cent
 - Redis connection failures or session loss;
 - HTTP `5xx` and sustained `401`/`403` changes.
 
-Never log authorization headers, API keys, access/refresh tokens, full database URLs, user message contents by default, or provider payloads that may contain sensitive data. The current backend validation-error handler logs rejected request bodies; restrict log access and replace that behavior with structured redaction before accepting sensitive or untrusted payloads.
+Never log authorization headers, API keys, access/refresh tokens, full database
+URLs, user message contents by default, or provider payloads that may contain
+sensitive data. The backend validation-error handler records only the route and
+issue count and omits rejected input values.
 
 ## Dependency failure behavior
 
@@ -38,11 +43,14 @@ Never log authorization headers, API keys, access/refresh tokens, full database 
 | MCP unavailable | Chat tools and backend AI proxy operations fail; core region/path API remains separate |
 | AI provider unavailable | MCP generation may fall back depending on configuration; chat-agent startup can fail if no model initializes |
 | Redis unavailable | Redis-backed chat sessions fail; memory mode remains process-local and non-durable |
-| Supabase Auth unavailable | Login/session refresh fails; existing backend API-key behavior is independent |
+| Self-hosted Auth unavailable | Login/session refresh fails; already-issued access tokens remain usable until expiry while cached JWKS remains valid |
 
 ## Database backups
 
-No workflow in this repository creates or verifies database backups. Before any schema or risky data change:
+Self-hosted Auth has encrypted backup, off-host artifact retention, age, and
+clean-restore drill automation in the dedicated Auth workflows and runbook.
+MariaDB remains owned by LuminariMUD and requires its own provider/operator
+backup controls. Before any schema or risky data change:
 
 1. Identify the datastore owner: LuminariMUD MySQL/MariaDB versus Supabase/PostgreSQL.
 2. Create a provider-native, encrypted backup with credentials supplied outside the command history where possible.

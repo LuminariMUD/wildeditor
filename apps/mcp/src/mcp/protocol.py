@@ -6,6 +6,10 @@ from typing import Dict, List, Any, Optional, Union
 from pydantic import BaseModel, Field
 from enum import Enum
 import json
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class MCPMethodType(str, Enum):
@@ -124,10 +128,11 @@ class MCPServer:
                     id=request.id,
                     error={"code": -32601, "message": f"Method not found: {request.method}"}
                 )
-        except Exception as e:
+        except Exception as exc:
+            logger.error("MCP request failed: %s", type(exc).__name__)
             return MCPResponse(
                 id=request.id,
-                error={"code": -32603, "message": f"Internal error: {str(e)}"}
+                error={"code": -32603, "message": "Internal error"}
             )
     
     async def _handle_initialize(self, request: MCPRequest) -> MCPResponse:
@@ -180,10 +185,11 @@ class MCPServer:
                 id=request.id,
                 result={"content": [{"type": "text", "text": str(result)}]}
             )
-        except Exception as e:
+        except Exception as exc:
+            logger.error("MCP tool call failed: %s", type(exc).__name__)
             return MCPResponse(
                 id=request.id,
-                error={"code": -32603, "message": f"Tool execution error: {str(e)}"}
+                error={"code": -32603, "message": "Tool execution failed"}
             )
     
     async def _handle_list_resources(self, request: MCPRequest) -> MCPResponse:
@@ -231,10 +237,11 @@ class MCPServer:
                     }]
                 }
             )
-        except Exception as e:
+        except Exception as exc:
+            logger.error("MCP resource read failed: %s", type(exc).__name__)
             return MCPResponse(
                 id=request.id,
-                error={"code": -32603, "message": f"Resource read error: {str(e)}"}
+                error={"code": -32603, "message": "Resource read failed"}
             )
     
     async def _handle_list_prompts(self, request: MCPRequest) -> MCPResponse:
@@ -279,8 +286,9 @@ class MCPServer:
                     "messages": result.get("messages", [])
                 }
             )
-        except Exception as e:
+        except Exception as exc:
+            logger.error("MCP prompt call failed: %s", type(exc).__name__)
             return MCPResponse(
                 id=request.id,
-                error={"code": -32603, "message": f"Prompt execution error: {str(e)}"}
+                error={"code": -32603, "message": "Prompt execution failed"}
             )

@@ -3,10 +3,14 @@
 # Authentication: X-API-Key header required
 
 # Set variables for easier testing
-$API_KEY = "0Hdn8wEggBM5KW42cAG0r3wVFDc4pYNu"
+$API_KEY = $env:WILDEDITOR_BACKEND_SERVICE_KEY
 $BASE_URL = "http://luminarimud.com:8000"
-$MCP_API_KEY = "xJO/3aCmd5SBx0xxyPwvVOSSFkCR6BYVVl+RH+PMww0="
+$MCP_API_KEY = $env:WILDEDITOR_MCP_KEY
 $MCP_URL = "http://luminarimud.com:8001"
+
+if (-not $API_KEY -or -not $MCP_API_KEY) {
+    throw "WILDEDITOR_BACKEND_SERVICE_KEY and WILDEDITOR_MCP_KEY are required"
+}
 
 # ===========================================
 # TERRAIN ENDPOINTS
@@ -807,9 +811,9 @@ Invoke-RestMethod -Uri "$MCP_URL/mcp/resources/wildeditor://terrain-types" -Head
 
 Write-Host "Comprehensive Wilderness and MCP API Test Suite Loaded!" -ForegroundColor Cyan
 Write-Host "Environment variables are set:" -ForegroundColor Yellow
-Write-Host "  API_KEY: $($API_KEY.Substring(0,8))..." -ForegroundColor Yellow
+Write-Host "  Backend service credential: configured (value suppressed)" -ForegroundColor Yellow
 Write-Host "  BASE_URL: $BASE_URL" -ForegroundColor Yellow
-Write-Host "  MCP_API_KEY: $($MCP_API_KEY.Substring(0,8))..." -ForegroundColor Yellow
+Write-Host "  MCP credential: configured (value suppressed)" -ForegroundColor Yellow
 Write-Host "  MCP_URL: $MCP_URL" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "🚀 Quick Start Commands:" -ForegroundColor Green

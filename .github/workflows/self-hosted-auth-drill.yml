@@ -1,0 +1,59 @@
+name: Self-hosted Auth integration drill
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+  push:
+    branches: [main, develop]
+    paths:
+      - 'infrastructure/supabase/**'
+      - '.github/workflows/self-hosted-auth-drill.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'infrastructure/supabase/**'
+      - '.github/workflows/self-hosted-auth-drill.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-hosted-auth-drill-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  auth-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: infrastructure/supabase
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Configure disposable isolated stack
+        run: |
+          cp .env.example .env
+          chmod 600 .env
+          sh scripts/generate-secrets.sh
+          sed -i \
+            -e 's#^COMPOSE_FILE=.*#COMPOSE_FILE=docker-compose.yml:docker-compose.wildeditor.yml:docker-compose.wildeditor-test.yml#' \
+            -e 's#^SUPABASE_PUBLIC_URL=.*#SUPABASE_PUBLIC_URL=http://127.0.0.1:8010#' \
+            -e 's#^API_EXTERNAL_URL=.*#API_EXTERNAL_URL=http://127.0.0.1:8010/auth/v1#' \
+            -e 's#^SMTP_HOST=.*#SMTP_HOST=inbucket#' \
+            -e 's#^SMTP_USER=.*#SMTP_USER=drill-user#' \
+            -e 's#^SMTP_PASS=.*#SMTP_PASS=drill-password#' \
+            .env
+          sh scripts/validate-config.sh
+      - name: Start pinned Supabase stack
+        run: docker compose up -d --wait
+      - name: Run destructive disposable Auth/restore drill
+        env:
+          AUTH_FULL_DRILL_CONFIRM: destroy-test-auth-database
+        run: sh scripts/full-drill.sh
+      - name: Show container health on failure
+        if: failure()
+        run: docker compose ps
+      - name: Remove disposable stack
+        if: always()
+        run: docker compose down --volumes

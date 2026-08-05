@@ -13,7 +13,6 @@ def create_test_app():
         AuthMiddleware,
         exclude_paths={"/health", "/docs"},
         mcp_path_prefix="/mcp",
-        backend_path_prefix="/api"
     )
 
     @app.get("/health")
@@ -54,34 +53,14 @@ class TestAuthMiddleware:
         assert response.status_code == 200
         assert response.json()["status"] == "healthy"
 
-    def test_backend_endpoint_requires_auth(self, client, mock_env):
-        """Test that backend endpoints require authentication"""
-        # Without auth header
-        response = client.get("/api/backend-endpoint")
-        assert response.status_code == 401
-
-        # With wrong key
-        headers = {"X-API-Key": "wrong-key"}
-        response = client.get("/api/backend-endpoint", headers=headers)
-        assert response.status_code == 401
-
-    def test_backend_endpoint_with_valid_auth(
-            self, client, mock_env, valid_backend_key):
-        """Test backend endpoint with valid authentication"""
-        headers = {"X-API-Key": valid_backend_key}
-        response = client.get("/api/backend-endpoint", headers=headers)
-
-        assert response.status_code == 200
-        assert response.json()["message"] == "Backend endpoint"
-
     def test_mcp_endpoint_requires_auth(self, client, mock_env):
         """Test that MCP endpoints require authentication"""
         # Without auth header
         response = client.get("/mcp/mcp-endpoint")
         assert response.status_code == 401
 
-        # With backend key (wrong type)
-        headers = {"X-API-Key": "test-backend-key"}
+        # With an invalid key
+        headers = {"X-API-Key": "wrong-key"}
         response = client.get("/mcp/mcp-endpoint", headers=headers)
         assert response.status_code == 401
 
@@ -108,12 +87,9 @@ class TestAuthMiddleware:
         middleware = AuthMiddleware(
             None,  # app not needed for this test
             mcp_path_prefix="/mcp",
-            backend_path_prefix="/api"
         )
 
         # Test path determination
-        assert middleware._determine_key_type(
-            "/api/test") == KeyType.BACKEND_API
         assert middleware._determine_key_type(
             "/mcp/test") == KeyType.MCP_OPERATIONS
         assert middleware._determine_key_type("/public") is None
@@ -121,4 +97,4 @@ class TestAuthMiddleware:
         # Test exclusion
         assert middleware._should_exclude_path("/health") is True
         assert middleware._should_exclude_path("/docs") is True
-        assert middleware._should_exclude_path("/api/test") is False
+        assert middleware._should_exclude_path("/mcp/test") is False

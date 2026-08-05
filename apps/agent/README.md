@@ -35,14 +35,23 @@ OpenAPI is at `http://localhost:8002/docs`.
 
 ## Session storage
 
-`STORAGE_BACKEND=memory` is the default and loses all sessions on process restart. `STORAGE_BACKEND=redis` uses `REDIS_URL` and is the intended durable-across-process option, while still enforcing `SESSION_TTL`.
+`STORAGE_BACKEND=memory` is the local-development default and loses all
+sessions on process restart. `remote-production` rejects memory storage and
+requires `STORAGE_BACKEND=redis` plus `REDIS_URL`. `/health/ready` returns 200
+only when storage responds and the authenticated MCP readiness chain reaches
+the backend with its service principal.
 
-## Security status
+## Security boundary
 
-Chat routes currently have no user-authentication dependency and do not enforce session ownership. Run the service only inside a trusted development/network boundary until the active authentication plan is implemented.
+Every browser-facing session, history, message, and stream route requires an
+editor/admin JWT. Sessions are keyed by opaque identifiers and remain bound to
+the verified token subject; caller-supplied user IDs are rejected. Agent tool
+calls use the server-only MCP key and carry request-scoped actor context.
 
 ## Validation
 
-There is no focused agent test suite yet. Validate import/startup, all three health endpoints, session expiry/storage behavior, MCP authentication, and at least one read-only tool call in a non-production environment.
+Run `PYTHONPATH=src python -m pytest -q tests` for JWT, authorization, ownership,
+and actor-context coverage. Also validate Redis expiry, MCP authentication, and
+at least one read-only tool call in an isolated deployment.
 
 See [Architecture](../../docs/architecture.md), [Configuration](../../docs/configuration.md), and [Testing](../../docs/testing.md).

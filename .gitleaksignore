@@ -1,0 +1,10 @@
+# Public defaults and protocol fixtures vendored from the pinned official
+# Supabase self-hosting release. Production deployment rejects the example
+# environment and generates fresh values before startup.
+infrastructure/supabase/.env.example:generic-api-key:67
+infrastructure/supabase/.env.example:generic-api-key:93
+infrastructure/supabase/.env.example:jwt:39
+infrastructure/supabase/.env.example:jwt:40
+infrastructure/supabase/tests/test-auth-keys.sh:generic-api-key:224
+infrastructure/supabase/tests/test-auth-keys.sh:generic-api-key:235
+infrastructure/supabase/tests/test-s3-backend.sh:generic-api-key:17

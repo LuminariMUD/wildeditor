@@ -15,9 +15,9 @@ from ..schemas.region import (
     REGION_ALTITUDE_LANE, REGION_SKY_ISLAND, SECTOR_TYPES
 )
 from ..config.config_database import get_db
-from ..middleware.auth import RequireAuth
+from ..middleware.auth import RequireAuth, require_editor, require_reader
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_reader)])
 logger = logging.getLogger(__name__)
 
 def coordinates_to_polygon_wkt(coordinates: List[dict]) -> str:
@@ -278,9 +278,10 @@ def get_regions(
         
         return response_regions
     except Exception as e:
+        logger.error("Region retrieval failed: %s", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving regions: {str(e)}"
+            detail="Error retrieving regions"
         )
 
 @router.get("/types", response_model=dict)
@@ -436,7 +437,12 @@ def get_region(vnum: int, db: Session = Depends(get_db)):
     
     return RegionDetailResponse(**region_dict)
 
-@router.post("/", response_model=RegionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=RegionResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_editor)],
+)
 def create_region(region: RegionCreate, db: Session = Depends(get_db), authenticated: bool = RequireAuth):
     """
     Create a new region.
@@ -548,12 +554,18 @@ def create_region(region: RegionCreate, db: Session = Depends(get_db), authentic
         raise
     except Exception as e:
         db.rollback()
+        logger.error("Region creation failed: %s", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error creating region: {str(e)}"
+            detail="Error creating region"
         )
 
-@router.post("/landmarks", response_model=RegionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/landmarks",
+    response_model=RegionResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_editor)],
+)
 def create_landmark(
     x: float = Query(..., description="X coordinate for the landmark"),
     y: float = Query(..., description="Y coordinate for the landmark"),
@@ -593,12 +605,17 @@ def create_landmark(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Landmark creation failed: %s", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error creating landmark: {str(e)}"
+            detail="Error creating landmark"
         )
 
-@router.put("/{vnum}", response_model=RegionResponse)
+@router.put(
+    "/{vnum}",
+    response_model=RegionResponse,
+    dependencies=[Depends(require_editor)],
+)
 def update_region(vnum: int, region_update: RegionUpdate, db: Session = Depends(get_db), authenticated: bool = RequireAuth):
     """Update an existing region"""
     try:
@@ -662,12 +679,17 @@ def update_region(vnum: int, region_update: RegionUpdate, db: Session = Depends(
         raise
     except Exception as e:
         db.rollback()
+        logger.error("Region update failed: %s", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error updating region: {str(e)}"
+            detail="Error updating region"
         )
 
-@router.delete("/{vnum}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{vnum}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_editor)],
+)
 def delete_region(vnum: int, db: Session = Depends(get_db), authenticated: bool = RequireAuth):
     """Delete a region"""
     try:
@@ -688,7 +710,8 @@ def delete_region(vnum: int, db: Session = Depends(get_db), authenticated: bool 
         raise
     except Exception as e:
         db.rollback()
+        logger.error("Region deletion failed: %s", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error deleting region: {str(e)}"
+            detail="Error deleting region"
         )

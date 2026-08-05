@@ -1,0 +1,101 @@
+name: Self-hosted Auth backup and monitoring
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+    - cron: '23 2 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-hosted-auth-production-operations
+  cancel-in-progress: false
+
+jobs:
+  operate:
+    if: github.event_name == 'workflow_dispatch' || vars.SELF_HOSTED_AUTH_OPERATIONS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: production-auth
+    steps:
+      - uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
+      - name: Trust production host key
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$PRODUCTION_HOST" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Create and retrieve encrypted daily backup
+        id: backup
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '23 2 * * *'
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          backup_output=$(
+            ssh "$PRODUCTION_USER@$PRODUCTION_HOST" '
+              set -eu
+              cd /home/wildedit/self-hosted-auth
+              command -v age >/dev/null 2>&1
+              recipient=$(sed -n "s/^AUTH_BACKUP_AGE_RECIPIENT=//p" .env | tail -n 1)
+              case "$recipient" in age1*) ;; *) exit 1 ;; esac
+              AUTH_BACKUP_AGE_RECIPIENT="$recipient" \
+                AUTH_BACKUP_DIR=./backups \
+                sh scripts/backup.sh
+            '
+          )
+          backup_path=$(printf '%s\n' "$backup_output" \
+            | sed -n 's/^Auth backup created: //p' \
+            | tail -n 1)
+          case "$backup_path" in
+            ./backups/wildeditor-auth-*.dump.age) ;;
+            *) echo "Remote backup did not return an encrypted path" >&2; exit 1 ;;
+          esac
+
+          artifact_path="$RUNNER_TEMP/wildeditor-auth.dump.age"
+          printf '%s\n' "$backup_path" \
+            | ssh "$PRODUCTION_USER@$PRODUCTION_HOST" '
+                set -eu
+                cd /home/wildedit/self-hosted-auth
+                IFS= read -r path
+                case "$path" in
+                  ./backups/wildeditor-auth-*.dump.age) ;;
+                  *) exit 1 ;;
+                esac
+                cat -- "$path"
+              ' > "$artifact_path"
+          test -s "$artifact_path"
+          head -n 1 "$artifact_path" | grep -qx 'age-encryption.org/v1'
+          (
+            cd "$RUNNER_TEMP"
+            sha256sum wildeditor-auth.dump.age > wildeditor-auth.dump.age.sha256
+          )
+          echo "performed=true" >> "$GITHUB_OUTPUT"
+      - name: Verify production Auth health, backup age, and capacity
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          ssh "$PRODUCTION_USER@$PRODUCTION_HOST" '
+            set -eu
+            cd /home/wildedit/self-hosted-auth
+            AUTH_PUBLIC_URL=https://auth.wildedit.luminarimud.com \
+              AUTH_BACKUP_DIR=./backups \
+              sh scripts/monitor.sh
+          '
+      - name: Retain encrypted backup off-host
+        if: steps.backup.outputs.performed == 'true'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: wildeditor-auth-backup-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/wildeditor-auth.dump.age
+            ${{ runner.temp }}/wildeditor-auth.dump.age.sha256
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
