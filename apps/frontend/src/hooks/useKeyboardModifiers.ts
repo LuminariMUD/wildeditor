@@ -42,7 +42,7 @@ export const useKeyboardModifiers = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('blur', handleFocus);
+      window.removeEventListener('blur-sm', handleFocus);
     };
   }, [updateModifiers]);
 

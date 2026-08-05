@@ -7,7 +7,7 @@ API endpoints, ensuring data validation and serialization.
 
 from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from enum import Enum
 
 
@@ -69,7 +69,7 @@ class RegionHintBase(BaseModel):
         description="Seasonal multipliers: {spring: 1.0, summer: 1.2, ...}"
     )
     weather_conditions: Optional[List[WeatherCondition]] = Field(
-        default=["clear", "cloudy", "rainy", "stormy", "lightning"],
+        default_factory=lambda: list(WeatherCondition),
         description="Weather conditions when this hint applies"
     )
     time_of_day_weight: Optional[Dict[str, float]] = Field(
@@ -81,7 +81,8 @@ class RegionHintBase(BaseModel):
         description="Resource conditions: {vegetation: '>0.7', water: '<0.3'}"
     )
     
-    @validator('seasonal_weight')
+    @field_validator('seasonal_weight')
+    @classmethod
     def validate_seasonal_weight(cls, v):
         """Validate seasonal weight structure (must match database exactly)."""
         if v is not None:
@@ -93,7 +94,8 @@ class RegionHintBase(BaseModel):
                 raise ValueError("Seasonal weights must be between 0 and 2")
         return v
     
-    @validator('time_of_day_weight')
+    @field_validator('time_of_day_weight')
+    @classmethod
     def validate_time_weight(cls, v):
         """Validate time of day weight structure (must match database exactly)."""
         if v is not None:
@@ -144,8 +146,8 @@ class RegionHintBatchCreate(BaseModel):
     """Schema for creating multiple hints at once."""
     hints: List[RegionHintCreate] = Field(
         ...,
-        min_items=1,
-        max_items=50,
+        min_length=1,
+        max_length=50,
         description="List of hints to create (max 50)"
     )
 
@@ -160,8 +162,7 @@ class RegionHintResponse(RegionHintBase):
     updated_at: datetime
     is_active: bool
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
         
     @classmethod
     def model_validate(cls, obj, **kwargs):
@@ -211,8 +212,8 @@ class RegionProfileBase(BaseModel):
     )
     key_characteristics: List[str] = Field(
         ...,
-        min_items=1,
-        max_items=20,
+        min_length=1,
+        max_length=20,
         description="Key features of the region"
     )
     description_style: DescriptionStyle = Field(
@@ -252,8 +253,7 @@ class RegionProfileResponse(RegionProfileBase):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
         
     @classmethod
     def model_validate(cls, obj, **kwargs):
@@ -335,8 +335,7 @@ class HintUsageStats(BaseModel):
     most_common_weather: Optional[str]
     most_common_time: Optional[str]
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RegionHintAnalytics(BaseModel):

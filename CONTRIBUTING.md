@@ -1,378 +1,68 @@
-# Contributing to Luminari Wilderness Editor
+# Contributing to Wildeditor
 
-Thank you for your interest in contributing to the Luminari Wilderness Editor! This document provides guidelines and information for contributors.
+Wildeditor is a pre-release monorepo. Keep changes focused, preserve service boundaries, and validate against source rather than historical documentation.
 
-## 🚀 Getting Started
+## Before you start
 
-### Prerequisites
+- Read the [documentation index](docs/README.md), [development setup](docs/development.md), and [testing guide](docs/testing.md).
+- Use Node.js `26.6.0`, npm `12.0.2`, and Python `3.14+`. The service images currently use Python `3.14.6`.
+- Install JavaScript dependencies with `npm ci`.
+- Install Python services independently; install `packages/auth` editable before backend or MCP dependencies.
+- Copy only the service-specific `.env.example` files you need. Use disposable development credentials and never commit secrets.
 
-Before you begin, ensure you have the following installed:
-- **Node.js 18+** and npm (for frontend)
-- **Python 3.8+** (for FastAPI backend)
-- **Git** for version control
-- **Modern web browser** (Chrome, Firefox, Safari, Edge)
-- **Code editor** (VS Code recommended)
+## Make a change
 
-### Development Setup
+1. Create a short-lived branch with a descriptive name such as `fix/path-validation` or `docs/runtime-guide`.
+2. Change only the files needed for the issue. Do not combine a feature or fix with broad legacy cleanup.
+3. Follow the repository boundaries:
+   - `useEditor` owns frontend editor state.
+   - Reusable frontend domain contracts belong in `@wildeditor/shared`.
+   - Backend wire-format conversion belongs in `apps/frontend/src/services/api.ts`.
+   - The chat agent calls MCP, and MCP calls the backend.
+   - Backend requests use Bearer authentication; MCP requests use `X-API-Key`.
+   - Database changes are new migrations beside the datastore that owns them.
+4. When an API shape changes, update its schema, router, frontend adapter/types, MCP caller, and focused tests together.
+5. Add or update tests that demonstrate the intended behavior.
+6. Update canonical documentation when setup, configuration, contracts, operations, or user behavior changes. Move superseded point-in-time material to `docs/archive/` rather than presenting it as current guidance.
 
-1. **Fork and clone the repository**
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/wildeditor.git
-   cd wildeditor
-   ```
+## Code expectations
 
-2. **Install dependencies**
-   ```bash
-   # Install frontend dependencies
-   npm install
-   
-   # Install Python backend dependencies
-   cd apps/backend/src
-   pip install -r requirements.txt
-   ```
+- Keep frontend TypeScript strict; do not weaken compiler settings to bypass an error.
+- Use typed functional React components and accessible, responsive UI patterns.
+- Keep FastAPI entry points importable as `src.main:app`; add routes, Pydantic schemas, and SQLAlchemy models in their established directories.
+- Preserve MySQL/MariaDB spatial semantics and coordinate ordering at API boundaries.
+- Never print, commit, or place real credentials in examples, fixtures, logs, URLs, or browser-exposed variables.
+- Avoid unrelated formatting and generated-file churn.
 
-3. **Set up environment variables**
-   ```bash
-   # Frontend configuration
-   cp apps/frontend/.env.example apps/frontend/.env
-   # Edit with your API URL
-   
-   # Backend configuration
-   cp apps/backend/.env.example apps/backend/.env
-   # Edit with your MySQL database credentials
-   ```
+## Validate
 
-4. **Start the development servers**
-   ```bash
-   # Terminal 1: Start frontend
-   npm run dev:frontend
-   
-   # Terminal 2: Start Python backend
-   cd apps/backend/src
-   python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-5. **Verify the setup**
-   - Open `http://localhost:5173` in your browser
-   - Ensure the application loads without errors
-
-## 📋 Development Workflow
-
-### Branch Naming Convention
-
-Use descriptive branch names with prefixes:
-- `feature/` - New features
-- `fix/` - Bug fixes
-- `docs/` - Documentation updates
-- `refactor/` - Code refactoring
-- `test/` - Test additions/updates
-
-Examples:
-```bash
-git checkout -b feature/polygon-editing-tools
-git checkout -b fix/coordinate-display-bug
-git checkout -b docs/api-documentation-update
-```
-
-### Commit Message Guidelines
-
-Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
-
-```
-<type>[optional scope]: <description>
-
-[optional body]
-
-[optional footer(s)]
-```
-
-**Types:**
-- `feat:` - New features
-- `fix:` - Bug fixes
-- `docs:` - Documentation changes
-- `style:` - Code style changes (formatting, etc.)
-- `refactor:` - Code refactoring
-- `test:` - Adding or updating tests
-- `chore:` - Maintenance tasks
-
-**Examples:**
-```bash
-git commit -m "feat(map): add polygon drawing tool"
-git commit -m "fix(coordinates): resolve zoom level calculation bug"
-git commit -m "docs: update API documentation for regions endpoint"
-```
-
-## 🏗️ Code Standards
-
-### TypeScript Guidelines
-
-- **Use TypeScript strictly** - No `any` types unless absolutely necessary
-- **Define interfaces** for all data structures
-- **Use proper typing** for function parameters and return values
-- **Leverage type inference** where appropriate
-
-```typescript
-// Good
-interface Region {
-  id: number;
-  name: string;
-  coordinates: [number, number][];
-  type: RegionType;
-}
-
-// Avoid
-const region: any = { /* ... */ };
-```
-
-### React Component Guidelines
-
-- **Use functional components** with hooks
-- **Follow naming conventions** - PascalCase for components
-- **Keep components focused** - Single responsibility principle
-- **Use proper prop typing** with interfaces
-
-```typescript
-// Good
-interface MapViewProps {
-  regions: Region[];
-  onRegionSelect: (region: Region) => void;
-  zoom: number;
-}
-
-export const MapView: React.FC<MapViewProps> = ({ regions, onRegionSelect, zoom }) => {
-  // Component implementation
-};
-```
-
-### Styling Guidelines
-
-- **Use Tailwind CSS** for styling
-- **Follow mobile-first** responsive design
-- **Use semantic class names** when custom CSS is needed
-- **Maintain consistent spacing** using Tailwind's spacing scale
-
-```tsx
-// Good
-<div className="flex flex-col space-y-4 p-6 bg-white rounded-lg shadow-md">
-  <h2 className="text-xl font-semibold text-gray-800">Region Editor</h2>
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    {/* Content */}
-  </div>
-</div>
-```
-
-## 🧪 Testing
-
-### Running Tests
+Run the smallest meaningful checks for the files changed. The standard local commands are:
 
 ```bash
-# Run all tests
-npm test
+npm run lint
+npm run type-check
+npm run build
 
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage
-npm run test:coverage
+PYTHONPATH=packages/auth/src python -m pytest -q packages/auth/tests
+(cd apps/backend && PYTHONPATH=. python -m pytest tests/ -m "not integration" --tb=short)
+(cd apps/mcp && PYTHONPATH=. python -m pytest tests/ --tb=short)
 ```
 
-### Writing Tests
+`npm test` currently invokes placeholder workspace scripts and is not meaningful coverage. Root `tests/` scripts are live-service or credential-dependent probes; run one only after reviewing its targets and obtaining authorization for the environment.
 
-- **Write tests for new features** and bug fixes
-- **Use descriptive test names** that explain the expected behavior
-- **Follow the AAA pattern** - Arrange, Act, Assert
-- **Mock external dependencies** appropriately
+See the [testing guide](docs/testing.md) for service-specific linting, smoke checks, and the change-to-check matrix.
 
-```typescript
-describe('CoordinateDisplay', () => {
-  it('should display coordinates with correct precision at 100% zoom', () => {
-    // Arrange
-    const coordinates = { x: 123.456, y: 789.012 };
-    const zoom = 1;
+## Pull requests
 
-    // Act
-    render(<CoordinateDisplay coordinates={coordinates} zoom={zoom} />);
+A pull request should include:
 
-    // Assert
-    expect(screen.getByText('X: 123, Y: 789')).toBeInTheDocument();
-  });
-});
-```
+- a concise statement of the problem and solution;
+- the affected services and contracts;
+- database or configuration implications;
+- exact validation commands and results;
+- screenshots for visible UI changes;
+- known limitations or deliberately deferred work.
 
-## 📝 Documentation
+Keep commits reviewable. Conventional Commit-style subjects such as `fix(backend): validate path coordinates` are welcome, but clarity is more important than mechanical conformance.
 
-### Code Documentation
-
-- **Add JSDoc comments** for complex functions
-- **Document component props** with clear descriptions
-- **Include usage examples** for utility functions
-
-```typescript
-/**
- * Converts screen coordinates to wilderness coordinates
- * @param screenX - X coordinate on screen
- * @param screenY - Y coordinate on screen
- * @param zoom - Current zoom level (1 = 100%)
- * @param mapBounds - Map boundary information
- * @returns Wilderness coordinates
- */
-export function screenToWilderness(
-  screenX: number,
-  screenY: number,
-  zoom: number,
-  mapBounds: MapBounds
-): WildernessCoordinates {
-  // Implementation
-}
-```
-
-### README Updates
-
-When adding new features:
-- Update the features list in README.md
-- Add usage examples if applicable
-- Update the project structure if new directories are added
-
-## 🐛 Bug Reports
-
-### Before Submitting
-
-1. **Search existing issues** to avoid duplicates
-2. **Test with the latest version** to ensure the bug still exists
-3. **Gather relevant information** about your environment
-
-### Bug Report Template
-
-```markdown
-**Bug Description**
-A clear description of what the bug is.
-
-**Steps to Reproduce**
-1. Go to '...'
-2. Click on '...'
-3. See error
-
-**Expected Behavior**
-What you expected to happen.
-
-**Screenshots**
-If applicable, add screenshots.
-
-**Environment**
-- OS: [e.g., Windows 10, macOS 12.0]
-- Browser: [e.g., Chrome 96, Firefox 95]
-- Node.js version: [e.g., 18.12.0]
-```
-
-## ✨ Feature Requests
-
-### Before Submitting
-
-1. **Check existing feature requests** to avoid duplicates
-2. **Consider the scope** - Does it fit the project's goals?
-3. **Think about implementation** - Is it technically feasible?
-
-### Feature Request Template
-
-```markdown
-**Feature Description**
-A clear description of the feature you'd like to see.
-
-**Use Case**
-Explain why this feature would be useful.
-
-**Proposed Solution**
-Describe how you envision this feature working.
-
-**Alternatives Considered**
-Any alternative solutions you've considered.
-```
-
-## 🔄 Pull Request Process
-
-### Before Submitting
-
-1. **Ensure your code follows** the style guidelines
-2. **Add tests** for new functionality
-3. **Update documentation** as needed
-4. **Test thoroughly** in different browsers/environments
-
-### Pull Request Template
-
-```markdown
-**Description**
-Brief description of changes made.
-
-**Type of Change**
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Documentation update
-- [ ] Refactoring
-
-**Testing**
-- [ ] Tests pass locally
-- [ ] Added tests for new functionality
-- [ ] Tested in multiple browsers
-
-**Checklist**
-- [ ] Code follows style guidelines
-- [ ] Self-review completed
-- [ ] Documentation updated
-- [ ] No breaking changes (or clearly documented)
-```
-
-### Review Process
-
-1. **Automated checks** must pass (linting, tests)
-2. **Code review** by maintainers
-3. **Testing** in development environment
-4. **Approval** and merge by maintainers
-
-## 🏷️ Release Process
-
-### Versioning
-
-We follow [Semantic Versioning](https://semver.org/):
-- **MAJOR** version for incompatible API changes
-- **MINOR** version for backwards-compatible functionality
-- **PATCH** version for backwards-compatible bug fixes
-
-### Release Checklist
-
-1. Update version in `package.json`
-2. Update CHANGELOG.md
-3. Create release notes
-4. Tag the release
-5. Deploy to production
-
-## 🤝 Community Guidelines
-
-### Code of Conduct
-
-- **Be respectful** and inclusive
-- **Provide constructive feedback**
-- **Help others learn** and grow
-- **Focus on the code**, not the person
-
-### Communication
-
-- **Use clear, descriptive language**
-- **Be patient** with new contributors
-- **Ask questions** when something is unclear
-- **Share knowledge** and best practices
-
-## 📞 Getting Help
-
-- **GitHub Issues** - For bugs and feature requests
-- **GitHub Discussions** - For questions and general discussion
-- **Documentation** - Check the docs/ directory first
-- **Code Comments** - Look for inline documentation
-
-## 🙏 Recognition
-
-Contributors will be recognized in:
-- **README.md** contributors section
-- **Release notes** for significant contributions
-- **GitHub contributors** page
-
-Thank you for contributing to the Luminari Wilderness Editor! 🎉
+Use public issues for ordinary bugs and feature requests. Report security issues privately as described in [SECURITY.md](SECURITY.md).

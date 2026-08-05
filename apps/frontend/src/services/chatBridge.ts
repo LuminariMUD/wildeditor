@@ -147,7 +147,7 @@ export class ChatBridge {
       }
     } catch (stateError) {
       console.error('[ChatBridge] State update error:', stateError);
-      throw new Error(`Failed to update state: ${stateError}`);
+      throw new Error(`Failed to update state: ${stateError}`, { cause: stateError });
     }
     
     if (uiHints?.center_map) {
@@ -206,7 +206,7 @@ export class ChatBridge {
       }
     } catch (stateError) {
       console.error('[ChatBridge] Path state update error:', stateError);
-      throw new Error(`Failed to update path state: ${stateError}`);
+      throw new Error(`Failed to update path state: ${stateError}`, { cause: stateError });
     }
     
     if (uiHints?.center_map) {

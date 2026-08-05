@@ -6,19 +6,20 @@ setup(
     description="Shared authentication package for Wildeditor",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
-    python_requires=">=3.11",
+    python_requires=">=3.14",
     install_requires=[
-        "fastapi>=0.104.0",
-        "pydantic>=2.0.0",
-        "pydantic-settings>=2.0.0",
-        "httpx>=0.25.0",
+        "fastapi>=0.141.1",
+        "pydantic>=2.13.4",
+        "pydantic-settings>=2.14.2",
+        "httpx>=0.28.1",
     ],
     extras_require={
         "dev": [
-            "pytest>=7.4.0",
-            "pytest-asyncio>=0.21.0",
-            "mypy>=1.5.0",
-            "flake8>=6.0.0",
+            "pytest>=9.1.1",
+            "pytest-asyncio>=1.4.0",
+            "httpx2>=2.9.1",
+            "mypy>=2.3.0",
+            "flake8>=7.3.0",
         ]
     },
 )

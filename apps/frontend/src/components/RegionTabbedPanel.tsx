@@ -44,10 +44,6 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   
-  // Staging state for generated content
-  const [stagedDescription, setStagedDescription] = useState('');
-  const [stagedHints, setStagedHints] = useState<RegionHint[]>([]);
-  const [hasStaged, setHasStaged] = useState({ description: false, hints: false });
   const [initialPromptText, setInitialPromptText] = useState('');
 
   const [hints, setHints] = useState<RegionHint[]>([]);
@@ -81,33 +77,14 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
   // Fetch hints when hints tab is selected
   useEffect(() => {
     if (activeTab === 'hints' && region.vnum) {
-      fetchHints();
+      const timer = window.setTimeout(() => void fetchHints(), 0);
+      return () => window.clearTimeout(timer);
     }
   }, [activeTab, region.vnum, fetchHints]);
 
-  // Sync staged description with region prop when not dirty
-  useEffect(() => {
-    if (!hasStaged.description) {
-      setStagedDescription(region.region_description || '');
-    }
-  }, [region.region_description, hasStaged.description]);
-
-  // Clear local staging state when region staging flags are cleared (after save)
-  useEffect(() => {
-    // Only clear if we previously had staged hints and now don't
-    if (hasStaged.hints && !region._hintsStaged) {
-      setStagedHints([]);
-      setHasStaged(prev => ({ ...prev, hints: false }));
-      // Reload hints from database after clearing staged ones
-      if (region.vnum) {
-        fetchHints();
-      }
-    }
-  }, [region._hintsStaged, hasStaged.hints, fetchHints, region.vnum]);
-
   const generateHintsFromDescription = async (description?: string, askConfirmation: boolean = true) => {
-    // Use passed description, then staged, then region prop
-    const descToUse = description || stagedDescription || region.region_description;
+    // Use the passed description, then the current region description.
+    const descToUse = description || region.region_description;
     
     console.log('Generating hints with description:', {
       passedDescription: description ? description.substring(0, 100) + '...' : null,
@@ -256,9 +233,6 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
             }).filter(hint => hint !== null); // Remove any null hints
             
             // STAGE HINTS LOCALLY - DO NOT SAVE TO DB YET!
-            setStagedHints(formattedHints);
-            setHasStaged(prev => ({ ...prev, hints: true }));
-            
             // Show staged hints in UI (replace current display)
             setHints(formattedHints);
             
@@ -497,7 +471,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
                 </button>
                 <button
                   onClick={() => onCreateLayer(region, 'transform')}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-xs py-2 px-3 rounded"
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-xs py-2 px-3 rounded-sm"
                 >
                   Add Transform
                 </button>
@@ -586,7 +560,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
       <div className="border-t border-gray-700 mt-3">
         <button
           onClick={() => toggleSection('coordinates')}
-          className="w-full py-2 flex items-center justify-between text-gray-300 hover:bg-gray-800 transition-colors rounded"
+          className="w-full py-2 flex items-center justify-between text-gray-300 hover:bg-gray-800 transition-colors rounded-sm"
         >
           <span className="text-sm font-medium flex items-center gap-1">
             Polygon Point Editor
@@ -666,7 +640,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
               type="checkbox"
               checked={region.has_historical_context || false}
               onChange={(e) => onUpdate({ has_historical_context: e.target.checked })}
-              className="rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
+              className="rounded-sm bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-300">Historical Context</span>
           </label>
@@ -675,7 +649,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
               type="checkbox"
               checked={region.has_resource_info || false}
               onChange={(e) => onUpdate({ has_resource_info: e.target.checked })}
-              className="rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
+              className="rounded-sm bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-300">Resource Information</span>
           </label>
@@ -684,7 +658,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
               type="checkbox"
               checked={region.has_wildlife_info || false}
               onChange={(e) => onUpdate({ has_wildlife_info: e.target.checked })}
-              className="rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
+              className="rounded-sm bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-300">Wildlife Details</span>
           </label>
@@ -693,7 +667,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
               type="checkbox"
               checked={region.has_geological_info || false}
               onChange={(e) => onUpdate({ has_geological_info: e.target.checked })}
-              className="rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
+              className="rounded-sm bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-300">Geological Features</span>
           </label>
@@ -702,7 +676,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
               type="checkbox"
               checked={region.has_cultural_info || false}
               onChange={(e) => onUpdate({ has_cultural_info: e.target.checked })}
-              className="rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
+              className="rounded-sm bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-300">Cultural Information</span>
           </label>
@@ -711,7 +685,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
 
       {/* Generate with AI button */}
       <button
-        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 text-sm font-medium"
+        className="w-full bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 text-sm font-medium"
         onClick={() => {
           // Copy any existing description text to be used as initial prompt
           setInitialPromptText(region.region_description || '');
@@ -773,7 +747,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
             type="checkbox"
             checked={region.requires_review || false}
             onChange={(e) => onUpdate({ requires_review: e.target.checked })}
-            className="rounded bg-gray-800 border-gray-600 text-yellow-500 focus:ring-yellow-500"
+            className="rounded-sm bg-gray-800 border-gray-600 text-yellow-500 focus:ring-yellow-500"
           />
           <span className="text-sm text-gray-300">Requires Review</span>
         </label>
@@ -782,7 +756,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
             type="checkbox"
             checked={region.is_approved || false}
             onChange={(e) => onUpdate({ is_approved: e.target.checked })}
-            className="rounded bg-gray-800 border-gray-600 text-green-500 focus:ring-green-500"
+            className="rounded-sm bg-gray-800 border-gray-600 text-green-500 focus:ring-green-500"
           />
           <span className="text-sm text-gray-300">Approved</span>
         </label>
@@ -871,17 +845,15 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
     return (
       <div className="space-y-3">
         {/* Staged hints indicator */}
-        {hasStaged.hints && (
-          <div className="bg-amber-900/20 border border-amber-600 rounded p-2">
+        {region._hintsStaged && (
+          <div className="bg-amber-900/20 border border-amber-600 rounded-sm p-2">
             <p className="text-amber-400 text-xs flex items-center justify-between">
-              <span>✏️ {stagedHints.length} hints staged but not saved to database</span>
+              <span>✏️ {region._stagedHints?.length ?? 0} hints staged but not saved to database</span>
               <button 
                 onClick={() => {
                   // Discard staged hints
-                  setStagedHints([]);
-                  setHasStaged(prev => ({ ...prev, hints: false }));
                   setHints([]); // Clear display
-                  fetchHints(); // Reload from DB
+                  void fetchHints(); // Reload from DB
                   onUpdate({ _hintsStaged: undefined, _stagedHints: undefined });
                 }}
                 className="text-amber-500 hover:text-amber-400 text-xs underline"
@@ -904,7 +876,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="text-xs bg-gray-800 border border-gray-600 rounded px-2 py-1"
+              className="text-xs bg-gray-800 border border-gray-600 rounded-sm px-2 py-1"
             >
               <option value="all">All Categories</option>
               {Object.entries(hintCategories).map(([key, cat]) => (
@@ -919,7 +891,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
                 setIsCreatingHint(true);
                 setShowHintEditor(true);
               }}
-              className="text-xs bg-green-600 hover:bg-green-700 px-2 py-1 rounded flex items-center gap-1"
+              className="text-xs bg-green-600 hover:bg-green-700 px-2 py-1 rounded-sm flex items-center gap-1"
               title="Add a new hint manually"
             >
               <Plus className="w-3 h-3" />
@@ -935,7 +907,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
                   generateHintsFromDescription();
                 }}
                 disabled={hintsLoading}
-                className="text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 px-3 py-1 rounded flex items-center gap-1"
+                className="text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 px-3 py-1 rounded-sm flex items-center gap-1"
                 title={hints.length > 0 ? 'This will replace existing hints' : 'Generate hints from description'}
               >
                 {hintsLoading ? (
@@ -1017,7 +989,7 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
                   {isExpanded && (
                     <div className="border-t border-gray-700 p-2 space-y-1">
                       {categoryHints.map((hint) => (
-                        <div key={hint.id} className="bg-gray-900 rounded p-2 group hover:bg-gray-800 transition-colors">
+                        <div key={hint.id} className="bg-gray-900 rounded-sm p-2 group hover:bg-gray-800 transition-colors">
                           <div className="flex justify-between items-start">
                             <p className="text-xs text-gray-300 leading-relaxed flex-1">
                               {hint.hint_text}
@@ -1116,10 +1088,6 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
       if (result.error) {
         setGenerationError(result.error);
       } else if (result.generated_description) {
-        // Stage description locally FIRST
-        setStagedDescription(result.generated_description);
-        setHasStaged(prev => ({ ...prev, description: true }));
-        
         // Update parent (marks region as dirty/unsaved)
         onUpdate({
           region_description: result.generated_description,
@@ -1165,30 +1133,32 @@ export const RegionTabbedPanel: React.FC<RegionTabbedPanelProps> = ({
       </div>
       
       {/* Generate Description Dialog */}
-      <GenerateDescriptionDialog
-        isOpen={showGenerateDialog}
-        onClose={() => setShowGenerateDialog(false)}
-        onGenerate={handleGenerateDescription}
-        regionName={region.name}
-        regionType={region.region_type}
-        isGenerating={isGenerating}
-        hasExistingDescription={!!region.region_description}
-        hasExistingHints={hints.length > 0}
-        initialPrompt={initialPromptText}
-      />
+      {showGenerateDialog && (
+        <GenerateDescriptionDialog
+          onClose={() => setShowGenerateDialog(false)}
+          onGenerate={handleGenerateDescription}
+          regionName={region.name}
+          regionType={region.region_type}
+          isGenerating={isGenerating}
+          hasExistingDescription={!!region.region_description}
+          hasExistingHints={hints.length > 0}
+          initialPrompt={initialPromptText}
+        />
+      )}
       
       {/* Hint Editor Dialog */}
-      <HintEditor
-        hint={editingHint || undefined}
-        regionVnum={region.vnum}
-        isOpen={showHintEditor}
-        onSave={handleSaveHint}
-        onCancel={() => {
-          setShowHintEditor(false);
-          setEditingHint(null);
-          setIsCreatingHint(false);
-        }}
-      />
+      {showHintEditor && (
+        <HintEditor
+          hint={editingHint || undefined}
+          regionVnum={region.vnum}
+          onSave={handleSaveHint}
+          onCancel={() => {
+            setShowHintEditor(false);
+            setEditingHint(null);
+            setIsCreatingHint(false);
+          }}
+        />
+      )}
     </>
   );
 };

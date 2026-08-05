@@ -111,7 +111,8 @@ export const useEditor = () => {
 
   // Load data when session is available or immediately if auth is disabled
   useEffect(() => {
-    loadData();
+    const timer = window.setTimeout(() => void loadData(), 0);
+    return () => window.clearTimeout(timer);
   }, [loadData]);
 
   const setTool = useCallback((tool: DrawingTool) => {

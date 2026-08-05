@@ -8,7 +8,7 @@
 
 ## Repository map
 
-- `apps/frontend/`: React 18, Vite, Tailwind, and strict TypeScript. `useEditor` owns editor state; `services/` adapts backend/chat wire formats; Supabase is used for browser authentication.
+- `apps/frontend/`: React 19, Vite, Tailwind, and strict TypeScript. `useEditor` owns editor state; `services/` adapts backend/chat wire formats; Supabase is used for browser authentication.
 - `apps/backend/`: FastAPI API on port 8000. Routers use Pydantic schemas plus SQLAlchemy/GeoAlchemy models backed by MySQL.
 - `apps/mcp/`: FastAPI MCP/JSON-RPC facade on port 8001. Tools, resources, and prompts call the backend and use `packages/auth`.
 - `apps/agent/`: FastAPI chat/session service on port 8002. It reaches application data through the MCP client and stores sessions in memory or Redis.
@@ -27,7 +27,7 @@
 
 ## Setup and validation
 
-Use Node 18+ and Python 3.11. Install JavaScript dependencies with `npm ci`. Python services are installed independently; install `packages/auth` editable before backend or MCP work.
+Use Node 26.6.0 with npm 12.0.2 and Python 3.14+; the service images currently pin Python 3.14.6. Install JavaScript dependencies with `npm ci`. Python services are installed independently; install `packages/auth` editable before backend or MCP work.
 
 Run the smallest relevant checks from the repository root:
 

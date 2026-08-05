@@ -79,7 +79,7 @@ export const AuthForm: React.FC = () => {
 
         {error && (
           <div className="mb-4 p-3 bg-red-900/50 border border-red-500 rounded-lg flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
             <span className="text-red-400 text-sm">{error}</span>
           </div>
         )}

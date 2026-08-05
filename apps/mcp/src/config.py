@@ -4,11 +4,17 @@ Configuration settings for the MCP server
 
 import os
 from typing import Optional
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """MCP Server configuration settings"""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="WILDEDITOR_",
+        extra="ignore",
+    )
     
     # Server settings
     node_env: str = "development"
@@ -29,10 +35,6 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
     
-    class Config:
-        env_file = ".env"
-        env_prefix = "WILDEDITOR_"
-        
     @property
     def is_development(self) -> bool:
         """Check if running in development mode"""

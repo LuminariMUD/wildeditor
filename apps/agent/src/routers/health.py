@@ -1,6 +1,6 @@
 """Health check endpoints"""
 from fastapi import APIRouter, Request
-from datetime import datetime
+from datetime import UTC, datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ async def health_check(request: Request):
     return {
         "status": "healthy",
         "service": "Chat Agent",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "version": "1.0.0"
     }
 
@@ -39,7 +39,7 @@ async def readiness_check(request: Request):
         return {
             "ready": all_ready,
             "checks": checks,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
         
     except Exception as e:
@@ -47,7 +47,7 @@ async def readiness_check(request: Request):
         return {
             "ready": False,
             "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
 
@@ -60,5 +60,5 @@ async def liveness_check():
     """
     return {
         "alive": True,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(UTC).isoformat()
     }

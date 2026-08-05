@@ -115,7 +115,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         <select
           value={zoom}
           onChange={(e) => onZoomChange(parseInt(e.target.value))}
-          className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:ring-1 focus:ring-blue-500"
+          className="bg-gray-700 border border-gray-600 rounded-sm px-2 py-1 text-white text-sm focus:ring-1 focus:ring-blue-500"
         >
           {zoomLevels.map(level => (
             <option key={level} value={level}>{level}%</option>

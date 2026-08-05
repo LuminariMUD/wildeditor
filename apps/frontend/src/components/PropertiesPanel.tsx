@@ -102,8 +102,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           <h4 className="text-blue-200 font-medium text-sm mb-2">Instructions</h4>
           <ul className="text-blue-100 text-xs space-y-1">
             <li>• Click on the map to add points</li>
-            <li>• Press <kbd className="bg-blue-800 px-1 rounded text-xs">Enter</kbd> to finish drawing</li>
-            <li>• Press <kbd className="bg-blue-800 px-1 rounded text-xs">Escape</kbd> to cancel</li>
+            <li>• Press <kbd className="bg-blue-800 px-1 rounded-sm text-xs">Enter</kbd> to finish drawing</li>
+            <li>• Press <kbd className="bg-blue-800 px-1 rounded-sm text-xs">Escape</kbd> to cancel</li>
             <li>• Minimum points: Polygon (3), Path (2)</li>
           </ul>
         </div>
@@ -176,7 +176,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 value={selectedItem.name}
                 onChange={(e) => onUpdate({ name: sanitizeText(e.target.value) })}
                 onBlur={(e) => onUpdate({ name: e.target.value.trim().slice(0, 100) })}
-                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                className="w-full bg-gray-800 border border-gray-600 rounded-sm px-2 py-1 text-white text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                 maxLength={100}
               />
             </div>
@@ -186,7 +186,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 type="number"
                 value={selectedItem.vnum}
                 onChange={(e) => onUpdate({ vnum: validateVnum(parseInt(e.target.value) || 1) })}
-                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                className="w-full bg-gray-800 border border-gray-600 rounded-sm px-2 py-1 text-white text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                 min="1"
                 max="99999"
               />
@@ -349,7 +349,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               <div className="flex gap-2">
                 <button
                   onClick={() => onCreateLayer(selectedItem as Region, 'sector')}
-                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs py-2 px-3 rounded flex items-center justify-center gap-1"
+                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs py-2 px-3 rounded-sm flex items-center justify-center gap-1"
                   title="Create a matching Sector Override region with the same coordinates"
                 >
                   <Layers className="w-3 h-3" />
@@ -357,7 +357,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 </button>
                 <button
                   onClick={() => onCreateLayer(selectedItem as Region, 'transform')}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-xs py-2 px-3 rounded flex items-center justify-center gap-1"
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-xs py-2 px-3 rounded-sm flex items-center justify-center gap-1"
                   title="Create a matching Transform region for elevation adjustment"
                 >
                   <Mountain className="w-3 h-3" />
@@ -386,7 +386,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           {(selectedItem as Region).region_type === 1 && (
             <div className="bg-yellow-900/20 border border-yellow-800 rounded-lg p-2">
               <p className="text-yellow-300 text-xs flex items-start gap-1">
-                <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
                 <span>Geographic regions should not overlap with other Geographic regions.</span>
               </p>
             </div>
@@ -412,7 +412,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             
             {/* Show path type description if available */}
             {pathTypes && pathTypes.path_types[(selectedItem as Path).path_type] && (
-              <div className="mt-2 p-2 bg-gray-800 rounded text-xs text-gray-400">
+              <div className="mt-2 p-2 bg-gray-800 rounded-sm text-xs text-gray-400">
                 <p className="font-medium text-gray-300">
                   {pathTypes.path_types[(selectedItem as Path).path_type].name}
                 </p>
@@ -677,7 +677,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         </div>
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {('coordinates' in selectedItem ? selectedItem.coordinates : []).map((coord, index) => (
-              <div key={index} className="flex items-center gap-2 p-2 bg-gray-800 rounded">
+              <div key={index} className="flex items-center gap-2 p-2 bg-gray-800 rounded-sm">
                 <span className="text-xs text-gray-400 w-4">{index + 1}.</span>
                 <div className="grid grid-cols-2 gap-1 flex-1">
                   <input
@@ -688,7 +688,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       newCoords[index] = { ...coord, x: validateCoordinate(parseInt(e.target.value) || 0) };
                       onUpdate({ coordinates: newCoords });
                     }}
-                    className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:ring-1 focus:ring-blue-500"
+                    className="bg-gray-700 border border-gray-600 rounded-sm px-2 py-1 text-white text-xs focus:ring-1 focus:ring-blue-500"
                     placeholder="X"
                     min={COORDINATE_BOUNDS.min}
                     max={COORDINATE_BOUNDS.max}
@@ -701,7 +701,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       newCoords[index] = { ...coord, y: validateCoordinate(parseInt(e.target.value) || 0) };
                       onUpdate({ coordinates: newCoords });
                     }}
-                    className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:ring-1 focus:ring-blue-500"
+                    className="bg-gray-700 border border-gray-600 rounded-sm px-2 py-1 text-white text-xs focus:ring-1 focus:ring-blue-500"
                     placeholder="Y"
                     min={COORDINATE_BOUNDS.min}
                     max={COORDINATE_BOUNDS.max}

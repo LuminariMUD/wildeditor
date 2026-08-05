@@ -1,25 +1,30 @@
-# ADR-001: Monorepo Architecture Decision
+# ADR-001: Use a monorepo
 
-<!-- Architecture Decision Record for adopting monorepo structure -->
-
-## Status
-
-<!-- Accepted - January 30, 2025 -->
+- **Status:** Accepted
+- **Decision date:** 2025-01-30
 
 ## Context
 
-<!-- Decision to transform from single React app to monorepo with separate frontend/backend -->
+Wildeditor contains a browser client, multiple Python services, and contracts shared within each language ecosystem. Changes to an API often span the backend schema/router, frontend adapter/types, MCP caller, tests, and deployment configuration. Separate repositories would make those changes harder to review and release atomically.
 
 ## Decision
 
-<!-- Adopted npm workspaces + Turborepo monorepo structure -->
-<!-- Rationale: Shared types, atomic changes, simplified development -->
+Keep the applications and shared packages in one repository:
+
+- npm workspaces and Turbo coordinate the frontend and shared TypeScript package;
+- Python services remain independently installable and deployable;
+- `packages/shared` owns reusable TypeScript domain contracts;
+- `packages/auth` owns reusable Python service authentication;
+- service Dockerfiles and workflows preserve independent release boundaries.
+
+## Alternatives considered
+
+- **Separate repository per service:** stronger repository isolation, but more cross-repository versioning and coordination for contract changes.
+- **Single deployable application:** simpler deployment, but it would collapse trust boundaries and couple chat/MCP availability to core editing.
 
 ## Consequences
 
-<!-- Positive: Type safety, unified development, easier refactoring -->
-<!-- Negative: Increased complexity, build orchestration required -->
-
----
-
-*Full ADR documentation will be completed during architecture review phase.*
+- Cross-service contract changes can be reviewed atomically.
+- JavaScript dependencies share one lockfile; Python dependency sets remain service-specific.
+- Path-filtered CI must include shared packages consumed by an image.
+- Root-level files can become ambiguous, so application source, service manifests, Dockerfiles, migrations, and workflows take precedence over legacy root deployment artifacts.

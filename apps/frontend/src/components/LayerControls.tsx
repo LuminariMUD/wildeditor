@@ -45,7 +45,7 @@ export const LayerControls: React.FC<LayerControlsProps> = ({
                 type="checkbox"
                 checked={layer.visible}
                 onChange={() => onToggleLayer(layer.id)}
-                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded-sm focus:ring-blue-500 focus:ring-2"
               />
               <Icon size={16} />
               <span>{layer.label}</span>

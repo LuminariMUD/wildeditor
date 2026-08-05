@@ -7,9 +7,10 @@ on:
     branches: [ main, develop ]
 
 env:
-  NODE_VERSION: '18'
-  # Cache version - increment to bust cache
-  CACHE_VERSION: 'v1'
+  NODE_VERSION: '26.6.0'
+  NPM_VERSION: '12.0.2'
+  AUDIT_CI_VERSION: '7.1.0'
+  NETLIFY_CLI_VERSION: '27.1.0'
 
 jobs:
   # Combined job for efficiency
@@ -19,29 +20,18 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        id: npm-cache
-        with:
-          path: |
-            ~/.npm
-            node_modules
-            apps/*/node_modules
-            packages/*/node_modules
-          key: ${{ runner.os }}-node-${{ env.CACHE_VERSION }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-${{ env.CACHE_VERSION }}-
+
+      - name: Use repository npm version
+        run: npm install --global "npm@${NPM_VERSION}"
           
       - name: Install dependencies
-        if: steps.npm-cache.outputs.cache-hit != 'true'
         run: npm ci
         
       - name: Run linting
@@ -57,8 +47,8 @@ jobs:
           
       - name: Security audit
         run: |
-          npm audit --audit-level=high
-          npx audit-ci --config audit-ci.json
+          npm audit --audit-level=low
+          npx --yes "audit-ci@${AUDIT_CI_VERSION}" --config audit-ci.json
           
       - name: Build application
         run: npm run build
@@ -68,7 +58,7 @@ jobs:
           # The production deployment job will build with the actual credentials
           
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: frontend-dist
           path: apps/frontend/dist/
@@ -83,13 +73,16 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+
+      - name: Use repository npm version
+        run: npm install --global "npm@${NPM_VERSION}"
           
       - name: Install dependencies
         run: npm ci
@@ -112,8 +105,7 @@ jobs:
           VITE_DISABLE_AUTH=true
           VITE_ENVIRONMENT=production
           EOF
-          echo "Contents of production .env file:"
-          cat apps/frontend/.env
+          echo "Preview environment file created"
         
       - name: Build preview with correct API URL
         run: npm run build
@@ -135,9 +127,6 @@ jobs:
           echo "Searching for API URLs in all JS files:"
           find apps/frontend/dist -name "*.js" -exec grep -l "api\|localhost\|http" {} \; || echo "No JS files with API URLs found"
           
-      - name: Install Netlify CLI
-        run: npm install -g netlify-cli
-        
       - name: Verify preview build environment variables
         run: |
           echo "Checking if API URL was properly embedded in preview build..."
@@ -145,19 +134,19 @@ jobs:
             echo "✅ Found correct API URL in preview build files"
           else
             echo "❌ Correct API URL not found in preview build files"
-            echo "Checking what API URL is in the build..."
-            grep -o "http[s]*://[^/]*[^\"']*" apps/frontend/dist/assets/*.js 2>/dev/null | head -5 || echo "No URLs found"
           fi
           
       - name: Deploy preview
         run: |
-          netlify deploy --dir=apps/frontend/dist --filter=@wildeditor/frontend --site=${{ secrets.NETLIFY_PROD_SITE_ID }} --auth=${{ secrets.NETLIFY_AUTH_TOKEN }} --message="PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" deploy --dir=apps/frontend/dist --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="PR #${PR_NUMBER}: ${PR_TITLE}"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_PROD_SITE_ID }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
           
       - name: Comment PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9.0.0
         with:
           script: |
             const output = `#### Netlify Preview Deployment 🚀\n
@@ -185,31 +174,19 @@ jobs:
       
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.npm
-            node_modules
-            apps/*/node_modules
-            packages/*/node_modules
-          key: ${{ runner.os }}-node-${{ env.CACHE_VERSION }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-${{ env.CACHE_VERSION }}-
+
+      - name: Use repository npm version
+        run: npm install --global "npm@${NPM_VERSION}"
           
       - name: Install dependencies
         run: npm ci
-        
-      - name: Install Netlify CLI
-        run: npm install -g netlify-cli
         
       - name: Debug environment secrets
         run: |
@@ -237,8 +214,7 @@ jobs:
           VITE_DISABLE_AUTH=true
           VITE_ENVIRONMENT=production
           EOF
-          echo "Contents of production .env file:"
-          cat apps/frontend/.env
+          echo "Production environment file created"
           
       - name: Verify source code before build
         run: |
@@ -247,10 +223,10 @@ jobs:
           cat apps/frontend/src/services/api.ts | head -10
           echo ""
           echo "Environment variables available during build:"
-          echo "VITE_API_URL: ${VITE_API_URL}"
           echo "NODE_ENV: ${NODE_ENV}"
-          echo "All VITE_ variables:"
-          env | grep VITE_ || echo "No VITE_ variables found"
+          test -n "${VITE_API_URL}" && echo "VITE_API_URL is set"
+          test -n "${VITE_SUPABASE_URL}" && echo "VITE_SUPABASE_URL is set"
+          test -n "${VITE_SUPABASE_ANON_KEY}" && echo "VITE_SUPABASE_ANON_KEY is set"
         env:
           VITE_API_URL: ${{ secrets.PROD_API_URL || 'https://api.wildedit.luminarimud.com/api' }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -268,25 +244,13 @@ jobs:
       - name: Verify build environment variables
         run: |
           echo "Checking if environment variables were properly embedded in build..."
-          echo "Checking for API URL in build files..."
-          echo "=== SEARCHING FOR ALL HTTP URLs IN BUILD FILES ==="
-          find apps/frontend/dist -name "*.js" -exec grep -H "http[^\"']*" {} \; || echo "No HTTP URLs found"
-          echo ""
-          echo "=== SEARCHING FOR SPECIFIC PATTERNS ==="
-          find apps/frontend/dist -name "*.js" -exec grep -H "localhost\|127.0.0.1\|3001\|8000\|74.208.126.44" {} \; || echo "No localhost/IP patterns found"
-          echo ""
-          echo "=== CHECKING FOR API_BASE_URL ==="
-          find apps/frontend/dist -name "*.js" -exec grep -H "API_BASE_URL\|api/health" {} \; || echo "No API_BASE_URL found"
-          
-          if grep -q "74.208.126.44:8000" apps/frontend/dist/assets/*.js 2>/dev/null; then
-            echo "✅ Found correct API URL in build files"
+          if grep -RqsF "$VITE_API_URL" apps/frontend/dist/assets; then
+            echo "✅ Found configured API URL in build files"
           else
-            echo "❌ Correct API URL not found in build files"
-            echo "Checking what API URL is in the build..."
-            grep -o "http[s]*://[^/]*[^\"']*" apps/frontend/dist/assets/*.js 2>/dev/null | head -10 || echo "No URLs found"
+            echo "❌ Configured API URL not found in build files"
           fi
           
-          if grep -q "supabase.co" apps/frontend/dist/assets/*.js 2>/dev/null; then
+          if grep -RqsF "$VITE_SUPABASE_URL" apps/frontend/dist/assets; then
             echo "✅ Found Supabase URL in build files"
           else
             echo "❌ Supabase URL not found in build files - environment variables may not be set correctly"
@@ -305,25 +269,15 @@ jobs:
         run: |
           echo "=== PRE-DEPLOYMENT FINAL CHECK ==="
           echo "Final verification of what's being deployed:"
-          find apps/frontend/dist -name "*.js" -exec grep -l "3001\|localhost:3001" {} \; && echo "❌ FOUND localhost:3001 in build!" || echo "✅ No localhost:3001 found"
-          find apps/frontend/dist -name "*.js" -exec grep -l "74.208.126.44" {} \; && echo "✅ FOUND correct API URL" || echo "❌ Correct API URL not found"
+          grep -Rqs "localhost:3001" apps/frontend/dist && echo "❌ FOUND localhost:3001 in build!" || echo "✅ No localhost:3001 found"
+          grep -RqsF "$VITE_API_URL" apps/frontend/dist && echo "✅ Found configured API URL" || echo "❌ Configured API URL not found"
           echo ""
-          netlify deploy --prod --dir=apps/frontend/dist --filter=@wildeditor/frontend --site=${{ secrets.NETLIFY_PROD_SITE_ID }} --auth=${{ secrets.NETLIFY_AUTH_TOKEN }} --message="Production deploy from ${{ github.sha }}"
+          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" deploy --prod --dir=apps/frontend/dist --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="Production deploy from ${GITHUB_SHA}"
         env:
+          VITE_API_URL: ${{ secrets.PROD_API_URL || 'https://api.wildedit.luminarimud.com/api' }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_PROD_SITE_ID }}
           
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-
   # Notify on deployment
   notify:
     name: Notify Deployment
@@ -334,18 +288,18 @@ jobs:
     steps:
       - name: Notify Slack on Success
         if: needs.deploy-production.result == 'success'
-        uses: 8398a7/action-slack@v3
+        uses: slackapi/slack-github-action@v4.0.0
         with:
-          status: success
-          text: '🚀 Wildeditor deployed successfully to production!'
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "🚀 Wildeditor deployed successfully to production!"
           
       - name: Notify Slack on Failure
         if: needs.deploy-production.result == 'failure'
-        uses: 8398a7/action-slack@v3
+        uses: slackapi/slack-github-action@v4.0.0
         with:
-          status: failure
-          text: '❌ Wildeditor deployment to production failed!'
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "❌ Wildeditor deployment to production failed!"

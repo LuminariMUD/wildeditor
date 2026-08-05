@@ -1,6 +1,6 @@
 """Session management for chat conversations"""
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import UTC, datetime
 from pydantic import BaseModel, Field
 import uuid
 import logging
@@ -9,12 +9,17 @@ from .storage import SessionStorage, create_storage
 logger = logging.getLogger(__name__)
 
 
+def utc_now() -> datetime:
+    """Return the current timezone-aware UTC timestamp."""
+    return datetime.now(UTC)
+
+
 class SessionMetadata(BaseModel):
     """Session metadata"""
     session_id: str
     user_id: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    last_activity: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    last_activity: datetime = Field(default_factory=utc_now)
     message_count: int = 0
     context: Dict[str, Any] = Field(default_factory=dict)
 
@@ -24,7 +29,7 @@ class Message(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     role: str  # user, assistant, system
     content: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=utc_now)
     tool_calls: Optional[List[Dict[str, Any]]] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
@@ -145,7 +150,7 @@ class SessionManager:
         # Add to history
         session_data.messages.append(message)
         session_data.metadata.message_count += 1
-        session_data.metadata.last_activity = datetime.utcnow()
+        session_data.metadata.last_activity = utc_now()
         
         # Save back to storage
         await self.storage.save(
@@ -234,7 +239,7 @@ class SessionManager:
         # Merge context
         session_data.context.update(context)
         session_data.metadata.context.update(context)
-        session_data.metadata.last_activity = datetime.utcnow()
+        session_data.metadata.last_activity = utc_now()
         
         # Save back
         await self.storage.save(
@@ -263,7 +268,7 @@ class SessionManager:
         # Clear messages
         session_data.messages = []
         session_data.metadata.message_count = 0
-        session_data.metadata.last_activity = datetime.utcnow()
+        session_data.metadata.last_activity = utc_now()
         
         # Save back
         await self.storage.save(

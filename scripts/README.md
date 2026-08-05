@@ -1,66 +1,31 @@
-# Scripts Directory
+# Repository scripts
 
-This directory contains utility scripts for the Wildeditor project.
+This directory contains manual setup, diagnostic, credential, and SQL utilities accumulated across several deployment approaches. These files are not a supported installer or migration framework. Read an entire script, resolve every target and environment variable, and test it in a disposable environment before running it.
 
-## Running Scripts
+The authoritative deployment definitions are the service Dockerfiles and `.github/workflows/`. The authoritative application schema is the owning datastore plus new migrations under `apps/backend/migrations/` or `supabase/migrations/`.
 
-Run repository scripts from the project root so relative paths and generated
-output stay in the expected location:
+## Inventory
 
-```bash
-./scripts/diagnose_production_ai.sh
-```
+| Files | Intended use | Required review |
+| --- | --- | --- |
+| `setup-server.sh`, `debug-path.sh` | One-off Linux host setup and path diagnostics | Package-manager, firewall, filesystem, and privilege assumptions |
+| `diagnose_production_ai.sh`, `fix_ollama_network.sh`, `setup_openai_from_luminari.sh` | AI-provider and container-network troubleshooting | Production hosts, container names, network mutations, provider secrets |
+| `setup_github_secrets.sh`, `generate-mcp-keys.ps1`, `validate-secrets.ps1`, `setup-copilot-mcp.ps1` | Secret generation/checks and local MCP client setup | Values written to GitHub, local files, process output, or clipboard |
+| `database-setup*.sql` | Historical database bootstrap snapshots | Current MySQL/MariaDB schema, spatial support, ownership, destructive statements |
+| `setup-supabase-schema.sql` | Historical Supabase application-data design | This is not the current MySQL application schema or the proposed auth-only Supabase design |
+| `fix_region_hints_table.sql`, `path_data_queries.sql` | Targeted repair and diagnostic SQL | Live table definitions, backup, transaction/rollback plan, production authorization |
 
-```powershell
-.\scripts\validate-secrets.ps1
-```
+Command-reference text files formerly stored here were moved to `docs/archive/2024-2025/service-notes/scripts/` because they describe point-in-time infrastructure.
 
-## Script Groups
+## Safe use
 
-- `setup-server.sh`, `debug-path.sh`, `diagnose_production_ai.sh`, and
-  `fix_ollama_network.sh` support server setup and diagnostics.
-- `setup_github_secrets.sh`, `generate-mcp-keys.ps1`, `validate-secrets.ps1`,
-  and `setup-copilot-mcp.ps1` support credentials and MCP tooling.
-- `setup_openai_from_luminari.sh` configures the production MCP environment.
-- `database-setup*.sql`, `setup-supabase-schema.sql`,
-  `fix_region_hints_table.sql`, and `path_data_queries.sql` contain database
-  setup, repair, and diagnostic queries.
-- `github-secrets-setup.txt` and `ssh-port-forward-mcp.txt` contain operational
-  command references.
+1. Run from the repository root unless the script explicitly says otherwise.
+2. Inspect the file for hard-coded hosts, account names, ports, container names, and mutations.
+3. Supply credentials through the intended secret mechanism; never paste them into the script.
+4. Prefer a disposable environment and a least-privileged account.
+5. Back up and rehearse restoration before database or host changes.
+6. Record the exact script revision, target, and result for an operational change.
 
-## Server Setup
+Do not infer current production topology from these utilities. See [deployment](../docs/deployment.md), [operations](../docs/operations.md), and [backend migration guidance](../apps/backend/migrations/README.md).
 
-### `setup-server.sh`
-
-Automated server setup script for preparing a Ubuntu/Debian server for Docker deployment.
-
-**Usage:**
-```bash
-# Copy to your server and run
-scp scripts/setup-server.sh user@your-server:/tmp/
-ssh user@your-server
-chmod +x /tmp/setup-server.sh
-/tmp/setup-server.sh
-```
-
-**What it does:**
-- Installs Docker if not present
-- Adds the current user to the docker group
-- Creates required application directories
-- Sets up basic firewall rules
-- Tests the Docker installation
-
-**Requirements:**
-- Ubuntu/Debian server
-- User with sudo access
-- Internet connection
-
-See `docs/backend/SERVER_SETUP.md` for detailed server setup instructions.
-
-## Contributing
-
-When adding new scripts:
-1. Make them executable: `chmod +x script-name.sh`
-2. Add proper error handling with `set -e`
-3. Include usage documentation in this README
-4. Test on a clean environment before committing
+When adding a reusable script, make it non-interactive where practical, fail safely, validate its resolved targets, document required privileges and side effects, and add a dry-run mode for consequential changes.

@@ -1,74 +1,50 @@
 ---
 name: Feature request
-about: Suggest an idea for this project
-title: '[FEATURE] '
-labels: 'enhancement'
-assignees: ''
+about: Propose a scoped product or engineering improvement
+title: "[Feature] "
+labels: enhancement
+assignees: ""
 ---
 
-## Feature Description
+## Problem
 
-A clear and concise description of the feature you'd like to see implemented.
+Who is affected, what are they trying to do, and why is the current behavior insufficient?
 
-## Problem Statement
+## Proposed outcome
 
-Is your feature request related to a problem? Please describe.
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+Describe observable behavior rather than only an implementation.
 
-## Proposed Solution
+## Scope
 
-Describe the solution you'd like.
-A clear and concise description of what you want to happen.
+- Included:
+- Excluded:
+- Affected services/contracts:
 
-## Alternative Solutions
+## Acceptance criteria
 
-Describe alternatives you've considered.
-A clear and concise description of any alternative solutions or features you've considered.
+- [ ]
+- [ ]
+- [ ]
 
-## Use Cases
+## Design and boundary considerations
 
-Describe specific use cases for this feature:
+Address relevant items:
 
-1. **Use Case 1**: As a [user type], I want to [action] so that [benefit].
-2. **Use Case 2**: As a [user type], I want to [action] so that [benefit].
-3. **Use Case 3**: As a [user type], I want to [action] so that [benefit].
+- frontend state, shared types, and API adapter changes;
+- backend schema/router/model changes;
+- MCP callers and the agent-to-MCP-to-backend boundary;
+- authentication, authorization, CORS, and secret exposure;
+- MySQL/MariaDB versus Supabase/PostgreSQL ownership;
+- migration, rollback, compatibility, accessibility, and performance.
 
-## Mockups/Wireframes
+## Alternatives
 
-If applicable, add mockups, wireframes, or sketches to help explain your feature.
+What other approaches were considered, including doing nothing?
 
-## Technical Considerations
+## Validation
 
-If you have technical knowledge, describe any technical considerations:
+What focused automated and manual checks would prove the outcome?
 
-- **Frontend Changes**: What UI/UX changes would be needed?
-- **Backend Changes**: What API or database changes would be needed?
-- **Performance Impact**: How might this affect performance?
-- **Compatibility**: Any compatibility concerns?
+## Supporting material
 
-## Acceptance Criteria
-
-Define what "done" looks like for this feature:
-
-- [ ] Criterion 1
-- [ ] Criterion 2
-- [ ] Criterion 3
-- [ ] Documentation updated
-- [ ] Tests added
-
-## Priority
-
-How important is this feature to you?
-
-- [ ] Critical - Blocks my work
-- [ ] High - Would significantly improve my workflow
-- [ ] Medium - Would be nice to have
-- [ ] Low - Minor improvement
-
-## Additional Context
-
-Add any other context, screenshots, or examples about the feature request here.
-
-## Related Issues
-
-Link any related issues here using #issue_number
+Add sanitized examples, mockups, or related issues. Do not include credentials, private infrastructure details, or production data.

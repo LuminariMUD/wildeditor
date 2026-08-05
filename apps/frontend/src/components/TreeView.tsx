@@ -280,7 +280,7 @@ export const TreeView: FC<TreeViewProps> = ({
           {/* Folder visibility toggle - on the left side of all folders */}
           {node.type === 'folder' && (
             <button
-              className="p-1 hover:bg-gray-700 rounded transition-colors opacity-70 hover:opacity-100 flex-shrink-0"
+              className="p-1 hover:bg-gray-700 rounded-sm transition-colors opacity-70 hover:opacity-100 shrink-0"
               onClick={(e) => {
                 e.stopPropagation();
                 toggleFolderVisibility(node.id);
@@ -294,7 +294,7 @@ export const TreeView: FC<TreeViewProps> = ({
           {/* Individual item visibility toggle - for regions and paths only */}
           {(node.type === 'region' || node.type === 'path') && node.data && 'vnum' in node.data && (
             <button
-              className="p-1 hover:bg-gray-700 rounded transition-colors opacity-70 hover:opacity-100 flex-shrink-0"
+              className="p-1 hover:bg-gray-700 rounded-sm transition-colors opacity-70 hover:opacity-100 shrink-0"
               onClick={(e) => {
                 e.stopPropagation();
                 if (node.data && 'vnum' in node.data) {
@@ -317,7 +317,7 @@ export const TreeView: FC<TreeViewProps> = ({
           {/* Expand/collapse button */}
           {hasChildren && (
             <button
-              className="p-0.5 hover:bg-gray-700 rounded transition-colors flex-shrink-0"
+              className="p-0.5 hover:bg-gray-700 rounded-sm transition-colors shrink-0"
               onClick={(e) => {
                 e.stopPropagation();
                 toggleExpanded(node.id);
@@ -328,7 +328,7 @@ export const TreeView: FC<TreeViewProps> = ({
           )}
           
           {/* Spacer for alignment when no expand button */}
-          {!hasChildren && <div className="w-4 flex-shrink-0" />}
+          {!hasChildren && <div className="w-4 shrink-0" />}
           
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <div className={isHidden ? 'opacity-50' : ''}>
@@ -344,7 +344,7 @@ export const TreeView: FC<TreeViewProps> = ({
                 const itemId = ('vnum' in node.data ? node.data.vnum?.toString() : '') || node.data.id || '';
                 return itemId && unsavedItems.has(itemId) ? (
                   <div className="flex items-center gap-1">
-                    <span className="text-amber-400 font-bold text-xs bg-amber-900/40 px-1.5 py-0.5 rounded" title="Unsaved draft - not saved to database">
+                    <span className="text-amber-400 font-bold text-xs bg-amber-900/40 px-1.5 py-0.5 rounded-sm" title="Unsaved draft - not saved to database">
                       DRAFT
                     </span>
                     <span className="text-amber-400 font-bold text-xs" title="Unsaved changes">
@@ -359,7 +359,7 @@ export const TreeView: FC<TreeViewProps> = ({
           {/* Layer visibility toggle for root folders - now moved to right */}
           {node.id === 'regions' && (
             <button
-              className="p-1 hover:bg-gray-700 rounded transition-colors flex-shrink-0 ml-auto"
+              className="p-1 hover:bg-gray-700 rounded-sm transition-colors shrink-0 ml-auto"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleLayer('regions');
@@ -372,7 +372,7 @@ export const TreeView: FC<TreeViewProps> = ({
           
           {node.id === 'paths' && (
             <button
-              className="p-1 hover:bg-gray-700 rounded transition-colors flex-shrink-0 ml-auto"
+              className="p-1 hover:bg-gray-700 rounded-sm transition-colors shrink-0 ml-auto"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleLayer('paths');
@@ -395,7 +395,7 @@ export const TreeView: FC<TreeViewProps> = ({
 
   return (
     <div className="bg-gray-900 border-b border-gray-700 flex-1 flex flex-col h-full max-h-full overflow-hidden">
-      <div className="p-3 border-b border-gray-700 flex-shrink-0">
+      <div className="p-3 border-b border-gray-700 shrink-0">
         <h3 className="text-sm font-medium text-gray-300">Wilderness Objects</h3>
         <div className="text-xs text-gray-500 mt-1">
           {regions.length} regions • {paths.length} paths

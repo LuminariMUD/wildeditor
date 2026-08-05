@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+const authDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true'
 
 // ============================================
 // AGGRESSIVE BROWSER CONSOLE ERROR DETECTION
@@ -24,50 +25,31 @@ ${messages.map(msg => `  ❌ ${msg}`).join('\n')}
 // Check for common misconfigurations
 const configErrors: string[] = []
 
-// Debug: Log raw values to see if they're actually masked
-console.log('RAW ENV VALUES:', {
-  url: import.meta.env.VITE_SUPABASE_URL,
-  urlLength: import.meta.env.VITE_SUPABASE_URL?.length,
-  urlType: typeof import.meta.env.VITE_SUPABASE_URL,
-  key: import.meta.env.VITE_SUPABASE_ANON_KEY,
-  keyLength: import.meta.env.VITE_SUPABASE_ANON_KEY?.length,
-  keyType: typeof import.meta.env.VITE_SUPABASE_ANON_KEY
-})
-
 // Test if values are actually masked strings
-if (supabaseUrl && supabaseUrl.includes('*')) {
+if (!authDisabled && supabaseUrl && supabaseUrl.includes('*')) {
   configErrors.push(`VITE_SUPABASE_URL appears to be masked: "${supabaseUrl}"`)
 }
-if (supabaseAnonKey && supabaseAnonKey.includes('*')) {
+if (!authDisabled && supabaseAnonKey && supabaseAnonKey.includes('*')) {
   configErrors.push(`VITE_SUPABASE_ANON_KEY appears to be masked: "${supabaseAnonKey}"`)
 }
 
-if (!supabaseUrl) {
+if (!authDisabled && !supabaseUrl) {
   configErrors.push('VITE_SUPABASE_URL is NOT SET')
-} else if (supabaseUrl === 'your_supabase_project_url') {
+} else if (!authDisabled && supabaseUrl === 'your_supabase_project_url') {
   configErrors.push('VITE_SUPABASE_URL still has placeholder value')
-} else if (!supabaseUrl.includes('supabase.co')) {
-  configErrors.push(`VITE_SUPABASE_URL doesn't look like a Supabase URL: "${supabaseUrl}"`)
+} else if (!authDisabled && !supabaseUrl.includes('supabase.co')) {
+  configErrors.push("VITE_SUPABASE_URL doesn't look like a Supabase URL")
 }
 
-if (!supabaseAnonKey) {
+if (!authDisabled && !supabaseAnonKey) {
   configErrors.push('VITE_SUPABASE_ANON_KEY is NOT SET')
-} else if (supabaseAnonKey.length < 100) {
+} else if (!authDisabled && supabaseAnonKey.length < 100) {
   configErrors.push(`VITE_SUPABASE_ANON_KEY looks too short (${supabaseAnonKey.length} chars)`)
 }
 
 // Show massive errors if config is wrong
 if (configErrors.length > 0) {
   createErrorBlock('SUPABASE CONFIGURATION ERROR', configErrors)
-  
-  // Also log detailed debug info
-  console.group('%c📋 Configuration Details', 'color: #ff9900; font-weight: bold;')
-  console.log('Current values:')
-  console.log('  VITE_SUPABASE_URL:', supabaseUrl || '(empty)')
-  console.log('  VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : '(empty)')
-  console.log('  Environment:', import.meta.env.MODE)
-  console.log('  All env vars:', Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')))
-  console.groupEnd()
   
   console.group('%c🔧 HOW TO FIX THIS', 'color: #00ff00; font-weight: bold; font-size: 16px;')
   console.log('%c1. Create or update apps/frontend/.env file:', 'color: #00ff00; font-weight: bold;')
@@ -88,16 +70,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key-here`, 'background: #003300; color: #00ff00
   ;(window as any).__SUPABASE_CONFIG_ERRORS__ = configErrors
 }
 
-// Original debug logging
-console.log('🔍 Supabase Config Debug:', {
-  url: supabaseUrl,
-  hasKey: !!supabaseAnonKey,
-  keyLength: supabaseAnonKey?.length,
-  env: import.meta.env.MODE,
-  allEnvKeys: Object.keys(import.meta.env)
-})
-
-if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'your_supabase_project_url') {
+if (!authDisabled && (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'your_supabase_project_url')) {
   console.warn('⚠️  Supabase environment variables not configured properly')
   console.warn('⚠️  Please update apps/frontend/.env with your actual Supabase credentials')
   console.warn('⚠️  Running in demo mode - authentication will not work')

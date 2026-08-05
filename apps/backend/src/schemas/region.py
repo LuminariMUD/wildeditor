@@ -1,4 +1,4 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 from typing import List, Dict, Optional, Union
 from datetime import datetime
 
@@ -24,12 +24,13 @@ class RegionBase(BaseModel):
     zone_vnum: int
     name: str  # Required in API even though nullable in DB
     region_type: int
-    coordinates: Optional[List[Dict[str, float]]] = []  # Optional since region_polygon is nullable in DB
+    coordinates: Optional[List[Dict[str, float]]] = Field(default_factory=list)  # Optional since region_polygon is nullable in DB
     region_props: Optional[int] = 0  # Integer for sector types and elevation adjustments
     region_reset_data: str = ""  # For encounter mob vnums and other reset data
     region_reset_time: Optional[datetime] = None  # Optional to handle MySQL zero dates gracefully
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name_required(cls, v):
         if not v or not v.strip():
             raise ValueError('Name is required and cannot be empty')
@@ -37,16 +38,18 @@ class RegionBase(BaseModel):
             raise ValueError('Name cannot be longer than 50 characters')
         return v.strip()
     
-    @validator('region_type')
+    @field_validator('region_type')
+    @classmethod
     def validate_region_type(cls, v):
         if v not in [REGION_GEOGRAPHIC, REGION_ENCOUNTER, REGION_SECTOR_TRANSFORM, REGION_SECTOR]:
             raise ValueError(f'Region type must be one of: {REGION_GEOGRAPHIC} (Geographic), {REGION_ENCOUNTER} (Encounter), {REGION_SECTOR_TRANSFORM} (Sector Transform), {REGION_SECTOR} (Sector Override)')
         return v
     
-    @validator('region_props')
-    def validate_region_props(cls, v, values):
-        if 'region_type' in values:
-            region_type = values['region_type']
+    @field_validator('region_props')
+    @classmethod
+    def validate_region_props(cls, v, info: ValidationInfo):
+        if 'region_type' in info.data:
+            region_type = info.data['region_type']
             
             # REGION_GEOGRAPHIC: region_props ignored by game, can be any integer
             if region_type == REGION_GEOGRAPHIC:
@@ -75,10 +78,11 @@ class RegionBase(BaseModel):
         # Default to 0 if no validation applies
         return v if v is not None else 0
     
-    @validator('region_reset_data')
-    def validate_region_reset_data(cls, v, values):
-        if 'region_type' in values:
-            region_type = values['region_type']
+    @field_validator('region_reset_data')
+    @classmethod
+    def validate_region_reset_data(cls, v, info: ValidationInfo):
+        if 'region_type' in info.data:
+            region_type = info.data['region_type']
             
             # REGION_ENCOUNTER: validate mob vnums in region_reset_data
             if region_type == REGION_ENCOUNTER:
@@ -105,7 +109,8 @@ class RegionBase(BaseModel):
         # For non-encounter regions, allow any string
         return v if v is not None else ""
     
-    @validator('coordinates')
+    @field_validator('coordinates')
+    @classmethod
     def validate_coordinates(cls, v):
         # Allow empty or None coordinates (regions without polygon data)
         if not v:
@@ -173,7 +178,8 @@ class RegionUpdate(BaseModel):
     requires_review: Optional[bool] = None
     is_approved: Optional[bool] = None
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name_if_provided(cls, v):
         if v is not None:
             if not v or not v.strip():
@@ -183,7 +189,8 @@ class RegionUpdate(BaseModel):
             return v.strip()
         return v
     
-    @validator('description_style')
+    @field_validator('description_style')
+    @classmethod
     def validate_description_style(cls, v):
         if v is not None:
             valid_styles = ['poetic', 'practical', 'mysterious', 'dramatic', 'pastoral']
@@ -191,7 +198,8 @@ class RegionUpdate(BaseModel):
                 raise ValueError(f'Description style must be one of: {", ".join(valid_styles)}')
         return v
     
-    @validator('description_length')
+    @field_validator('description_length')
+    @classmethod
     def validate_description_length(cls, v):
         if v is not None:
             valid_lengths = ['brief', 'moderate', 'detailed', 'extensive']
@@ -199,7 +207,8 @@ class RegionUpdate(BaseModel):
                 raise ValueError(f'Description length must be one of: {", ".join(valid_lengths)}')
         return v
     
-    @validator('description_quality_score')
+    @field_validator('description_quality_score')
+    @classmethod
     def validate_quality_score(cls, v):
         if v is not None:
             if v < 0 or v > 9.99:
@@ -221,8 +230,7 @@ class RegionListResponse(RegionBase):
     description_length: Optional[str] = None
     is_approved: Optional[bool] = False
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class RegionDetailResponse(RegionBase):
     """Response model for single region with full description data"""
@@ -250,8 +258,7 @@ class RegionDetailResponse(RegionBase):
     requires_review: Optional[bool] = False
     is_approved: Optional[bool] = False
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Alias for backward compatibility
 RegionResponse = RegionDetailResponse

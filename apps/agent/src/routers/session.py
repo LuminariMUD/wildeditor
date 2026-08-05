@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -63,12 +63,11 @@ async def create_session(
         )
         
         # Calculate expiry
-        from datetime import timedelta
-        expires_at = datetime.utcnow() + timedelta(seconds=session_manager.ttl)
+        expires_at = datetime.now(UTC) + timedelta(seconds=session_manager.ttl)
         
         return CreateSessionResponse(
             session_id=session_id,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
             expires_at=expires_at
         )
         
@@ -94,7 +93,6 @@ async def get_session_info(
             raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
         
         # Calculate expiry
-        from datetime import timedelta
         expires_at = session_data.metadata.last_activity + timedelta(seconds=session_manager.ttl)
         
         return SessionInfoResponse(

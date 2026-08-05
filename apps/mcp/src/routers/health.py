@@ -3,6 +3,7 @@ Health check endpoints for the MCP server
 """
 
 from fastapi import APIRouter, Depends
+import httpx
 from wildeditor_auth import verify_mcp_key
 from ..config import settings
 
@@ -58,9 +59,9 @@ async def debug_environment(authenticated: bool = Depends(verify_mcp_key)):
     # Test Ollama connectivity from within container
     ollama_test = {"ollama_reachable": False, "error": None}
     try:
-        import requests
         ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-        response = requests.get(f"{ollama_url}/api/tags", timeout=2)
+        async with httpx.AsyncClient(timeout=2) as client:
+            response = await client.get(f"{ollama_url}/api/tags")
         if response.status_code == 200:
             data = response.json()
             ollama_test["ollama_reachable"] = True

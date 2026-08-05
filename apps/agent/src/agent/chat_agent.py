@@ -2,15 +2,21 @@
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
 from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.providers.deepseek import DeepSeekProvider
+from pydantic_ai.providers.openai import OpenAIProvider
 from config import settings
 from .tools import WildernessTools
 import logging
 import json
-import os
 
 logger = logging.getLogger(__name__)
+
+OPENAI_MODEL_SETTINGS: OpenAIChatModelSettings = {
+    "openai_reasoning_effort": "none",
+}
 
 
 class ChatAction(BaseModel):
@@ -86,10 +92,10 @@ class WildernessAssistantAgent:
         if provider == "openai" and settings.openai_api_key:
             try:
                 logger.info(f"Initializing OpenAI model: {settings.model_name}")
-                # Set API key in environment for OpenAI client
-                os.environ['OPENAI_API_KEY'] = settings.openai_api_key
-                return OpenAIModel(
-                    model_name=settings.model_name or "gpt-4-turbo"
+                return OpenAIChatModel(
+                    model_name=settings.model_name or "gpt-5.6-sol",
+                    provider=OpenAIProvider(api_key=settings.openai_api_key),
+                    settings=OPENAI_MODEL_SETTINGS,
                 )
             except Exception as e:
                 logger.warning(f"Failed to initialize OpenAI: {e}")
@@ -97,25 +103,19 @@ class WildernessAssistantAgent:
         elif provider == "deepseek" and settings.deepseek_api_key:
             try:
                 logger.info(f"Initializing DeepSeek model: {settings.deepseek_model}")
-                # DeepSeek uses OpenAI-compatible API
-                # Use DEEPSEEK_API_KEY environment variable
-                os.environ['DEEPSEEK_API_KEY'] = settings.deepseek_api_key
-                # Also set OPENAI_API_KEY for the OpenAI client compatibility
-                os.environ['OPENAI_API_KEY'] = settings.deepseek_api_key
-                return OpenAIModel(
+                return OpenAIChatModel(
                     model_name=settings.deepseek_model or "deepseek-chat",
-                    base_url="https://api.deepseek.com/v1"
+                    provider=DeepSeekProvider(api_key=settings.deepseek_api_key),
                 )
             except Exception as e:
                 logger.warning(f"Failed to initialize DeepSeek: {e}")
         
         elif provider == "anthropic" and settings.anthropic_api_key:
             try:
-                logger.info(f"Initializing Anthropic model: {settings.model_name}")
-                # Set API key in environment for Anthropic client
-                os.environ['ANTHROPIC_API_KEY'] = settings.anthropic_api_key
+                logger.info(f"Initializing Anthropic model: {settings.anthropic_model}")
                 return AnthropicModel(
-                    model_name=settings.model_name or "claude-3-opus-20240229"
+                    model_name=settings.anthropic_model or "claude-fable-5",
+                    provider=AnthropicProvider(api_key=settings.anthropic_api_key),
                 )
             except Exception as e:
                 logger.warning(f"Failed to initialize Anthropic: {e}")
@@ -127,9 +127,10 @@ class WildernessAssistantAgent:
         if settings.openai_api_key:
             try:
                 logger.info("Falling back to OpenAI")
-                os.environ['OPENAI_API_KEY'] = settings.openai_api_key
-                return OpenAIModel(
-                    model_name=settings.model_name or "gpt-4-turbo"
+                return OpenAIChatModel(
+                    model_name=settings.model_name or "gpt-5.6-sol",
+                    provider=OpenAIProvider(api_key=settings.openai_api_key),
+                    settings=OPENAI_MODEL_SETTINGS,
                 )
             except Exception as e:
                 logger.warning(f"OpenAI fallback failed: {e}")
@@ -138,12 +139,9 @@ class WildernessAssistantAgent:
         if settings.deepseek_api_key:
             try:
                 logger.info("Falling back to DeepSeek")
-                os.environ['DEEPSEEK_API_KEY'] = settings.deepseek_api_key
-                # Also set OPENAI_API_KEY for the OpenAI client compatibility
-                os.environ['OPENAI_API_KEY'] = settings.deepseek_api_key
-                return OpenAIModel(
+                return OpenAIChatModel(
                     model_name=settings.deepseek_model or "deepseek-chat",
-                    base_url="https://api.deepseek.com/v1"
+                    provider=DeepSeekProvider(api_key=settings.deepseek_api_key),
                 )
             except Exception as e:
                 logger.warning(f"DeepSeek fallback failed: {e}")

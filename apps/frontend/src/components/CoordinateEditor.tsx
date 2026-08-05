@@ -80,7 +80,7 @@ export const CoordinateEditor: React.FC<CoordinateEditorProps> = ({
         {!readonly && (!maxPoints || coordinates.length < maxPoints) && (
           <button
             onClick={handleAddPoint}
-            className="text-xs bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded flex items-center gap-1"
+            className="text-xs bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-sm flex items-center gap-1"
             title="Add point at end"
           >
             <Plus className="w-3 h-3" />
@@ -100,7 +100,7 @@ export const CoordinateEditor: React.FC<CoordinateEditorProps> = ({
                 type="number"
                 value={coord.x}
                 onChange={(e) => handleCoordinateChange(index, 'x', e.target.value)}
-                className="w-20 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-white focus:ring-1 focus:ring-blue-500"
+                className="w-20 bg-gray-700 border border-gray-600 rounded-sm px-2 py-1 text-xs text-white focus:ring-1 focus:ring-blue-500"
                 disabled={readonly}
                 step="1"
               />
@@ -110,7 +110,7 @@ export const CoordinateEditor: React.FC<CoordinateEditorProps> = ({
                 type="number"
                 value={coord.y}
                 onChange={(e) => handleCoordinateChange(index, 'y', e.target.value)}
-                className="w-20 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-white focus:ring-1 focus:ring-blue-500"
+                className="w-20 bg-gray-700 border border-gray-600 rounded-sm px-2 py-1 text-xs text-white focus:ring-1 focus:ring-blue-500"
                 disabled={readonly}
                 step="1"
               />

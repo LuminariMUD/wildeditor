@@ -12,18 +12,17 @@ from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 from pydantic_ai import Agent, ModelRetry
 from pydantic_ai.models import Model
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
 from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.providers.deepseek import DeepSeekProvider
+from pydantic_ai.providers.openai import OpenAIProvider
 
 logger = logging.getLogger(__name__)
 
-# Try to import DeepSeekProvider - it might not exist in older versions
-try:
-    from pydantic_ai.providers.deepseek import DeepSeekProvider
-    DEEPSEEK_AVAILABLE = True
-except ImportError:
-    logger.warning("DeepSeekProvider not available in this version of pydantic-ai")
-    DEEPSEEK_AVAILABLE = False
+OPENAI_MODEL_SETTINGS: OpenAIChatModelSettings = {
+    "openai_reasoning_effort": "none",
+}
 
 class AIProvider(str, Enum):
     """Supported AI providers"""
@@ -139,11 +138,11 @@ class AIService:
                     logger.warning("OpenAI API key not found")
                     return None
                 
-                model_name = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
-                # Set OpenAI API key in environment for the client
-                os.environ['OPENAI_API_KEY'] = api_key
-                return OpenAIModel(
-                    model_name=model_name
+                model_name = os.getenv("OPENAI_MODEL", "gpt-5.6-sol")
+                return OpenAIChatModel(
+                    model_name=model_name,
+                    provider=OpenAIProvider(api_key=api_key),
+                    settings=OPENAI_MODEL_SETTINGS,
                 )
             
             elif self.provider == AIProvider.ANTHROPIC:
@@ -152,11 +151,10 @@ class AIService:
                     logger.warning("Anthropic API key not found")
                     return None
                 
-                model_name = os.getenv("ANTHROPIC_MODEL", "claude-3-opus-20240229")
-                # Set Anthropic API key in environment for the client
-                os.environ['ANTHROPIC_API_KEY'] = api_key
+                model_name = os.getenv("ANTHROPIC_MODEL", "claude-fable-5")
                 return AnthropicModel(
-                    model_name=model_name
+                    model_name=model_name,
+                    provider=AnthropicProvider(api_key=api_key),
                 )
             
             elif self.provider == AIProvider.DEEPSEEK:
@@ -168,16 +166,10 @@ class AIService:
                 
                 model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
                 
-                # Check if DeepSeekProvider is available
-                if not DEEPSEEK_AVAILABLE:
-                    self.initialization_error = f"DeepSeekProvider not available in pydantic-ai version"
-                    logger.warning(self.initialization_error)
-                    return None
-                
-                # Use DeepSeekProvider with OpenAIModel
+                # Use DeepSeekProvider with the OpenAI-compatible chat model.
                 try:
                     provider = DeepSeekProvider(api_key=api_key)
-                    return OpenAIModel(
+                    return OpenAIChatModel(
                         model_name=model_name,
                         provider=provider
                     )

@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from cachetools import TTLCache
 
 logger = logging.getLogger(__name__)
@@ -57,14 +57,14 @@ class InMemoryStorage(SessionStorage):
         """Save session data with TTL"""
         ttl = ttl or self.default_ttl
         self.store[key] = data
-        self.expiry[key] = datetime.utcnow() + timedelta(seconds=ttl)
+        self.expiry[key] = datetime.now(UTC) + timedelta(seconds=ttl)
         logger.debug(f"Saved session {key} with TTL {ttl}s")
     
     async def load(self, key: str) -> Optional[Dict[str, Any]]:
         """Load session data"""
         # Check expiry
         if key in self.expiry:
-            if datetime.utcnow() > self.expiry[key]:
+            if datetime.now(UTC) > self.expiry[key]:
                 # Expired, clean up
                 await self.delete(key)
                 return None
@@ -85,7 +85,7 @@ class InMemoryStorage(SessionStorage):
     async def extend_ttl(self, key: str, ttl: int) -> None:
         """Extend session TTL"""
         if key in self.store:
-            self.expiry[key] = datetime.utcnow() + timedelta(seconds=ttl)
+            self.expiry[key] = datetime.now(UTC) + timedelta(seconds=ttl)
             logger.debug(f"Extended TTL for session {key} by {ttl}s")
 
 

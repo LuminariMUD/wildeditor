@@ -1,4 +1,4 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, ConfigDict, field_validator
 from typing import List, Dict, Optional
 from datetime import datetime
 
@@ -56,7 +56,8 @@ class PathBase(BaseModel):
     coordinates: List[Dict[str, float]]  # Will be converted to/from MySQL LINESTRING
     path_props: Optional[int] = 0  # Sector type to apply along the path (0-36)
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name_required(cls, v):
         if not v or not v.strip():
             raise ValueError('Path name is required and cannot be empty')
@@ -64,14 +65,16 @@ class PathBase(BaseModel):
             raise ValueError('Path name cannot be longer than 50 characters')
         return v.strip()
     
-    @validator('path_type')
+    @field_validator('path_type')
+    @classmethod
     def validate_path_type(cls, v):
         if v not in PATH_TYPES:
             valid_types = ', '.join(f'{k}: {v}' for k, v in PATH_TYPES.items())
             raise ValueError(f'Path type must be one of: {valid_types}')
         return v
     
-    @validator('coordinates')
+    @field_validator('coordinates')
+    @classmethod
     def validate_coordinates(cls, v):
         # Allow empty coordinates (paths without linestring data)
         if not v:
@@ -94,8 +97,9 @@ class PathBase(BaseModel):
         
         return v
     
-    @validator('path_props')
-    def validate_path_props(cls, v, values):
+    @field_validator('path_props')
+    @classmethod
+    def validate_path_props(cls, v):
         # path_props is the sector type to apply along the path
         # Should be valid sector type (0-36) but allow any value for flexibility
         if v is not None and (v < 0 or v > 36):
@@ -119,7 +123,8 @@ class PathUpdate(BaseModel):
     coordinates: Optional[List[Dict[str, float]]] = None
     path_props: Optional[int] = None
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name_if_provided(cls, v):
         if v is not None:
             if not v or not v.strip():
@@ -129,14 +134,16 @@ class PathUpdate(BaseModel):
             return v.strip()
         return v
     
-    @validator('path_type')
+    @field_validator('path_type')
+    @classmethod
     def validate_path_type_if_provided(cls, v):
         if v is not None and v not in PATH_TYPES:
             valid_types = ', '.join(f'{k}: {v}' for k, v in PATH_TYPES.items())
             raise ValueError(f'Path type must be one of: {valid_types}')
         return v
     
-    @validator('coordinates')
+    @field_validator('coordinates')
+    @classmethod
     def validate_coordinates_if_provided(cls, v):
         if v is not None:
             # Allow empty coordinates or any number of points
@@ -160,8 +167,7 @@ class PathResponse(PathBase):
     # Add computed fields for frontend
     path_type_name: Optional[str] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 def get_path_type_name(path_type: int) -> str:
     """Get human-readable name for path type"""

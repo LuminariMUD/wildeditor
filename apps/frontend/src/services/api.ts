@@ -194,7 +194,6 @@ class ApiClient {
     console.log(`[API] Constructor - API Key loaded:`, {
       hasApiKey: !!apiKey,
       length: apiKey?.length || 0,
-      first8: apiKey ? apiKey.substring(0, 8) + '...' : 'NOT SET',
       containsWhitespace: apiKey ? /\s/.test(apiKey) : false,
       trimmedLength: apiKey ? apiKey.trim().length : 0
     });

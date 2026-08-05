@@ -1,8 +1,8 @@
-version: '3.8'
-
 services:
   chat-agent:
-    build: .
+    build:
+      context: ../..
+      dockerfile: apps/agent/Dockerfile
     container_name: wildeditor-chat-agent
     ports:
       - "8002:8002"
@@ -15,16 +15,15 @@ services:
       # AI Model Configuration (set these in GitHub secrets)
       - MODEL_PROVIDER=${MODEL_PROVIDER:-openai}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MODEL_NAME=${MODEL_NAME:-gpt-5.6-sol}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - MODEL_NAME=${MODEL_NAME:-gpt-4-turbo}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-fable-5}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}
       
       # MCP Server Configuration (internal Docker network)
       - WILDERNESS_MCP_URL=http://wildeditor-mcp:8001
       - MCP_API_KEY=${MCP_API_KEY}
-      
-      # Backend API Configuration (internal Docker network)
-      - BACKEND_API_URL=http://wildeditor-backend:8000
-      - BACKEND_API_KEY=${BACKEND_API_KEY}
       
       # Session Storage
       - STORAGE_BACKEND=memory
@@ -43,7 +42,7 @@ services:
     restart: unless-stopped
     
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health/"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/', timeout=2)"]
       interval: 30s
       timeout: 3s
       retries: 3

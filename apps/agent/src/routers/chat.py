@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 from typing import Optional, List, AsyncGenerator
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import UTC, datetime
 import logging
 import json
 import asyncio
@@ -109,7 +109,7 @@ async def send_message(
             response=response,
             session_id=request.session_id,
             message_id=assistant_message.id if assistant_message else "",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(UTC)
         )
         
     except HTTPException:

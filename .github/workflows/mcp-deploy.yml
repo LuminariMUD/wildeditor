@@ -14,7 +14,7 @@ on:
       - 'packages/auth/**'
 
 env:
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.14.6'
   DOCKER_IMAGE: 'wildeditor-mcp'
   REGISTRY: 'ghcr.io'
 
@@ -26,38 +26,32 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          
-      - name: Cache pip dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-mcp-${{ hashFiles('apps/mcp/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-mcp-
+          cache: 'pip'
+          cache-dependency-path: |
+            apps/mcp/requirements.txt
+            packages/auth/requirements.txt
             
       - name: Install dependencies
         run: |
-          # Install auth package first
-          pip install -e packages/auth
-          cd apps/mcp
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip==26.2.1 setuptools==83.0.0 wheel==0.47.0
+          python -m pip install -r apps/mcp/requirements.txt
+          python -m pip install --no-deps -e packages/auth
+          python -m pip install bandit==1.9.4
+          python -m pip check
           
       - name: Lint with flake8
         run: |
-          pip install flake8
           flake8 apps/mcp/src --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 apps/mcp/src --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
           
       - name: Type check with mypy
         run: |
-          pip install mypy
           mypy apps/mcp/src --ignore-missing-imports || true
           
       - name: Run tests
@@ -102,11 +96,10 @@ jobs:
           
       - name: Security check with bandit
         run: |
-          pip install bandit
           bandit -r apps/mcp/src -f json -o mcp-bandit-report.json || true
           
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         if: always()
         with:
           name: mcp-test-results
@@ -125,13 +118,13 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4.2.0
         
       - name: Log in to Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4.6.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -139,7 +132,7 @@ jobs:
           
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6.2.0
         with:
           images: ${{ env.REGISTRY }}/luminarimud/wildeditor-mcp
           tags: |
@@ -149,7 +142,8 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        id: build
+        uses: docker/build-push-action@v7.3.0
         with:
           context: .
           file: apps/mcp/Dockerfile
@@ -174,10 +168,10 @@ jobs:
       
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         
       - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.8.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
           
@@ -267,8 +261,7 @@ jobs:
             exit 1
           fi
           
-          echo "✅ MCP key received: ${MCP_KEY:0:8}..."
-          echo "✅ MCP backend key received: ${MCP_BACKEND_KEY:0:8}..."
+          echo "✅ MCP keys received"
           
           # Check Docker access
           if groups | grep -q docker; then
@@ -325,13 +318,13 @@ jobs:
             -e LOG_LEVEL="INFO" \
             -e AI_PROVIDER="${AI_PROVIDER:-none}" \
             -e OPENAI_API_KEY="$OPENAI_API_KEY" \
-            -e OPENAI_MODEL="${OPENAI_MODEL:-gpt-4-turbo-preview}" \
+            -e OPENAI_MODEL="${OPENAI_MODEL:-gpt-5.6-sol}" \
             -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
-            -e ANTHROPIC_MODEL="${ANTHROPIC_MODEL:-claude-3-opus-20240229}" \
+            -e ANTHROPIC_MODEL="${ANTHROPIC_MODEL:-claude-fable-5}" \
             -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
             -e DEEPSEEK_MODEL="${DEEPSEEK_MODEL:-deepseek-chat}" \
             -e OLLAMA_BASE_URL="$OLLAMA_BASE_URL" \
-            -e OLLAMA_MODEL="${OLLAMA_MODEL:-llama2}" \
+            -e OLLAMA_MODEL="${OLLAMA_MODEL:-llama3.2:1b}" \
             -v $HOME/logs/wildeditor-mcp:/var/log/wildeditor-mcp \
             $DOCKER_IMAGE
           
@@ -405,17 +398,19 @@ jobs:
             export MCP_BACKEND_KEY='$WILDEDITOR_API_KEY'
             export AI_PROVIDER='${AI_PROVIDER:-none}'
             export OPENAI_API_KEY='$OPENAI_API_KEY'
-            export OPENAI_MODEL='${OPENAI_MODEL:-gpt-4-turbo-preview}'
+            export OPENAI_MODEL='${OPENAI_MODEL:-gpt-5.6-sol}'
             export ANTHROPIC_API_KEY='$ANTHROPIC_API_KEY'
-            export ANTHROPIC_MODEL='${ANTHROPIC_MODEL:-claude-3-opus-20240229}'
+            export ANTHROPIC_MODEL='${ANTHROPIC_MODEL:-claude-fable-5}'
             export DEEPSEEK_API_KEY='$DEEPSEEK_API_KEY'
             export DEEPSEEK_MODEL='${DEEPSEEK_MODEL:-deepseek-chat}'
             export OLLAMA_BASE_URL='$OLLAMA_BASE_URL'
-            export OLLAMA_MODEL='${OLLAMA_MODEL:-llama2}'
+            export OLLAMA_MODEL='${OLLAMA_MODEL:-llama3.2:1b}'
             /tmp/deploy-mcp.sh
           "
           
       - name: Verify MCP deployment
+        env:
+          WILDEDITOR_MCP_KEY: ${{ secrets.WILDEDITOR_MCP_KEY }}
         run: |
           # Wait a moment for the service to be fully ready
           sleep 10
@@ -424,7 +419,7 @@ jobs:
           
           # Test from within the server
           echo "Testing MCP health endpoint from server..."
-          SERVER_HEALTH_CHECK=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
+          if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
             echo '🏥 Testing MCP health endpoint from server:'
             if curl -s --connect-timeout 5 --max-time 10 http://localhost:8001/health; then
               echo ''
@@ -446,9 +441,7 @@ jobs:
               docker logs --tail 10 wildeditor-mcp || true
               exit 1
             fi
-          ")
-          
-          if [ $? -eq 0 ]; then
+          "; then
             echo "✅ MCP server-side health check passed!"
           else
             echo "❌ MCP server-side health check failed!"
@@ -460,7 +453,7 @@ jobs:
           echo "The MCP server is running and responding to health checks on port 8001"
           
       - name: Create MCP deployment notification
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9.0.0
         with:
           script: |
             const output = `#### 🤖 MCP Server Deployment Successful!\n

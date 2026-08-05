@@ -1,67 +1,54 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: '[BUG] '
-labels: 'bug'
-assignees: ''
+about: Report a reproducible Wildeditor defect
+title: "[Bug] "
+labels: bug
+assignees: ""
 ---
 
-## Bug Description
+<!-- Do not disclose vulnerabilities or credentials here. Follow SECURITY.md instead. -->
 
-A clear and concise description of what the bug is.
+## Summary
 
-## Steps to Reproduce
+Describe the defect and its user or operational impact.
 
-1. Go to '...'
-2. Click on '...'
-3. Scroll down to '...'
-4. See error
+## Affected area
 
-## Expected Behavior
+- Service/component: <!-- frontend, backend, MCP, chat agent, shared package, workflow, database -->
+- Commit or deployment revision:
+- Environment: <!-- local, preview, staging, production -->
 
-A clear and concise description of what you expected to happen.
+## Reproduction
 
-## Actual Behavior
+1.
+2.
+3.
 
-A clear and concise description of what actually happened.
+Include the smallest input needed to reproduce the issue. State whether the steps read or mutate data and which external services are required.
 
-## Screenshots
+## Expected behavior
 
-If applicable, add screenshots to help explain your problem.
+What should have happened?
 
-## Environment
+## Actual behavior
 
-**Desktop:**
-- OS: [e.g. Windows 10, macOS 12.0, Ubuntu 20.04]
-- Browser: [e.g. Chrome 96, Firefox 95, Safari 15]
-- Version: [e.g. 96.0.4664.110]
+What happened instead? Include status codes and concise error text where useful.
 
-**Mobile (if applicable):**
-- Device: [e.g. iPhone 13, Samsung Galaxy S21]
-- OS: [e.g. iOS 15.1, Android 12]
-- Browser: [e.g. Safari, Chrome Mobile]
-- Version: [e.g. 15.1]
+## Evidence
 
-**Application:**
-- Version: [e.g. 1.0.0]
-- Environment: [e.g. development, staging, production]
+Add screenshots, a short recording, or sanitized logs. Remove API keys, tokens, database URLs, personal data, private hosts, and authorization headers.
 
-## Console Errors
+## Environment details
 
-If applicable, paste any console errors or logs:
+- OS:
+- Browser and version, if frontend-related:
+- Node/npm versions, if JavaScript-related:
+- Python version, if service-related:
+- MySQL/MariaDB version, if data-related:
+- Relevant non-secret configuration:
 
-```
-Paste console errors here
-```
+## Regression information
 
-## Additional Context
-
-Add any other context about the problem here.
-
-## Possible Solution
-
-If you have ideas on how to fix this bug, please describe them here.
-
-## Related Issues
-
-Link any related issues here using #issue_number
+- Last known working revision, if known:
+- Reproducible on the latest target branch? <!-- yes/no/unknown -->
+- Related issue or pull request:

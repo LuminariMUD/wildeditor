@@ -1,50 +1,51 @@
 # Chat Agent Dependencies
 
 # Core Framework
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
-python-dotenv>=1.0.0
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
+python-dotenv==1.2.2
 
 # PydanticAI for Agent
-pydantic-ai>=0.0.14
-pydantic>=2.5.0
+pydantic-ai-slim[openai,anthropic]==2.24.0
+pydantic==2.13.4
+pydantic-settings==2.14.2
 
 # AI Models
-openai>=1.0.0
-anthropic>=0.17.0
+openai==2.53.0
+anthropic==0.120.2
 
 # Session Storage
-redis>=5.0.0
+redis==8.1.0
 # For in-memory alternative
-cachetools>=5.3.0
+cachetools==7.1.7
 
 # WebSocket Support
-websockets>=12.0
-python-socketio>=5.10.0
+websockets==17.0.1
+python-socketio==5.16.3
 # Server-sent events
-sse-starlette>=1.8.0
+sse-starlette==3.4.8
 
 # HTTP Client
-httpx>=0.25.0
+httpx==0.28.1
 
 # Async Support
-asyncio-throttle>=1.0.2
+asyncio-throttle==1.0.2
 
 # JSON handling
-orjson>=3.9.0
+orjson==3.11.9
 
 # Logging
-loguru>=0.7.0
-structlog>=24.1.0
+loguru==0.7.3
+structlog==26.1.0
 
 # Testing utilities
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
-pytest-timeout>=2.1.0
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-timeout==2.4.0
 
 # Performance monitoring
-psutil>=5.9.0
+psutil==7.2.2
 
 # Development
-rich>=13.0.0
-ipython>=8.12.0
+rich==15.0.0
+ipython==9.16.1

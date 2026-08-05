@@ -12,7 +12,7 @@ on:
       - 'apps/backend/**'
 
 env:
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.14.6'
   DOCKER_IMAGE: 'wildeditor-backend'
   REGISTRY: 'ghcr.io'
   # Alternative: Use Docker Hub instead
@@ -27,33 +27,27 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          
-      - name: Cache pip dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('apps/backend/src/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          cache: 'pip'
+          cache-dependency-path: |
+            apps/backend/src/requirements.txt
+            packages/auth/requirements.txt
             
       - name: Install dependencies
         run: |
-          # Install auth package first
-          pip install -e packages/auth
-          cd apps/backend/src
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio httpx  # Testing dependencies
+          python -m pip install --upgrade pip==26.2.1 setuptools==83.0.0 wheel==0.47.0
+          python -m pip install -r apps/backend/src/requirements.txt
+          python -m pip install --no-deps -e packages/auth
+          python -m pip install flake8==7.3.0 mypy==2.3.0 bandit==1.9.4
+          python -m pip check
           
       - name: Lint with flake8
         run: |
-          pip install flake8
           # Stop build if there are Python syntax errors or undefined names
           flake8 apps/backend/src --count --select=E9,F63,F7,F82 --show-source --statistics
           # Exit-zero treats all errors as warnings. GitHub editor is 127 chars wide
@@ -61,7 +55,6 @@ jobs:
           
       - name: Type check with mypy
         run: |
-          pip install mypy
           mypy apps/backend/src --ignore-missing-imports || true
           
       - name: Test with pytest
@@ -92,11 +85,10 @@ jobs:
           
       - name: Security check with bandit
         run: |
-          pip install bandit
           bandit -r apps/backend/src -f json -o bandit-report.json || true
           
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         if: always()
         with:
           name: backend-test-results
@@ -115,13 +107,13 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4.2.0
         
       - name: Log in to Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4.6.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -129,7 +121,7 @@ jobs:
           
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6.2.0
         with:
           images: ${{ env.REGISTRY }}/luminarimud/wildeditor-backend
           tags: |
@@ -139,7 +131,8 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        id: build
+        uses: docker/build-push-action@v7.3.0
         with:
           context: .
           file: apps/backend/Dockerfile
@@ -165,10 +158,10 @@ jobs:
       
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         
       - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.8.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
           
@@ -279,8 +272,7 @@ jobs:
             exit 1
           fi
           
-          echo "✅ Database URL received: \${DATABASE_URL:0:20}..." # Show first 20 chars for debugging
-          echo "✅ API key received: \${API_KEY:0:8}..." # Show first 8 chars for debugging
+          echo "✅ Database URL and API key received"
           
           # Test MySQL connectivity from host before starting container
           echo "🔍 Testing MySQL connectivity from host..."
@@ -348,7 +340,7 @@ jobs:
           
           # Replace host.docker.internal or localhost in DATABASE_URL with actual host IP
           UPDATED_DATABASE_URL=\$(echo "\$DATABASE_URL" | sed "s/host\\.docker\\.internal/\$HOST_IP/g" | sed "s/localhost/\$HOST_IP/g")
-          echo "🔗 Updated database URL: \${UPDATED_DATABASE_URL:0:30}..."
+          echo "🔗 Database host mapping updated"
           
           # Try host networking first, fallback to bridge networking
           echo "🏃 Starting new container with host networking..."
@@ -447,6 +439,8 @@ jobs:
           "
           
       - name: Verify deployment
+        env:
+          WILDEDITOR_API_KEY: ${{ secrets.WILDEDITOR_API_KEY }}
         run: |
           # Wait a moment for the service to be fully ready
           sleep 10
@@ -455,7 +449,7 @@ jobs:
           
           # Primary verification: Test from within the server (this should always work)
           echo "Testing API health endpoint from server..."
-          SERVER_HEALTH_CHECK=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
+          if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
             echo '🏥 Testing health endpoint from server:'
             if curl -s --connect-timeout 5 --max-time 10 http://localhost:8000/api/health; then
               echo ''
@@ -477,9 +471,7 @@ jobs:
               docker logs --tail 10 wildeditor-backend || true
               exit 1
             fi
-          ")
-          
-          if [ $? -eq 0 ]; then
+          "; then
             echo "✅ Server-side health check passed!"
           else
             echo "❌ Server-side health check failed!"
@@ -510,7 +502,7 @@ jobs:
           echo "The application is running and responding to health checks on the server"
           
       - name: Create deployment notification
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9.0.0
         with:
           script: |
             const output = `#### 🚀 Backend Deployment Successful!\n

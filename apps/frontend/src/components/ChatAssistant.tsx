@@ -200,8 +200,9 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
 
   // Initialize session when component opens
   useEffect(() => {
+    let sessionTimer: number | undefined;
     if (isOpen && !sessionId) {
-      initializeSession();
+      sessionTimer = window.setTimeout(() => void initializeSession(), 0);
     }
     
     // Focus input when chat opens
@@ -209,8 +210,14 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
       const timer = setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
-      return () => clearTimeout(timer);
+      return () => {
+        if (sessionTimer !== undefined) window.clearTimeout(sessionTimer);
+        window.clearTimeout(timer);
+      };
     }
+    return () => {
+      if (sessionTimer !== undefined) window.clearTimeout(sessionTimer);
+    };
   }, [isOpen, sessionId, initializeSession]);
 
   // Auto-scroll to bottom when new messages arrive  
@@ -507,16 +514,6 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
           onResize={handleResize}
           resizeHandles={windowState.isMinimized ? [] : ['se', 'sw', 'nw', 'ne', 'w', 'e', 's', 'n']}
           className="chat-assistant-resizable"
-          handleStyle={{
-            se: { cursor: 'se-resize', touchAction: 'none' },
-            sw: { cursor: 'sw-resize', touchAction: 'none' },
-            nw: { cursor: 'nw-resize', touchAction: 'none' },
-            ne: { cursor: 'ne-resize', touchAction: 'none' },
-            w: { cursor: 'w-resize', touchAction: 'none' },
-            e: { cursor: 'e-resize', touchAction: 'none' },
-            s: { cursor: 's-resize', touchAction: 'none' },
-            n: { cursor: 'n-resize', touchAction: 'none' }
-          }}
         >
           <div className="w-full h-full bg-gray-900 border border-gray-700 rounded-lg shadow-xl flex flex-col" style={{ position: 'relative', zIndex: 50 }}>
             {/* Header */}
@@ -543,7 +540,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 </button>
                 <button
                   onClick={toggleMinimize}
-                  className="text-gray-400 hover:text-white p-1 rounded"
+                  className="text-gray-400 hover:text-white p-1 rounded-sm"
                   title={windowState.isMinimized ? "Maximize" : "Minimize"}
                 >
                   {windowState.isMinimized ? (
@@ -554,7 +551,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 </button>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="text-gray-400 hover:text-white p-1 rounded"
+                  className="text-gray-400 hover:text-white p-1 rounded-sm"
                   title="Close"
                 >
                   <X className="w-4 h-4" />
@@ -578,7 +575,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
             key={message.id}
             className={`flex gap-3 ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
           >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
               message.type === 'user' 
                 ? 'bg-blue-600' 
                 : 'bg-gray-700'
@@ -625,13 +622,13 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
                                   style={oneDark}
                                   language={match[1]}
                                   PreTag="div"
-                                  className="rounded text-xs"
+                                  className="rounded-sm text-xs"
                                   {...props}
                                 >
                                   {String(children).replace(/\n$/, '')}
                                 </SyntaxHighlighter>
                               ) : (
-                                <code className={`${className} bg-gray-700 px-1 py-0.5 rounded text-xs`} {...props}>
+                                <code className={`${className} bg-gray-700 px-1 py-0.5 rounded-sm text-xs`} {...props}>
                                   {children}
                                 </code>
                               );
@@ -671,7 +668,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
         {/* Loading indicator */}
         {isLoading && (
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center shrink-0">
               <Bot className="w-4 h-4 text-blue-400" />
             </div>
             <div className="bg-gray-800 rounded-lg p-3">

@@ -95,7 +95,7 @@ export const ResizablePanes: React.FC<ResizablePanesProps> = ({
       <div
         ref={leftResizerRef}
         className={`
-          w-1 bg-gray-700 hover:bg-blue-500 cursor-col-resize transition-colors flex-shrink-0
+          w-1 bg-gray-700 hover:bg-blue-500 cursor-col-resize transition-colors shrink-0
           ${isResizingLeft ? 'bg-blue-500' : ''}
         `}
         onMouseDown={handleLeftMouseDown}
@@ -111,7 +111,7 @@ export const ResizablePanes: React.FC<ResizablePanesProps> = ({
       <div
         ref={rightResizerRef}
         className={`
-          w-1 bg-gray-700 hover:bg-blue-500 cursor-col-resize transition-colors flex-shrink-0
+          w-1 bg-gray-700 hover:bg-blue-500 cursor-col-resize transition-colors shrink-0
           ${isResizingRight ? 'bg-blue-500' : ''}
         `}
         onMouseDown={handleRightMouseDown}

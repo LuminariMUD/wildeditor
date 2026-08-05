@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Save } from 'lucide-react';
 
 export interface RegionHint {
@@ -18,7 +18,6 @@ interface HintEditorProps {
   regionVnum: number;
   onSave: (hint: Omit<RegionHint, 'id' | 'region_vnum'>) => void;
   onCancel: () => void;
-  isOpen: boolean;
 }
 
 const HINT_CATEGORIES = [
@@ -43,8 +42,7 @@ const TIMES_OF_DAY = ['dawn', 'morning', 'midday', 'afternoon', 'evening', 'nigh
 export const HintEditor: React.FC<HintEditorProps> = ({ 
   hint, 
   onSave, 
-  onCancel, 
-  isOpen 
+  onCancel
 }) => {
   const [category, setCategory] = useState(hint?.hint_category || 'atmosphere');
   const [text, setText] = useState(hint?.hint_text || '');
@@ -88,38 +86,6 @@ export const HintEditor: React.FC<HintEditorProps> = ({
     };
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (hint) {
-      setCategory(hint.hint_category);
-      setText(hint.hint_text);
-      setPriority(hint.priority);
-      if (hint.weather_conditions) {
-        // Handle both string and array formats
-        if (typeof hint.weather_conditions === 'string') {
-          setSelectedWeather(hint.weather_conditions.split(',').map(w => w.trim()));
-        } else if (Array.isArray(hint.weather_conditions)) {
-          setSelectedWeather(hint.weather_conditions);
-        }
-      }
-      setUseSeasonalWeight(!!hint.seasonal_weight);
-      if (hint.seasonal_weight) {
-        const weights: Record<string, number> = {};
-        for (const [key, val] of Object.entries(hint.seasonal_weight)) {
-          weights[key] = val * 100; // Convert from decimal to percentage for UI
-        }
-        setSeasonalWeights(weights);
-      }
-      setUseTimeWeight(!!hint.time_of_day_weight);
-      if (hint.time_of_day_weight) {
-        const weights: Record<string, number> = {};
-        for (const [key, val] of Object.entries(hint.time_of_day_weight)) {
-          weights[key] = val * 100; // Convert from decimal to percentage for UI
-        }
-        setTimeWeights(weights);
-      }
-    }
-  }, [hint]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -191,8 +157,6 @@ export const HintEditor: React.FC<HintEditorProps> = ({
     setTimeWeights(prev => ({ ...prev, [time]: value }));
   };
 
-  if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-gray-900 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -217,7 +181,7 @@ export const HintEditor: React.FC<HintEditorProps> = ({
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-gray-800 border border-gray-600 rounded-sm px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"
             >
               {HINT_CATEGORIES.map(cat => (
                 <option key={cat.value} value={cat.value}>
@@ -300,12 +264,12 @@ export const HintEditor: React.FC<HintEditorProps> = ({
                 type="checkbox"
                 checked={useSeasonalWeight}
                 onChange={(e) => setUseSeasonalWeight(e.target.checked)}
-                className="rounded"
+                className="rounded-sm"
               />
               Seasonal Weights (0% = never, 100% = normal)
             </label>
             {useSeasonalWeight && (
-              <div className="bg-gray-800 rounded p-3 space-y-3">
+              <div className="bg-gray-800 rounded-sm p-3 space-y-3">
                 {SEASONS.map(season => {
                   const seasonIcons: Record<string, string> = {
                     spring: '🌸',
@@ -332,7 +296,7 @@ export const HintEditor: React.FC<HintEditorProps> = ({
                                 updateSeasonalWeight(season, val);
                               }
                             }}
-                            className="w-16 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm text-center"
+                            className="w-16 bg-gray-700 border border-gray-600 rounded-sm px-2 py-1 text-white text-sm text-center"
                           />
                           <span className="text-xs text-gray-500">%</span>
                         </div>
@@ -363,12 +327,12 @@ export const HintEditor: React.FC<HintEditorProps> = ({
                 type="checkbox"
                 checked={useTimeWeight}
                 onChange={(e) => setUseTimeWeight(e.target.checked)}
-                className="rounded"
+                className="rounded-sm"
               />
               Time of Day Weights (0% = never, 100% = normal)
             </label>
             {useTimeWeight && (
-              <div className="bg-gray-800 rounded p-3 grid grid-cols-2 gap-3">
+              <div className="bg-gray-800 rounded-sm p-3 grid grid-cols-2 gap-3">
                 {TIMES_OF_DAY.map(time => {
                   const icons: Record<string, string> = {
                     dawn: '🌅',
@@ -397,7 +361,7 @@ export const HintEditor: React.FC<HintEditorProps> = ({
                                 updateTimeWeight(time, val);
                               }
                             }}
-                            className="w-12 bg-gray-700 border border-gray-600 rounded px-1 py-0.5 text-white text-sm text-center"
+                            className="w-12 bg-gray-700 border border-gray-600 rounded-sm px-1 py-0.5 text-white text-sm text-center"
                           />
                           <span className="text-xs text-gray-500">%</span>
                         </div>
@@ -423,13 +387,13 @@ export const HintEditor: React.FC<HintEditorProps> = ({
         <div className="flex justify-end gap-3 mt-6">
           <button
             onClick={onCancel}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-sm transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-sm transition-colors flex items-center gap-2"
           >
             <Save className="w-4 h-4" />
             {hint ? 'Update' : 'Create'} Hint

@@ -95,7 +95,7 @@ export const SelectionContextMenu: React.FC<SelectionContextMenuProps> = ({
                 onClose();
               }}
             >
-              <Icon size={14} className="flex-shrink-0" />
+              <Icon size={14} className="shrink-0" />
               
               <div className="flex-1 min-w-0">
                 <div className="truncate font-medium">
@@ -112,7 +112,7 @@ export const SelectionContextMenu: React.FC<SelectionContextMenuProps> = ({
               </div>
               
               <button
-                className="p-1 hover:bg-gray-600 rounded opacity-70 hover:opacity-100 flex-shrink-0"
+                className="p-1 hover:bg-gray-600 rounded-sm opacity-70 hover:opacity-100 shrink-0"
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleVisibility(candidate.type, item.vnum);

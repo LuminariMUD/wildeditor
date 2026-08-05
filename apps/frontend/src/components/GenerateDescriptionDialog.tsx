@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Sparkles, Loader2, Info } from 'lucide-react';
 
 interface GenerateDescriptionDialogProps {
-  isOpen: boolean;
   onClose: () => void;
   onGenerate: (params: {
     userPrompt: string;
@@ -19,7 +18,6 @@ interface GenerateDescriptionDialogProps {
 }
 
 export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps> = ({
-  isOpen,
   onClose,
   onGenerate,
   regionName,
@@ -37,15 +35,6 @@ export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps>
     'geography',
     'atmosphere'
   ]);
-
-  // Update prompt when dialog opens with initial text
-  useEffect(() => {
-    if (isOpen) {
-      setUserPrompt(initialPrompt);
-    }
-  }, [isOpen, initialPrompt]);
-
-  if (!isOpen) return null;
 
   const availableSections = [
     { id: 'overview', label: 'Overview', default: true },
@@ -88,7 +77,7 @@ export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps>
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60 backdrop-blur-xs"
         onClick={isGenerating ? undefined : onClose}
       />
       
@@ -97,7 +86,7 @@ export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg">
+            <div className="p-2 bg-linear-to-br from-purple-500 to-blue-500 rounded-lg">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -124,7 +113,7 @@ export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps>
             {(hasExistingDescription || hasExistingHints) && (
               <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <Info className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <Info className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
                   <div className="text-sm text-amber-200">
                     <p className="font-medium mb-1">This will replace existing content:</p>
                     <ul className="space-y-1 text-amber-300">
@@ -207,7 +196,7 @@ export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps>
                       checked={includeSections.includes(section.id)}
                       onChange={() => handleSectionToggle(section.id)}
                       disabled={isGenerating}
-                      className="rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500"
+                      className="rounded-sm bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500"
                     />
                     <span className="text-sm text-gray-300">{section.label}</span>
                   </label>
@@ -253,7 +242,7 @@ export const GenerateDescriptionDialog: React.FC<GenerateDescriptionDialogProps>
           <button
             onClick={handleSubmit}
             disabled={isGenerating || includeSections.length === 0}
-            className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg flex items-center gap-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg flex items-center gap-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGenerating ? (
               <>
