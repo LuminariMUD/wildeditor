@@ -1,5 +1,7 @@
 # Wildeditor Agent Guide
 
+Context is important whether this is local dev vs remote production, check respective `.env` `.env.*` files for that detail.
+
 ## Ground truth
 
 - Treat source, manifests, migrations, service Dockerfiles, and `.github/workflows/` as authoritative.

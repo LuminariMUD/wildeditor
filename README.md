@@ -1,5 +1,7 @@
 # Wildeditor
 
+**Version: 0.4.29**
+
 Wildeditor is a browser-based editor for LuminariMUD wilderness data. It combines a React map editor, a FastAPI REST API, an MCP/JSON-RPC facade, and an optional AI chat service in one repository.
 
 > **Project status:** pre-release and under active development. The current browser-to-API authentication design has known security gaps; do not expose a deployment to untrusted users until the [authentication migration plan](docs/ongoing-projects/self-hosted-postgres-auth-migration-plan.md) is complete.

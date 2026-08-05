@@ -134,6 +134,11 @@ cython_debug/
 apps/backend/.env*
 *.env
 
+# Ignore all local dotenv variants while keeping sanitized templates trackable.
+.env.*
+!.env.example
+!.env.*.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
