@@ -1,6 +1,6 @@
 # Wildeditor Agent Guide
 
-Context is important whether this is local dev vs remote production, check respective `.env` `.env.*` files for that detail.
+Context is important whether this is local dev vs remote production, check `.env` for that detail and ssh-access when needed.
 
 ## Ground truth
 
