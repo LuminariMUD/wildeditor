@@ -26,7 +26,7 @@ Wildeditor production boundary on top:
 5. Run `sh scripts/validate-config.sh`.
 6. Start the supported Auth runtime with `sh run.sh start`.
 7. Point the TLS/Cloudflare tunnel hostname at `http://127.0.0.1:8010`.
-8. Run `sh scripts/smoke.sh https://auth.wildedit.luminarimud.com`.
+8. Run `sh scripts/smoke.sh https://wildedit-auth.luminarimud.com`.
 
 Do not run the legacy SQL under the repository root `supabase/migrations/`.
 Wildeditor game/wilderness data remains exclusively in MariaDB.
@@ -34,8 +34,9 @@ Wildeditor game/wilderness data remains exclusively in MariaDB.
 ## Credential locations
 
 - `infrastructure/supabase/.env` is the ignored, mode-`0600` Auth runtime
-  environment. SMTP delivery uses `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, and
-  `SMTP_PASS` from this file.
+  environment. SMTP delivery uses `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
+  `SMTP_PASS`, and `SMTP_ADMIN_EMAIL` from this file. `SMTP_ADMIN_EMAIL` must
+  be an address approved under SMTP2GO **Sending → Verified Senders**.
 - The repository-root `.env` is the ignored, mode-`0600` operator environment.
   `SMTP2GO_API_KEY` lives there for SMTP2GO API administration only; GoTrue
   does not use it and it must not be copied into this stack.
@@ -58,7 +59,7 @@ sh run.sh start
 sh run.sh logs auth
 sh scripts/backup.sh
 sh scripts/monitor.sh
-sh scripts/smoke.sh https://auth.wildedit.luminarimud.com
+sh scripts/smoke.sh https://wildedit-auth.luminarimud.com
 ```
 
 See `docs/operations/self-hosted-auth-runbook.md` for backup restore, migration,

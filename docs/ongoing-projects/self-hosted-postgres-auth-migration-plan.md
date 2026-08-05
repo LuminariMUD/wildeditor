@@ -240,7 +240,7 @@ Tasks:
    - Any non-Auth schemas or data not visible in this repository.
 2. Record the current MariaDB engine/version and compare the live wilderness schema with the LuminariMUD initializers and Wildeditor mappings.
 3. Decide and document:
-   - Production Auth hostname, recommended as `auth.wildedit.luminarimud.com`.
+   - Production Auth hostname, recommended as `wildedit-auth.luminarimud.com`.
    - Invite-only versus public signup; invite-only is the default recommendation.
    - Which existing users are `viewer`, `editor`, or `admin`.
    - PostgreSQL recovery point and recovery time objectives.

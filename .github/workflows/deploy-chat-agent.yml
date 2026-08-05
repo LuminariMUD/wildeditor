@@ -121,9 +121,9 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_ACTOR: ${{ github.actor }}
         run: |
-          WILDEDITOR_AUTH_ISSUERS="${WILDEDITOR_AUTH_ISSUERS:-https://auth.wildedit.luminarimud.com/auth/v1}"
+          WILDEDITOR_AUTH_ISSUERS="${WILDEDITOR_AUTH_ISSUERS:-https://wildedit-auth.luminarimud.com/auth/v1}"
           case ",$WILDEDITOR_AUTH_ISSUERS," in
-            *,https://auth.wildedit.luminarimud.com/auth/v1,*) ;;
+            *,https://wildedit-auth.luminarimud.com/auth/v1,*) ;;
             *) echo "❌ Trusted issuers must include self-hosted production Auth"; exit 1 ;;
           esac
 
@@ -374,7 +374,7 @@ jobs:
           AUTH_TEST_EMAIL: ${{ secrets.AUTH_TEST_EMAIL }}
           AUTH_TEST_PASSWORD: ${{ secrets.AUTH_TEST_PASSWORD }}
           AUTH_PUBLISHABLE_KEY: ${{ secrets.SELF_HOSTED_AUTH_PUBLISHABLE_KEY }}
-          AUTH_URL: https://auth.wildedit.luminarimud.com
+          AUTH_URL: https://wildedit-auth.luminarimud.com
         run: |
           sleep 10
           echo "🔍 Verifying Chat Agent deployment..."

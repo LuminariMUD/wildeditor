@@ -85,7 +85,7 @@ jobs:
           ssh "$PRODUCTION_USER@$PRODUCTION_HOST" '
             set -eu
             cd /home/wildedit/self-hosted-auth
-            AUTH_PUBLIC_URL=https://auth.wildedit.luminarimud.com \
+            AUTH_PUBLIC_URL=https://wildedit-auth.luminarimud.com \
               AUTH_BACKUP_DIR=./backups \
               sh scripts/monitor.sh
           '

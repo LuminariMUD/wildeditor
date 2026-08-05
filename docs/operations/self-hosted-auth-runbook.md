@@ -10,8 +10,8 @@ profiles, and usage logs.
 
 | Item | Recorded value | State |
 | --- | --- | --- |
-| Production Auth hostname | `auth.wildedit.luminarimud.com` | Selected |
-| Auth API/issuer | `https://auth.wildedit.luminarimud.com/auth/v1` | Selected |
+| Production Auth hostname | `wildedit-auth.luminarimud.com` | Selected |
+| Auth API/issuer | `https://wildedit-auth.luminarimud.com/auth/v1` | Selected |
 | Hosting | Existing Wildeditor production host; gateway loopback port `8010` | Selected |
 | Signup | Invite-only (`DISABLE_SIGNUP=true`) | Selected |
 | Roles | `viewer`, `editor`, `admin`; this is a clean start, so assign the first approved accounts explicitly and keep the smallest practical admin set | Initial account/role assignment needed |
@@ -78,7 +78,8 @@ operator's `$HOME/bin`; workflows prepend that directory to `PATH`.
 SMTP credential locations are deliberately split:
 
 - `infrastructure/supabase/.env` (ignored, mode `0600`) contains the SMTP host,
-  port, username, and password consumed by GoTrue.
+  port, username, password, and SMTP2GO-verified From address consumed by
+  GoTrue.
 - The repository-root `.env` (ignored, mode `0600`) contains
   `SMTP2GO_API_KEY` for operator API access only. It is not an Auth runtime
   input and must not be deployed with the stack.
@@ -243,7 +244,7 @@ Configure an `age` recipient and off-host synchronization before production:
 
 ```sh
 AUTH_BACKUP_AGE_RECIPIENT='age1…' sh scripts/backup.sh
-AUTH_PUBLIC_URL='https://auth.wildedit.luminarimud.com' sh scripts/monitor.sh
+AUTH_PUBLIC_URL='https://wildedit-auth.luminarimud.com' sh scripts/monitor.sh
 ```
 
 Schedule backup daily and monitoring at least hourly (use a five-minute

@@ -242,9 +242,9 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_ACTOR: ${{ github.actor }}
         run: |
-          WILDEDITOR_AUTH_ISSUERS="${WILDEDITOR_AUTH_ISSUERS:-https://auth.wildedit.luminarimud.com/auth/v1}"
+          WILDEDITOR_AUTH_ISSUERS="${WILDEDITOR_AUTH_ISSUERS:-https://wildedit-auth.luminarimud.com/auth/v1}"
           case ",$WILDEDITOR_AUTH_ISSUERS," in
-            *,https://auth.wildedit.luminarimud.com/auth/v1,*) ;;
+            *,https://wildedit-auth.luminarimud.com/auth/v1,*) ;;
             *) echo "❌ Trusted issuers must include self-hosted production Auth"; exit 1 ;;
           esac
 
@@ -484,7 +484,7 @@ jobs:
             '    service: http://127.0.0.1:8000' \
             '  - hostname: wildedit-chat.luminarimud.com' \
             '    service: http://127.0.0.1:8002' \
-            '  - hostname: auth.wildedit.luminarimud.com' \
+            '  - hostname: wildedit-auth.luminarimud.com' \
             '    service: http://127.0.0.1:8010' \
             '  - service: http_status:404' \
             | ssh \
