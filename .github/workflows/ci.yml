@@ -285,8 +285,8 @@ jobs:
           
       - name: Synchronize Netlify build environment
         run: |
-          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" env:set VITE_API_URL "$VITE_API_URL" --context production --scope builds --force --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
-          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" env:set VITE_CHAT_API_URL "$VITE_CHAT_API_URL" --context production --scope builds --force --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
+          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" env:set VITE_API_URL "$VITE_API_URL" --context production --force --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
+          npx --yes "netlify-cli@${NETLIFY_CLI_VERSION}" env:set VITE_CHAT_API_URL "$VITE_CHAT_API_URL" --context production --force --filter=@wildeditor/frontend --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
         env:
           VITE_API_URL: ${{ secrets.PROD_API_URL || env.PROD_API_FALLBACK }}
           VITE_CHAT_API_URL: ${{ env.PROD_CHAT_URL }}
