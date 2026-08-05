@@ -78,7 +78,8 @@ operator's `$HOME/bin`; workflows prepend that directory to `PATH`.
 SMTP credential locations are deliberately split:
 
 - `infrastructure/supabase/.env` (ignored, mode `0600`) contains the SMTP host,
-  port, username, and password consumed by GoTrue.
+  port, username, password, and SMTP2GO-verified From address consumed by
+  GoTrue.
 - The repository-root `.env` (ignored, mode `0600`) contains
   `SMTP2GO_API_KEY` for operator API access only. It is not an Auth runtime
   input and must not be deployed with the stack.

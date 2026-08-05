@@ -34,8 +34,9 @@ Wildeditor game/wilderness data remains exclusively in MariaDB.
 ## Credential locations
 
 - `infrastructure/supabase/.env` is the ignored, mode-`0600` Auth runtime
-  environment. SMTP delivery uses `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, and
-  `SMTP_PASS` from this file.
+  environment. SMTP delivery uses `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
+  `SMTP_PASS`, and `SMTP_ADMIN_EMAIL` from this file. `SMTP_ADMIN_EMAIL` must
+  be an address approved under SMTP2GO **Sending → Verified Senders**.
 - The repository-root `.env` is the ignored, mode-`0600` operator environment.
   `SMTP2GO_API_KEY` lives there for SMTP2GO API administration only; GoTrue
   does not use it and it must not be copied into this stack.
