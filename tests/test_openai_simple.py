@@ -29,7 +29,7 @@ async def test_openai():
                 {"role": "user", "content": "Say 'Hello, the API key works!' if you can hear me."}
             ],
             max_tokens=50,
-            temperature=0.7
+            reasoning_effort="none",
         )
         
         message = response.choices[0].message.content

@@ -90,9 +90,7 @@ echo "3. Test the MCP server at http://$PRODUCTION_HOST:8001/health"
 echo ""
 echo "AI Features enabled:"
 echo "- Model: $OPENAI_MODEL"
-echo "- Max tokens: 500"
-echo "- Temperature: 0.7"
-echo "- Rate limits: 60/min, 1000/hour"
+echo "- Reasoning effort: none"
 echo ""
 
 # Save configuration to file for reference

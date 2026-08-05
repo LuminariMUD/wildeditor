@@ -92,9 +92,7 @@ async def main():
     
     print("\nConfiguration:")
     print("  Model: gpt-5.6-luna")
-    print(f"  Max tokens: 500")
-    print(f"  Temperature: 0.7")
-    print(f"  Cost: ~$0.15/1M input tokens, $0.60/1M output tokens")
+    print("  Reasoning effort: none")
     
     success = await test_openai()
     

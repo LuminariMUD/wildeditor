@@ -24,7 +24,8 @@ try:
         messages=[
             {"role": "user", "content": "Say 'test successful' if you can hear me"}
         ],
-        max_tokens=10
+        max_tokens=10,
+        reasoning_effort="none",
     )
     
     print("✅ OpenAI API key is valid!")
