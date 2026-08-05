@@ -10,8 +10,8 @@ profiles, and usage logs.
 
 | Item | Recorded value | State |
 | --- | --- | --- |
-| Production Auth hostname | `auth.wildedit.luminarimud.com` | Selected |
-| Auth API/issuer | `https://auth.wildedit.luminarimud.com/auth/v1` | Selected |
+| Production Auth hostname | `wildedit-auth.luminarimud.com` | Selected |
+| Auth API/issuer | `https://wildedit-auth.luminarimud.com/auth/v1` | Selected |
 | Hosting | Existing Wildeditor production host; gateway loopback port `8010` | Selected |
 | Signup | Invite-only (`DISABLE_SIGNUP=true`) | Selected |
 | Roles | `viewer`, `editor`, `admin`; this is a clean start, so assign the first approved accounts explicitly and keep the smallest practical admin set | Initial account/role assignment needed |
@@ -243,7 +243,7 @@ Configure an `age` recipient and off-host synchronization before production:
 
 ```sh
 AUTH_BACKUP_AGE_RECIPIENT='age1…' sh scripts/backup.sh
-AUTH_PUBLIC_URL='https://auth.wildedit.luminarimud.com' sh scripts/monitor.sh
+AUTH_PUBLIC_URL='https://wildedit-auth.luminarimud.com' sh scripts/monitor.sh
 ```
 
 Schedule backup daily and monitoring at least hourly (use a five-minute

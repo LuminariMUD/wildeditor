@@ -26,7 +26,7 @@ Wildeditor production boundary on top:
 5. Run `sh scripts/validate-config.sh`.
 6. Start the supported Auth runtime with `sh run.sh start`.
 7. Point the TLS/Cloudflare tunnel hostname at `http://127.0.0.1:8010`.
-8. Run `sh scripts/smoke.sh https://auth.wildedit.luminarimud.com`.
+8. Run `sh scripts/smoke.sh https://wildedit-auth.luminarimud.com`.
 
 Do not run the legacy SQL under the repository root `supabase/migrations/`.
 Wildeditor game/wilderness data remains exclusively in MariaDB.
@@ -58,7 +58,7 @@ sh run.sh start
 sh run.sh logs auth
 sh scripts/backup.sh
 sh scripts/monitor.sh
-sh scripts/smoke.sh https://auth.wildedit.luminarimud.com
+sh scripts/smoke.sh https://wildedit-auth.luminarimud.com
 ```
 
 See `docs/operations/self-hosted-auth-runbook.md` for backup restore, migration,

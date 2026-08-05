@@ -79,8 +79,8 @@ use_local_auth_origin() {
   external_url=$1
   case "$external_url" in
     "$base_url"/auth/v1/verify\?*) printf '%s' "$external_url" ;;
-    https://auth.wildedit.luminarimud.com/auth/v1/verify\?*)
-      printf '%s%s' "$base_url" "${external_url#https://auth.wildedit.luminarimud.com}"
+    https://wildedit-auth.luminarimud.com/auth/v1/verify\?*)
+      printf '%s%s' "$base_url" "${external_url#https://wildedit-auth.luminarimud.com}"
       ;;
     *)
       echo "Auth email contained an unexpected verification origin" >&2

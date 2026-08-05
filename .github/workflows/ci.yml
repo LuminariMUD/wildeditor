@@ -14,7 +14,7 @@ env:
   NETLIFY_CLI_VERSION: '27.1.0'
   PROD_API_URL: 'https://wildedit-api.luminarimud.com/api'
   PROD_CHAT_URL: 'https://wildedit-chat.luminarimud.com'
-  PROD_AUTH_URL: 'https://auth.wildedit.luminarimud.com'
+  PROD_AUTH_URL: 'https://wildedit-auth.luminarimud.com'
   PROD_AUTH_CALLBACK_URL: 'https://wildedit.luminarimud.com/auth/callback'
   PROD_RECOVERY_URL: 'https://wildedit.luminarimud.com/reset-password'
   LUMINARI_SCHEMA_REF: 'cb8748a4adc862b7aef909c245b725bf4592ee48'

@@ -42,7 +42,7 @@ if [[ -n "${SELF_HOSTED_AUTH_PUBLISHABLE_KEY:-}" ]]; then
   set_secret SELF_HOSTED_AUTH_PUBLISHABLE_KEY "$SELF_HOSTED_AUTH_PUBLISHABLE_KEY"
 fi
 
-self_hosted_auth_url=${SELF_HOSTED_AUTH_URL:-https://auth.wildedit.luminarimud.com}
+self_hosted_auth_url=${SELF_HOSTED_AUTH_URL:-https://wildedit-auth.luminarimud.com}
 set_secret SELF_HOSTED_AUTH_URL "$self_hosted_auth_url"
 
 echo "Installed separated MCP, backend-service, Redis, and Auth URL secrets."
