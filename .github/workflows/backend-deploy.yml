@@ -620,9 +620,15 @@ jobs:
     steps:
       - name: Log deployment result
         run: |
-          if [ "${{ needs.deploy-production.result }}" == "success" ]; then
-            echo "🚀 Wildeditor Backend deployed successfully!"
-          else
-            echo "❌ Wildeditor Backend deployment failed!"
-            exit 1
-          fi
+          case "${{ needs.deploy-production.result }}" in
+            success)
+              echo "🚀 Wildeditor Backend deployed successfully!"
+              ;;
+            skipped)
+              echo "Backend deployment was intentionally gated."
+              ;;
+            *)
+              echo "❌ Wildeditor Backend deployment failed!"
+              exit 1
+              ;;
+          esac
