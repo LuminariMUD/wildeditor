@@ -11,7 +11,7 @@ env:
   NPM_VERSION: '12.0.2'
   AUDIT_CI_VERSION: '7.1.0'
   NETLIFY_CLI_VERSION: '27.1.0'
-  PROD_API_FALLBACK: 'https://api.wildedit.luminarimud.com/api'
+  PROD_API_FALLBACK: 'https://wildedit-api.luminarimud.com/api'
   PROD_CHAT_URL: 'https://luminarimud.com/chat'
 
 jobs:

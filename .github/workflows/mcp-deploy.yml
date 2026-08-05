@@ -394,6 +394,7 @@ jobs:
           echo "Executing MCP deployment script on server..."
           ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
             chmod +x /tmp/deploy-mcp.sh
+            trap 'rm -f /tmp/deploy-mcp.sh' EXIT
             export MCP_KEY='$WILDEDITOR_MCP_KEY'
             export MCP_BACKEND_KEY='$WILDEDITOR_API_KEY'
             export AI_PROVIDER='${AI_PROVIDER:-none}'

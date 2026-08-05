@@ -16,7 +16,7 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 API_KEY = sys.argv[1]
-BASE_URL = "https://api.wildedit.luminarimud.com/api"
+BASE_URL = "https://wildedit-api.luminarimud.com/api"
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}",
     "Content-Type": "application/json"

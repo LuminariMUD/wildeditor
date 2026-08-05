@@ -238,6 +238,7 @@ jobs:
           echo "🚀 Executing deployment on server..."
           ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
             chmod +x /tmp/deploy-agent.sh
+            trap 'rm -f /tmp/deploy-agent.sh' EXIT
             export AI_PROVIDER='${AI_PROVIDER:-openai}'
             export OPENAI_API_KEY='$OPENAI_API_KEY'
             export ANTHROPIC_API_KEY='$ANTHROPIC_API_KEY'

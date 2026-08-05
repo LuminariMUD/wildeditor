@@ -1,21 +1,26 @@
 import { Region, Path } from '@wildeditor/shared/types';
 
-// Force HTTPS for production domains - no HTTP allowed for wildedit.luminarimud.com
+const PRODUCTION_API_URL = 'https://wildedit-api.luminarimud.com/api';
+const PRODUCTION_API_HOSTS = [
+  'wildedit-api.luminarimud.com',
+  'api.wildedit.luminarimud.com',
+];
+
+// Force HTTPS for production API domains.
 const getApiUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL;
   
   // If environment variable is set
   if (envUrl) {
-    // Force HTTPS for any wildedit.luminarimud.com domain
-    if (envUrl.includes('wildedit.luminarimud.com') && envUrl.startsWith('http:')) {
-      console.warn('[API] Forcing HTTPS for wildedit.luminarimud.com domain');
+    if (envUrl.startsWith('http:') && PRODUCTION_API_HOSTS.some(host => envUrl.includes(host))) {
+      console.warn('[API] Forcing HTTPS for production API domain');
       return envUrl.replace('http:', 'https:');
     }
     return envUrl;
   }
   
   // Default to HTTPS production API
-  return 'https://api.wildedit.luminarimud.com/api';
+  return PRODUCTION_API_URL;
 };
 
 const API_BASE_URL = getApiUrl();

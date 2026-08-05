@@ -5,6 +5,7 @@ on:
     branches: [ main, develop ]
     paths:
       - 'apps/backend/**'
+      - 'scripts/deploy-wildeditor-tunnel.sh'
       - '.github/workflows/backend-deploy.yml'
   pull_request:
     branches: [ main, develop ]
@@ -15,6 +16,7 @@ env:
   PYTHON_VERSION: '3.14.6'
   DOCKER_IMAGE: 'wildeditor-backend'
   REGISTRY: 'ghcr.io'
+  CLOUDFLARED_IMAGE: 'cloudflare/cloudflared@sha256:e39ee8da81ad5e05d77f38d2f51c60ca51bf2a8450ac3abab50c17fdb91d91bf'
   # Alternative: Use Docker Hub instead
   # REGISTRY: 'docker.io'
   # DOCKER_HUB_USERNAME: 'your-dockerhub-username'
@@ -431,9 +433,66 @@ jobs:
           echo "Executing deployment script on server..."
           ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
             chmod +x /tmp/deploy.sh
+            trap 'rm -f /tmp/deploy.sh' EXIT
             /tmp/deploy.sh
           "
-          
+
+      - name: Ensure Cloudflare tunnel
+        env:
+          TUNNEL_CREDENTIALS_B64: ${{ secrets.CLOUDFLARE_TUNNEL_CREDENTIALS_B64 }}
+          TUNNEL_ID: ${{ vars.CLOUDFLARE_TUNNEL_ID }}
+        run: |
+          test -n "$TUNNEL_CREDENTIALS_B64"
+          test -n "$TUNNEL_ID"
+
+          printf '%s' "$TUNNEL_CREDENTIALS_B64" | ssh \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} '
+              set -e
+              umask 077
+              mkdir -p "$HOME/.cloudflared"
+              chmod 700 "$HOME/.cloudflared"
+              base64 -d > "$HOME/.cloudflared/wildeditor-api.json.new"
+              chmod 600 "$HOME/.cloudflared/wildeditor-api.json.new"
+              mv "$HOME/.cloudflared/wildeditor-api.json.new" "$HOME/.cloudflared/wildeditor-api.json"
+            '
+
+          printf '%s\n' \
+            "tunnel: $TUNNEL_ID" \
+            'credentials-file: /etc/cloudflared/credentials.json' \
+            'ingress:' \
+            '  - hostname: wildedit-api.luminarimud.com' \
+            '    service: http://127.0.0.1:8000' \
+            '  - service: http_status:404' \
+            | ssh \
+                -o StrictHostKeyChecking=no \
+                -o ConnectTimeout=30 \
+                ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} '
+                  set -e
+                  umask 077
+                  cat > "$HOME/.cloudflared/wildeditor-api.yml.new"
+                  chmod 600 "$HOME/.cloudflared/wildeditor-api.yml.new"
+                  mv "$HOME/.cloudflared/wildeditor-api.yml.new" "$HOME/.cloudflared/wildeditor-api.yml"
+                '
+
+          scp \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            scripts/deploy-wildeditor-tunnel.sh \
+            ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:/tmp/
+
+          ssh \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} "
+              set -e
+              chmod +x /tmp/deploy-wildeditor-tunnel.sh
+              trap 'rm -f /tmp/deploy-wildeditor-tunnel.sh' EXIT
+              export CLOUDFLARED_IMAGE='${{ env.CLOUDFLARED_IMAGE }}'
+              /tmp/deploy-wildeditor-tunnel.sh
+            "
+
       - name: Verify deployment
         env:
           WILDEDITOR_API_KEY: ${{ secrets.WILDEDITOR_API_KEY }}
@@ -474,23 +533,16 @@ jobs:
             exit 1
           fi
           
-          # Secondary verification: Test external connectivity (informational only)
+          # Public verification through the TLS-secured Cloudflare tunnel.
           echo ""
-          echo "🌐 Testing external connectivity (informational only)..."
-          if timeout 10 bash -c "echo >/dev/tcp/${{ secrets.PRODUCTION_HOST }}/8000" 2>/dev/null; then
-            echo "✅ Port 8000 is reachable from external networks"
-            
-            # Try the actual health endpoint from outside
-            if curl -s -f --connect-timeout 10 --max-time 30 "http://${{ secrets.PRODUCTION_HOST }}:8000/api/health" >/dev/null 2>&1; then
-              echo "✅ External API health check also passed!"
-            else
-              echo "⚠️  External API health check failed, but server-side health check passed"
-              echo "This might be due to firewall/network configuration - the application is working correctly"
-            fi
+          echo "🌐 Testing public HTTPS connectivity..."
+          if curl -fsS --connect-timeout 10 --max-time 30 \
+            "https://wildedit-api.luminarimud.com/api/health" \
+            | grep -q '"status":"healthy"'; then
+            echo "✅ Public HTTPS API health check passed"
           else
-            echo "⚠️  Port 8000 is not reachable from external networks"
-            echo "This might be due to firewall/network configuration - the application is working correctly"
-            echo "Server-side verification passed, so the deployment is successful"
+            echo "❌ Public HTTPS API health check failed"
+            exit 1
           fi
           
           echo ""
@@ -502,9 +554,9 @@ jobs:
         with:
           script: |
             const output = `#### 🚀 Backend Deployment Successful!\n
-            - **Environment**: Development
+            - **Environment**: Production
             - **Version**: \`${{ github.sha }}\`
-            - **API URL**: http://${{ secrets.PRODUCTION_HOST }}:8000
+            - **API URL**: https://wildedit-api.luminarimud.com/api
             - **Health Check**: ✅ Passing
             - **Authentication**: 🔐 API Key Required
             - **Deployed by**: @${{ github.actor }}
@@ -514,7 +566,7 @@ jobs:
             **For Administrators:**
             - Use the configured API key to access write operations
             - Read operations are publicly accessible
-            - Test authentication: \`curl -H "Authorization: Bearer YOUR_API_KEY" http://${{ secrets.PRODUCTION_HOST }}:8000/api/auth/status\``;
+            - Test authentication: \`curl -H "Authorization: Bearer YOUR_API_KEY" https://wildedit-api.luminarimud.com/api/auth/status\``;
             
             github.rest.repos.createCommitComment({
               owner: context.repo.owner,
