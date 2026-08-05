@@ -1,6 +1,6 @@
 # Wildeditor Agent Guide
 
-Context is important whether this is local dev vs remote production, check `.env` for that detail and ssh-access when needed.
+Context is important whether this is local dev vs remote production, check `.env` for that detail and ssh-access when needed.  Also Cloudflare creds are in that file if needed.
 
 ## Ground truth
 
