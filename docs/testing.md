@@ -44,7 +44,14 @@ The MCP workflow also imports `src.main`, starts Uvicorn briefly, checks `/healt
 
 ## Chat agent
 
-There is no focused `apps/agent/tests/` suite in the current repository. At minimum, validate import/startup in an isolated environment with a test provider configuration and check:
+```bash
+(cd apps/agent && PYTHONPATH=src:../../packages/auth/src python -m pytest tests/ --tb=short)
+```
+
+The focused suite covers JWT/role behavior, session ownership, trusted MCP
+audit context, configuration, and Redis storage. Provider behavior and the live
+service chain still require an isolated startup or integration environment.
+Check:
 
 ```text
 GET /health/

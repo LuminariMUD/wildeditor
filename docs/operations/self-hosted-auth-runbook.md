@@ -1,12 +1,12 @@
 # Wildeditor self-hosted Auth runbook
 
-This runbook is the operational contract for moving Wildeditor identity from
-managed Supabase to the pinned self-hosted stack in
+This runbook is the operational contract for Wildeditor identity on the pinned
+self-hosted stack in
 `infrastructure/supabase/`. It does not move game data: LuminariMUD MariaDB
 remains the sole authority for wilderness regions, paths, points, hints,
 profiles, and usage logs.
 
-## Recorded decisions and open gates
+## Recorded production decisions
 
 | Item | Recorded value | State |
 | --- | --- | --- |

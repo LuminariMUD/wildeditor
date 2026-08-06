@@ -8,7 +8,7 @@ Base URL: `http://localhost:8000/api`
 
 | Group | Routes | Purpose |
 | --- | --- | --- |
-| Health/auth | `GET /health`, `GET /auth/status` | Process health and backend-key verification |
+| Health/auth | `GET /health`, `GET /auth/status` | Process health and typed-principal verification |
 | Regions | `/regions`, `/regions/{vnum}`, `/regions/types`, `/regions/landmarks` | Region listing, detail, type metadata, and CRUD |
 | Paths | `/paths`, `/paths/{vnum}`, `/paths/types` | Path listing, detail, type metadata, and CRUD |
 | Points | `GET /points?x=...&y=...` | Regions and paths intersecting a coordinate |
@@ -21,12 +21,23 @@ Backend OpenAPI is currently available at `/docs`, `/redoc`, and `/openapi.json`
 
 ### Authentication
 
-- Region/path `POST`, `PUT`, and `DELETE` routes require the backend Bearer key when `REQUIRE_AUTH=true`.
-- Terrain and wilderness data routes declare the same Bearer dependency. `GET /terrain/health` is public; the wilderness router has no separate health endpoint.
-- Core region/path/point reads and the current region-hint routes do not consistently enforce authentication.
-- MCP proxy routes currently have no backend authentication dependency of their own.
+Except for process/terrain health, application-data routes require
+`Authorization: Bearer <credential>`. Human credentials are self-hosted Auth
+access tokens whose protected role is `viewer`, `editor`, or `admin`. The
+backend also accepts the distinct server-only `service` principal where MCP
+must reach backend data.
 
-This mixed state is a known limitation, not an authorization policy to emulate. See [Configuration](configuration.md) and the [active authentication migration plan](ongoing-projects/self-hosted-postgres-auth-migration-plan.md).
+| Surface | `viewer` | `editor` / `admin` | `service` |
+| --- | --- | --- | --- |
+| Region, path, point, terrain, wilderness, hint, and profile reads | Allow | Allow | Allow |
+| Region, path, hint, and profile mutations | Deny | Allow | Allow |
+| Backend MCP proxy | Deny | Allow | Deny |
+| Chat session, message, and history routes | Deny | Allow, subject to session ownership | Deny |
+
+Missing or invalid credentials return `401`; a valid principal without the
+required role returns `403`. `REQUIRE_AUTH=false` bypasses these checks only
+when `WILDEDITOR_ENVIRONMENT=local-development`. See
+[Configuration](configuration.md) for the exact trust settings.
 
 ### Contract changes
 
@@ -80,7 +91,10 @@ Base URL: `http://localhost:8002`
 | Sessions | `POST /api/session/`, `GET/DELETE /api/session/{session_id}`, `PUT .../context`, `POST .../extend` |
 | Chat | `POST /api/chat/message`, `POST /api/chat/stream`, `GET /api/chat/history`, `DELETE /api/chat/history/{session_id}` |
 
-The service's OpenAPI UI is at `/docs`. These routes currently have no user-authentication dependency; use only in a trusted development/network boundary until principal validation and session ownership are implemented.
+The service's OpenAPI UI is at `/docs`. Every session, message, and history
+route requires an editor/admin JWT. Session ownership is derived from the token
+subject and checked on read, update, extension, deletion, and history access.
+The agent does not accept a service credential on browser-facing routes.
 
 ## Error behavior
 

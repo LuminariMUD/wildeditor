@@ -30,16 +30,24 @@ Maintainers will assess the report and coordinate remediation and disclosure acc
 
 Deployment owners must review [configuration](docs/configuration.md) and [architecture](docs/architecture.md) before exposing the system to a network. In particular:
 
-- frontend authentication and backend authorization are not yet aligned end to end;
-- a Vite `VITE_*` value is compiled into the browser bundle and cannot be treated as a secret;
-- chat routes do not currently enforce user authentication or session ownership;
-- MCP operations use a shared `X-API-Key`, and backend mutations use Bearer API-key checks;
-- the backend MCP proxy and several legacy root probes contain credential-like literal defaults that must be treated as exposed and removed before reuse;
-- the backend validation-error handler currently logs rejected request bodies;
+- the browser sends self-hosted Auth user tokens to backend and chat; it must
+  never receive a backend, MCP, database, signing, or administrative secret;
+- backend and chat validate exact-issuer asymmetric JWTs and protected roles;
+  chat additionally enforces token-subject session ownership;
+- MCP operations use an independent `X-API-Key`, while MCP-to-backend calls use
+  a distinct server-only Bearer service principal;
+- a Vite `VITE_*` value is compiled into the browser bundle and must always be
+  treated as public configuration;
+- several legacy root probes contain credential-like literal defaults that
+  must be treated as exposed and removed before reuse;
+- backend validation errors omit rejected input values from logs and responses;
 - development authentication bypasses must never be enabled in public environments;
 - CORS, TLS termination, rate limiting, secret storage, database least privilege, monitoring, and backups are deployment responsibilities unless the active configuration proves otherwise.
 
-The proposed authentication remediation is tracked in [the self-hosted authentication migration plan](docs/ongoing-projects/self-hosted-postgres-auth-migration-plan.md). A proposal is not an implemented control.
+The architectural decision is recorded in
+[ADR-003](docs/adr/003-hybrid-datastores-and-self-hosted-auth.md); production
+controls and recovery procedures are in the
+[self-hosted Auth runbook](docs/operations/self-hosted-auth-runbook.md).
 
 ## Handling secrets
 

@@ -1,10 +1,12 @@
 # Wildeditor
 
-**Version: 0.4.29**
+**Version: 0.4.31**
 
 Wildeditor is a browser-based editor for LuminariMUD wilderness data. It combines a React map editor, a FastAPI REST API, an MCP/JSON-RPC facade, and an optional AI chat service in one repository.
 
-> **Project status:** pre-release and under active development. The current browser-to-API authentication design has known security gaps; do not expose a deployment to untrusted users until the [authentication migration plan](docs/ongoing-projects/self-hosted-postgres-auth-migration-plan.md) is complete.
+> **Project status:** pre-release and under active development. Networked
+> deployments require the documented self-hosted Auth, service credentials,
+> private database boundaries, and operator controls.
 
 ## What it does
 
@@ -26,6 +28,7 @@ React frontend (:5173) ────────────────> Backend
                   └────> memory or Redis session storage
 
 React frontend ──> Supabase Auth (browser authentication)
+Supabase Auth ──> PostgreSQL (identity only)
 ```
 
 The service boundary is intentional: the chat agent calls MCP, and MCP calls the backend. See [Architecture](docs/architecture.md) for ownership, trust boundaries, and data flow.
@@ -39,7 +42,7 @@ The service boundary is intentional: the chat agent calls MCP, and MCP calls the
 | `apps/mcp/` | FastAPI MCP/JSON-RPC facade and AI-assisted wilderness tools |
 | `apps/agent/` | FastAPI chat/session service backed by MCP |
 | `packages/shared/` | Shared frontend domain contracts |
-| `packages/auth/` | Shared Python API-key authentication used by MCP |
+| `packages/auth/` | Shared Python principals, JWT/service authentication, and MCP API-key authentication |
 | `docs/` | Current documentation, ADRs, active plans, and archive |
 
 ## Quick start

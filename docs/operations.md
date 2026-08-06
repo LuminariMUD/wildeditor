@@ -1,6 +1,10 @@
 # Operations
 
-Wildeditor has basic service health checks and container restart behavior, but the repository does not currently define a complete monitoring, backup, or disaster-recovery platform. Operators must supply and test those controls for their environment.
+Wildeditor defines service health checks plus dedicated monitoring, encrypted
+backup, and clean-restore automation for self-hosted Auth. It does not define a
+complete monitoring or disaster-recovery platform for LuminariMUD MariaDB and
+the remaining application services; operators must supply and test those
+controls for their environment.
 
 ## Health and readiness
 
@@ -70,7 +74,10 @@ Do not use a Supabase migration or PostgreSQL restore procedure for MySQL wilder
 5. Verify health, authentication, read paths, then controlled writes.
 6. Re-enable traffic and monitor for recurrence.
 
-RPO, RTO, backup retention, escalation contacts, and communication channels are deployment decisions not defined in the repository. Record them in the operator's private runbook before calling an environment production-ready.
+Self-hosted Auth's RPO, RTO, retention, and recovery owner are recorded in its
+dedicated runbook. Define the corresponding objectives, escalation contacts,
+and communication channels for MariaDB and the remaining services in the
+operator's private runbook before calling an environment production-ready.
 
 ## Troubleshooting sequence
 

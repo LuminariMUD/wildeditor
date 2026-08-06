@@ -38,8 +38,9 @@ No functional frontend test runner is configured. The workspace `test` script is
 `VITE_` variables are public. The browser sends a user's short-lived access
 token to protected APIs and contains no backend or MCP service credential. The
 self-hosted Auth publishable key is intentionally public. See
-[Configuration](../../docs/configuration.md) and the
-[authentication migration plan](../../docs/ongoing-projects/self-hosted-postgres-auth-migration-plan.md).
+[Configuration](../../docs/configuration.md),
+[Architecture](../../docs/architecture.md), and the
+[self-hosted Auth runbook](../../docs/operations/self-hosted-auth-runbook.md).
 
 ## Further reading
 

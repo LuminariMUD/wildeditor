@@ -70,11 +70,12 @@ If chat is unhealthy, core map editing can still work. Check the agent readiness
 
 ## Current limitations
 
-- Browser login and backend authorization are not yet an end-to-end user identity system.
-- Mutation API keys are currently embedded in frontend builds.
-- Chat endpoints do not yet enforce authenticated session ownership.
 - Save All is not a database transaction across every draft.
 - Discard does not currently retain an original snapshot for reliable in-memory rollback.
 - There is no offline mode or conflict-resolution workflow for concurrent editors.
 
-Use trusted development or restricted network environments until the authentication migration and authorization work are complete.
+Browser, backend, and chat identity is end to end: protected APIs receive the
+current user token, roles come from protected claims, and chat sessions are
+bound to the token subject. Networked deployments still require the TLS,
+private-database, secret-storage, backup, and monitoring controls described in
+[Configuration](configuration.md) and [Operations](operations.md).

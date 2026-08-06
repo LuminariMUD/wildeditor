@@ -1,7 +1,7 @@
 {
   "name": "luminari-wilderness-editor",
   "description": "A modern web-based visual editor for creating and managing wilderness regions, paths, and landmarks in the LuminariMUD game world",
-  "version": "0.4.30",
+  "version": "0.4.31",
   "private": true,
   "type": "module",
   "author": {
