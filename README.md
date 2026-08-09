@@ -8,6 +8,17 @@ Wildeditor is a browser-based editor for LuminariMUD wilderness data. It combine
 > deployments require the documented self-hosted Auth, service credentials,
 > private database boundaries, and operator controls.
 
+## LuminariMUD Eco-System
+
+What we call the "Lumiverse":
+
+- [LuminariMUD game server](https://github.com/LuminariMUD/Luminari-Source)
+- [Sage GraphRAG lore and world building](https://github.com/LuminariMUD/sage)
+- [Luminari web client](https://github.com/LuminariMUD/luminariweb)
+- [InterMUD-3 client](https://github.com/LuminariMUD/Intermud3)
+- [Discord bridge](https://github.com/LuminariMUD/discord-mud-chat)
+- [Mudlet interface](https://github.com/LuminariMUD/LuminariGUI)
+
 ## What it does
 
 - Draws, edits, and deletes wilderness regions and paths in the `-1024..1024` coordinate space.
