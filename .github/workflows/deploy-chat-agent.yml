@@ -1,13 +1,8 @@
 name: Deploy Chat Agent
 
+# Manual only: the chat agent is taken down on the production host (2026-10-09),
+# so pushes must not recreate it. Restore the push trigger to resume deploys.
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'apps/agent/**'
-      - 'packages/auth/**'
-      - '.github/workflows/deploy-chat-agent.yml'
   workflow_dispatch:
 
 env:
